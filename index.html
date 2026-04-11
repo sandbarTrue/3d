@@ -103,191 +103,192 @@ const pl2 = new THREE.PointLight(0x60a5fa, 3, 10);
 const pl3 = new THREE.PointLight(0xf472b6, 3, 10);
 scene.add(pl1, pl2, pl3);
 
-// ═══ NOISE FUNCTIONS (GLSL) ═════════════════════════════
-const NOISE_GLSL = `
-// Simplex-style noise via sin combinations
-vec3 mod289(vec3 x){ return x - floor(x * (1.0/289.0)) * 289.0; }
-vec4 mod289(vec4 x){ return x - floor(x * (1.0/289.0)) * 289.0; }
-vec4 permute(vec4 x){ return mod289(((x*34.0)+10.0)*x); }
-vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
+// ═══ RICH ENVIRONMENT MAP ═══════════════════════════════
+// Multiple colored light spots for visible reflections on surfaces
+function createRichEnv() {
+  const envScene = new THREE.Scene();
+  const envMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    vertexShader: `varying vec3 vPos; void main(){ vPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader: `
+      varying vec3 vPos;
+      void main(){
+        vec3 d = normalize(vPos);
+        float t = d.y * 0.5 + 0.5;
+        // Base sky gradient
+        vec3 col = mix(vec3(0.03, 0.02, 0.08), vec3(0.05, 0.02, 0.15), t);
+        // Warm purple top-right light
+        col += vec3(0.6, 0.3, 0.8) * pow(max(dot(d, normalize(vec3(0.6, 0.7, 0.4))), 0.0), 12.0) * 2.5;
+        // Cool blue left light
+        col += vec3(0.3, 0.5, 0.9) * pow(max(dot(d, normalize(vec3(-0.7, 0.3, 0.5))), 0.0), 10.0) * 2.0;
+        // Pink rim from below-behind
+        col += vec3(0.9, 0.3, 0.5) * pow(max(dot(d, normalize(vec3(0.0, -0.5, -0.8))), 0.0), 8.0) * 1.5;
+        // Cyan accent
+        col += vec3(0.2, 0.7, 0.6) * pow(max(dot(d, normalize(vec3(-0.3, 0.5, -0.6))), 0.0), 15.0) * 1.8;
+        // Warm horizon band
+        float horizon = exp(-20.0 * d.y * d.y);
+        col += vec3(0.12, 0.05, 0.18) * horizon;
+        // Gold accent top
+        col += vec3(0.5, 0.35, 0.1) * pow(max(dot(d, normalize(vec3(0.2, 0.9, -0.2))), 0.0), 20.0) * 1.2;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 64, 64), envMat));
+  const pm = new THREE.PMREMGenerator(renderer);
+  pm.compileCubemapShader();
+  const envMap = pm.fromScene(envScene, 0, 0.1, 100).texture;
+  pm.dispose();
+  return envMap;
+}
+const envMap = createRichEnv();
+scene.environment = envMap;
 
+// ═══ NOISE (GLSL) for onBeforeCompile injection ════════
+const NOISE_GLSL = `
+vec3 mod289_n(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
+vec4 mod289_n(vec4 x){ return x - floor(x*(1.0/289.0))*289.0; }
+vec4 permute_n(vec4 x){ return mod289_n(((x*34.0)+10.0)*x); }
+vec4 taylorInvSqrt_n(vec4 r){ return 1.79284291400159 - 0.85373472095314*r; }
 float snoise(vec3 v){
-  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-  vec3 i = floor(v + dot(v, C.yyy));
-  vec3 x0 = v - i + dot(i, C.xxx);
-  vec3 g = step(x0.yzx, x0.xyz);
-  vec3 l = 1.0 - g;
-  vec3 i1 = min(g.xyz, l.zxy);
-  vec3 i2 = max(g.xyz, l.zxy);
-  vec3 x1 = x0 - i1 + C.xxx;
-  vec3 x2 = x0 - i2 + C.yyy;
-  vec3 x3 = x0 - D.yyy;
-  i = mod289(i);
-  vec4 p = permute(permute(permute(
-    i.z + vec4(0.0, i1.z, i2.z, 1.0))
-  + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-  + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-  float n_ = 0.142857142857;
-  vec3 ns = n_ * D.wyz - D.xzx;
-  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-  vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_);
-  vec4 x = x_ * ns.x + ns.yyyy;
-  vec4 y = y_ * ns.x + ns.yyyy;
-  vec4 h = 1.0 - abs(x) - abs(y);
-  vec4 b0 = vec4(x.xy, y.xy);
-  vec4 b1 = vec4(x.zw, y.zw);
-  vec4 s0 = floor(b0)*2.0 + 1.0;
-  vec4 s1 = floor(b1)*2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.0));
-  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-  vec3 p0 = vec3(a0.xy, h.x);
-  vec3 p1 = vec3(a0.zw, h.y);
-  vec3 p2 = vec3(a1.xy, h.z);
-  vec3 p3 = vec3(a1.zw, h.w);
-  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
-  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-  vec4 m = max(0.5 - vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)), 0.0);
-  m = m * m;
-  return 105.0 * dot(m*m, vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+  const vec2 C=vec2(1.0/6.0,1.0/3.0);
+  const vec4 D=vec4(0,0.5,1,2);
+  vec3 i=floor(v+dot(v,C.yyy));
+  vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz);
+  vec3 l=1.0-g;
+  vec3 i1=min(g,l.zxy);
+  vec3 i2=max(g,l.zxy);
+  vec3 x1=x0-i1+C.xxx;
+  vec3 x2=x0-i2+C.yyy;
+  vec3 x3=x0-D.yyy;
+  i=mod289_n(i);
+  vec4 p=permute_n(permute_n(permute_n(
+    i.z+vec4(0,i1.z,i2.z,1))+i.y+vec4(0,i1.y,i2.y,1))+i.x+vec4(0,i1.x,i2.x,1));
+  float n_=0.142857142857;
+  vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z);
+  vec4 x_=floor(j*ns.z);
+  vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy;
+  vec4 y=y_*ns.x+ns.yyyy;
+  vec4 h=1.0-abs(x)-abs(y);
+  vec4 b0=vec4(x.xy,y.xy);
+  vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0;
+  vec4 s1=floor(b1)*2.0+1.0;
+  vec4 sh=-step(h,vec4(0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
+  vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x);
+  vec3 p1=vec3(a0.zw,h.y);
+  vec3 p2=vec3(a1.xy,h.z);
+  vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt_n(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+  vec4 m=max(0.5-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
+  m=m*m;
+  return 105.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
 }
 `;
 
 // ═══ HERO BLOB ══════════════════════════════════════════
-// This is the main attraction: a living, breathing organic shape
-// with rich gradient color, NOT transparent glass.
-const blobGeo = new THREE.IcosahedronGeometry(1.4, 6);  // high subdivision for smooth organic shape
+// MeshPhysicalMaterial + onBeforeCompile = PBR quality + organic deformation
+// This gives us REAL environment reflections + noise displacement.
+const blobGeo = new THREE.IcosahedronGeometry(1.4, 6);
+const blobTimeUniform = { value: 0 };
+const blobMouseUniform = { value: new THREE.Vector2(0, 0) };
 
-const blobMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uTime: { value: 0 },
-    uMouse: { value: new THREE.Vector2(0,0) },
-    uColor1: { value: new THREE.Color('#7c3aed') },  // deep purple
-    uColor2: { value: new THREE.Color('#3b82f6') },  // blue
-    uColor3: { value: new THREE.Color('#ec4899') },  // pink
-    uColor4: { value: new THREE.Color('#06b6d4') },  // cyan
-    uLightPos1: { value: new THREE.Vector3(4, 5, 4) },
-    uLightPos2: { value: new THREE.Vector3(-5, 1, 3) },
-    uLightPos3: { value: new THREE.Vector3(0, -2, -5) },
-    uCamPos: { value: camera.position },
-  },
-  vertexShader: `
-    ${NOISE_GLSL}
+const blobMat = new THREE.MeshPhysicalMaterial({
+  color: '#7c3aed',
+  metalness: 0.28,
+  roughness: 0.12,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.08,
+  envMapIntensity: 2.0,
+  iridescence: 0.9,
+  iridescenceIOR: 1.5,
+  iridescenceThicknessRange: [100, 800],
+  sheen: 0.8,
+  sheenRoughness: 0.25,
+  sheenColor: new THREE.Color('#f472b6'),
+  emissive: '#2e1065',
+  emissiveIntensity: 0.3,
+});
+
+blobMat.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = blobTimeUniform;
+  shader.uniforms.uMouse = blobMouseUniform;
+
+  // Inject noise + displacement into vertex shader
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <common>',
+    `#include <common>
     uniform float uTime;
     uniform vec2 uMouse;
-    varying vec3 vNormal;
-    varying vec3 vWorldPos;
-    varying float vDisp;
-    varying vec3 vOrigNormal;
+    ${NOISE_GLSL}
+    `
+  );
 
-    void main(){
-      vOrigNormal = normal;
-      vec3 pos = position;
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <begin_vertex>',
+    `#include <begin_vertex>
+    // Multi-octave organic deformation
+    float n1 = snoise(position * 1.2 + uTime * 0.3) * 0.35;
+    float n2 = snoise(position * 2.5 + uTime * 0.2 + 10.0) * 0.15;
+    float n3 = snoise(position * 5.0 + uTime * 0.15 + 20.0) * 0.05;
+    float disp = n1 + n2 + n3;
+    // Mouse reactive bulge
+    disp += dot(normalize(position.xy), uMouse) * 0.08;
+    transformed += normal * disp;
+    `
+  );
 
-      // Multi-octave noise displacement - creates organic blob feel
-      float n1 = snoise(pos * 1.2 + uTime * 0.3) * 0.35;
-      float n2 = snoise(pos * 2.5 + uTime * 0.2 + 10.0) * 0.15;
-      float n3 = snoise(pos * 5.0 + uTime * 0.15 + 20.0) * 0.05;
-      float disp = n1 + n2 + n3;
+  // Recompute normals after displacement
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <beginnormal_vertex>',
+    `#include <beginnormal_vertex>
+    // Finite-difference normal recomputation
+    float eps_n = 0.02;
+    vec3 tang = normalize(cross(objectNormal, vec3(0.0, 1.0, 0.01)));
+    vec3 bitang = normalize(cross(objectNormal, tang));
+    vec3 pT = position + tang * eps_n;
+    vec3 pB = position + bitang * eps_n;
+    float dT = snoise(pT*1.2+uTime*0.3)*0.35 + snoise(pT*2.5+uTime*0.2+10.0)*0.15 + snoise(pT*5.0+uTime*0.15+20.0)*0.05;
+    float dB = snoise(pB*1.2+uTime*0.3)*0.35 + snoise(pB*2.5+uTime*0.2+10.0)*0.15 + snoise(pB*5.0+uTime*0.15+20.0)*0.05;
+    float dC = snoise(position*1.2+uTime*0.3)*0.35 + snoise(position*2.5+uTime*0.2+10.0)*0.15 + snoise(position*5.0+uTime*0.15+20.0)*0.05;
+    vec3 displacedT = pT + objectNormal * dT;
+    vec3 displacedB = pB + objectNormal * dB;
+    vec3 displacedC = position + objectNormal * dC;
+    objectNormal = normalize(cross(displacedT - displacedC, displacedB - displacedC));
+    `
+  );
 
-      // Mouse influence - bulge toward mouse
-      float mouseInfluence = dot(normalize(pos.xy), uMouse) * 0.08;
-      disp += mouseInfluence;
-
-      pos += normal * disp;
-      vDisp = disp;
-
-      // Recompute normal via finite differences
-      float eps = 0.01;
-      vec3 tangent = normalize(cross(normal, vec3(0.0, 1.0, 0.01)));
-      vec3 bitangent = normalize(cross(normal, tangent));
-      vec3 posT = position + tangent * eps;
-      vec3 posB = position + bitangent * eps;
-      float dT = snoise(posT * 1.2 + uTime * 0.3) * 0.35 + snoise(posT * 2.5 + uTime * 0.2 + 10.0) * 0.15;
-      float dB = snoise(posB * 1.2 + uTime * 0.3) * 0.35 + snoise(posB * 2.5 + uTime * 0.2 + 10.0) * 0.15;
-      vec3 newPosT = posT + normal * dT;
-      vec3 newPosB = posB + normal * dB;
-      vNormal = normalize(cross(newPosT - pos, newPosB - pos));
-
-      vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float uTime;
-    uniform vec3 uColor1, uColor2, uColor3, uColor4;
-    uniform vec3 uLightPos1, uLightPos2, uLightPos3;
-    uniform vec3 uCamPos;
-    varying vec3 vNormal, vWorldPos, vOrigNormal;
-    varying float vDisp;
-
-    void main(){
-      vec3 N = normalize(vNormal);
-      vec3 V = normalize(uCamPos - vWorldPos);
-
-      // ── COLOR: 4-way gradient based on normal direction + displacement ──
-      // This creates the rich, flowing color that makes Spline objects pop
-      float ny = vOrigNormal.y * 0.5 + 0.5;
-      float nx = vOrigNormal.x * 0.5 + 0.5;
-      float dispFactor = vDisp * 1.5 + 0.5;
-
-      vec3 colA = mix(uColor1, uColor2, ny);
-      vec3 colB = mix(uColor3, uColor4, nx);
-      vec3 baseColor = mix(colA, colB, dispFactor * 0.5 + 0.25);
-
-      // Animate the color blend slightly
-      baseColor = mix(baseColor, uColor3, sin(vDisp * 4.0 + uTime * 0.5) * 0.15 + 0.15);
-
-      // ── LIGHTING: 3-point + ambient ──
-      vec3 ambient = baseColor * 0.25;
-
-      // Key light (warm purple)
-      vec3 L1 = normalize(uLightPos1 - vWorldPos);
-      float diff1 = max(dot(N, L1), 0.0);
-      vec3 H1 = normalize(L1 + V);
-      float spec1 = pow(max(dot(N, H1), 0.0), 80.0);
-      vec3 light1 = baseColor * diff1 * 0.6 + vec3(1.0, 0.9, 1.0) * spec1 * 0.7;
-
-      // Fill light (cool blue)
-      vec3 L2 = normalize(uLightPos2 - vWorldPos);
-      float diff2 = max(dot(N, L2), 0.0);
-      vec3 H2 = normalize(L2 + V);
-      float spec2 = pow(max(dot(N, H2), 0.0), 60.0);
-      vec3 light2 = baseColor * diff2 * 0.35 + vec3(0.8, 0.9, 1.0) * spec2 * 0.4;
-
-      // Rim light (pink from behind) - critical for edge definition
-      vec3 L3 = normalize(uLightPos3 - vWorldPos);
-      float diff3 = max(dot(N, L3), 0.0);
-      vec3 light3 = vec3(1.0, 0.5, 0.7) * diff3 * 0.3;
-
-      // ── FRESNEL: strong colored edge glow ──
-      float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.5);
-      vec3 fresnelColor = mix(uColor2, uColor3, fresnel) * fresnel * 1.2;
-
-      // ── SUBSURFACE SCATTER APPROXIMATION ──
-      float sss = pow(max(dot(V, -L1), 0.0), 3.0) * 0.15;
-      vec3 sssColor = uColor3 * sss;
-
-      // ── SPECULAR HIGHLIGHT (anisotropic-ish) ──
-      float topSpec = pow(max(dot(N, vec3(0,1,0)), 0.0), 8.0) * 0.15;
-      vec3 topHighlight = vec3(1.0) * topSpec;
-
-      // ── COMBINE ──
-      vec3 color = ambient + light1 + light2 + light3 + fresnelColor + sssColor + topHighlight;
-
-      // Slight emission so it glows in bloom
-      color += baseColor * 0.1;
-
-      // Tone: slight saturation boost
-      float luma = dot(color, vec3(0.299, 0.587, 0.114));
-      color = mix(vec3(luma), color, 1.25);
-
-      gl_FragColor = vec4(color, 1.0);
-    }
-  `,
-});
+  // Inject color variation into fragment shader (modulate diffuseColor)
+  shader.uniforms.uTimeFrag = blobTimeUniform;
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <common>',
+    `#include <common>
+    uniform float uTimeFrag;
+    `
+  );
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <color_fragment>',
+    `#include <color_fragment>
+    // Animated color gradient across the surface based on normal + position
+    vec3 norm01 = vNormal * 0.5 + 0.5;
+    float cMix = sin(norm01.y * 3.14 + uTimeFrag * 0.4) * 0.5 + 0.5;
+    vec3 gradA = vec3(0.486, 0.227, 0.929); // #7c3aed purple
+    vec3 gradB = vec3(0.231, 0.510, 0.965); // #3b82f6 blue
+    vec3 gradC = vec3(0.925, 0.286, 0.600); // #ec4899 pink
+    vec3 gradD = vec3(0.024, 0.714, 0.831); // #06b6d4 cyan
+    vec3 mixAB = mix(gradA, gradB, norm01.y);
+    vec3 mixCD = mix(gradC, gradD, norm01.x);
+    vec3 finalGrad = mix(mixAB, mixCD, cMix * 0.5 + 0.25);
+    diffuseColor.rgb = finalGrad;
+    `
+  );
+};
 
 const blob = new THREE.Mesh(blobGeo, blobMat);
 scene.add(blob);
@@ -499,8 +500,8 @@ function animate(){
   blob.rotation.y = t * 0.12;
   blob.rotation.x = Math.sin(t * 0.2) * 0.08;
   blob.position.y = Math.sin(t * 0.4) * 0.1;
-  blobMat.uniforms.uTime.value = t;
-  blobMat.uniforms.uMouse.value.set(mouse.x, mouse.y);
+  blobTimeUniform.value = t;
+  blobMouseUniform.value.set(mouse.x, mouse.y);
 
   // Companions
   torusKnot.rotation.x = t * 0.2;
@@ -525,9 +526,7 @@ function animate(){
   pl2.position.set(Math.cos(t*0.35)*3.5, Math.sin(t*0.5)*2, Math.sin(t*0.35)*4);
   pl3.position.set(Math.sin(t*0.3+2)*3, -2, Math.cos(t*0.3+2)*3);
 
-  // Update light positions in blob shader
-  blobMat.uniforms.uLightPos1.value.copy(keyLight.position);
-  blobMat.uniforms.uLightPos2.value.copy(fillLight.position);
+  // PBR pipeline handles lighting automatically
 
   // Particles
   pMat.uniforms.uTime.value = t;
