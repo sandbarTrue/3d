@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Glass Lab</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #0a0a1a;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #fff;
+  }
+
+  /* Scroll spacer sections for GSAP ScrollTrigger */
+  .scroll-spacer {
+    height: 100vh;
+    position: relative;
+    pointer-events: none;
+  }
+
+  #canvas-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  canvas { display: block; cursor: grab; touch-action: pan-y; }
+  canvas.hovering { cursor: pointer; }
+
+  /* Glass UI overlay */
+  .glass-overlay {
+    position: fixed;
+    top: 32px;
+    left: 32px;
+    z-index: 10;
+    padding: 28px 36px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .glass-overlay h1 {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .glass-overlay p {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 2px;
+    font-weight: 300;
+  }
+
+  /* Section labels (scroll-driven) */
+  .section-label {
+    position: fixed;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    text-align: right;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+
+  .section-label.visible { opacity: 1; }
+
+  .section-label h2 {
+    font-size: 18px;
+    font-weight: 200;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 6px;
+  }
+
+  .section-label p {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.2);
+    letter-spacing: 2px;
+  }
+
+  /* Loading screen */
+  #loader {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a1a;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+
+  #loader.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .loader-ring {
+    width: 60px;
+    height: 60px;
+    border: 2px solid rgba(167, 139, 250, 0.15);
+    border-top-color: #a78bfa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Scroll progress bar */
+  .scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+    z-index: 20;
+  }
+
+  /* Scroll hint */
+  .scroll-hint {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .scroll-hint span {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.25);
+  }
+
+  .scroll-hint .line {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, rgba(167, 139, 250, 0.5), transparent);
+    animation: pulse-line 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-line {
+    0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+    50% { opacity: 1; transform: scaleY(1); }
+  }
+</style>
+</head>
+<body>
+
+<div id="loader"><div class="loader-ring"></div></div>
+<div class="scroll-progress" id="scroll-progress"></div>
+
+<div class="glass-overlay" id="glass-overlay">
+  <h1>3D Glass Lab</h1>
+  <p>Scroll, hover &amp; click to explore</p>
+</div>
+
+<div class="section-label" id="section-label">
+  <h2 id="section-title"></h2>
+  <p id="section-sub"></p>
+</div>
+
+<div class="scroll-hint" id="scroll-hint">
+  <span>Scroll to explore</span>
+  <div class="line"></div>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- Scroll spacer sections for GSAP ScrollTrigger -->
+<div class="scroll-spacer" id="section-glass"></div>
+<div class="scroll-spacer" id="section-geometry"></div>
+<div class="scroll-spacer" id="section-morphing"></div>
+<div class="scroll-spacer" id="section-particles"></div>
+<div class="scroll-spacer" id="section-finale"></div>
+
+<!-- GSAP + ScrollTrigger via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<!-- es-module-shims polyfill for Safari <16.4 / Firefox <108 import map support -->
+<script async src="https://ga.jspm.io/npm:es-module-shims@1.10.1/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ── GSAP Setup ──────────────────────────────────────────
+gsap.registerPlugin(ScrollTrigger);
+
+// ── Config ──────────────────────────────────────────────
+const CONFIG = {
+  bgColor: 0x0a0a1a,
+  mouseSmooth: 0.05,
+  rotationIntensity: 0.3,
+  bloomStrength: 1.2,
+  bloomRadius: 0.7,
+  bloomThreshold: 0.15,
+  particleCount: 800,
+};
+
+// ── Scene Setup ─────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(CONFIG.bgColor);
+scene.fog = new THREE.FogExp2(CONFIG.bgColor, 0.025);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 0, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+// ── Post Processing Pipeline ────────────────────────────
+// RenderPass -> UnrealBloomPass -> FilmGrain+Vignette -> OutputPass
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(Math.round(window.innerWidth * 0.5), Math.round(window.innerHeight * 0.5)),
+  CONFIG.bloomStrength,
+  CONFIG.bloomRadius,
+  CONFIG.bloomThreshold
+);
+composer.addPass(bloomPass);
+
+// Film grain + vignette custom shader
+const FilmGrainShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uGrainIntensity: { value: 0.05 },
+    uVignetteStrength: { value: 0.3 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uGrainIntensity;
+    uniform float uVignetteStrength;
+    varying vec2 vUv;
+
+    float hash(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    void main() {
+      vec4 color = texture2D(tDiffuse, vUv);
+
+      // Film grain
+      float grain = hash(vUv * 500.0 + uTime * 100.0) - 0.5;
+      color.rgb += grain * uGrainIntensity;
+
+      // Vignette
+      vec2 uv = vUv * 2.0 - 1.0;
+      float vig = 1.0 - dot(uv * 0.55, uv * 0.55);
+      vig = smoothstep(0.0, 1.0, vig);
+      color.rgb *= mix(1.0 - uVignetteStrength, 1.0, vig);
+
+      gl_FragColor = color;
+    }
+  `
+};
+const filmGrainPass = new ShaderPass(FilmGrainShader);
+composer.addPass(filmGrainPass);
+
+// OutputPass for correct color space output
+composer.addPass(new OutputPass());
+
+// ── Lighting ────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x1a1a2e, 0.5));
+
+const keyLight = new THREE.DirectionalLight(0xa78bfa, 1.2);
+keyLight.position.set(5, 5, 5);
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x60a5fa, 0.6);
+fillLight.position.set(-5, 0, 3);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0x34d399, 0.8);
+rimLight.position.set(0, -5, -5);
+scene.add(rimLight);
+
+const pointLight1 = new THREE.PointLight(0xa78bfa, 2, 15);
+pointLight1.position.set(3, 3, 3);
+scene.add(pointLight1);
+
+const pointLight2 = new THREE.PointLight(0x60a5fa, 2, 15);
+pointLight2.position.set(-3, -2, 2);
+scene.add(pointLight2);
+
+const blobLight = new THREE.PointLight(0xf472b6, 0, 10);
+blobLight.position.set(0, 0, 3);
+scene.add(blobLight);
+
+// ── Environment Map (Procedural) ────────────────────────
+function createEnvironment() {
+  const envScene = new THREE.Scene();
+  const envMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: {
+      color1: { value: new THREE.Color(0x1a0533) },
+      color2: { value: new THREE.Color(0x0a1628) },
+      color3: { value: new THREE.Color(0x0d1f3c) },
+    },
+    vertexShader: `
+      varying vec3 vWorldPos;
+      void main() {
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 color1, color2, color3;
+      varying vec3 vWorldPos;
+      void main() {
+        float t = normalize(vWorldPos).y * 0.5 + 0.5;
+        vec3 col = mix(color2, color1, smoothstep(0.0, 0.5, t));
+        col = mix(col, color3, smoothstep(0.5, 1.0, t));
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 32), envMat));
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileCubemapShader();
+  const envMap = pmrem.fromScene(envScene, 0, 0.1, 100).texture;
+  pmrem.dispose();
+  return envMap;
+}
+
+const envMap = createEnvironment();
+scene.environment = envMap;
+
+// ── Material Factories ──────────────────────────────────
+function createGlassMaterial(color, opts = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(color),
+    metalness: opts.metalness ?? 0.0,
+    roughness: opts.roughness ?? 0.05,
+    transmission: opts.transmission ?? 0.92,
+    thickness: opts.thickness ?? 2.0,
+    ior: opts.ior ?? 1.5,
+    envMapIntensity: opts.envMapIntensity ?? 1.5,
+    clearcoat: opts.clearcoat ?? 1.0,
+    clearcoatRoughness: opts.clearcoatRoughness ?? 0.1,
+    attenuationColor: new THREE.Color(opts.attenuationColor ?? color),
+    attenuationDistance: opts.attenuationDistance ?? 3.0,
+    transparent: true,
+    opacity: opts.opacity ?? 0.9,
+    side: THREE.DoubleSide,
+    envMap: envMap,
+  });
+}
+
+function createGradientMaterial(color1, color2, emissiveIntensity = 0.15) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor1: { value: new THREE.Color(color1) },
+      uColor2: { value: new THREE.Color(color2) },
+      uTime: { value: 0 },
+      uEmissiveIntensity: { value: emissiveIntensity },
+      uLightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
+      uViewPos: { value: camera.position },
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec2 vUv;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor1, uColor2;
+      uniform float uTime, uEmissiveIntensity;
+      uniform vec3 uLightDir, uViewPos;
+      varying vec3 vNormal, vWorldPos;
+      varying vec2 vUv;
+      void main() {
+        float gradientT = vNormal.y * 0.5 + 0.5 + sin(vUv.x * 3.14159 + uTime * 0.5) * 0.1;
+        vec3 baseColor = mix(uColor1, uColor2, clamp(gradientT, 0.0, 1.0));
+        float diff = max(dot(vNormal, uLightDir), 0.0);
+        vec3 viewDir = normalize(uViewPos - vWorldPos);
+        vec3 halfDir = normalize(uLightDir + viewDir);
+        float spec = pow(max(dot(vNormal, halfDir), 0.0), 64.0);
+        float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
+        vec3 color = baseColor * (0.3 + diff * 0.7);
+        color += vec3(1.0) * spec * 0.5;
+        color += baseColor * fresnel * 0.6;
+        color += baseColor * uEmissiveIntensity;
+        gl_FragColor = vec4(color, 0.92);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+  });
+}
+
+// ── Objects Group ───────────────────────────────────────
+const objectsGroup = new THREE.Group();
+scene.add(objectsGroup);
+
+// 1. Central sphere - glass purple
+const sphereGeo = new THREE.SphereGeometry(1.2, 64, 64);
+const sphereMat = createGlassMaterial(0xb47aff, {
+  transmission: 0.95, thickness: 3.0, ior: 1.8,
+  roughness: 0.02, attenuationColor: 0x7c3aed, attenuationDistance: 2.0,
+});
+const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+objectsGroup.add(sphere);
+
+// Inner glow
+const innerGlowMat = new THREE.MeshBasicMaterial({ color: 0xa78bfa, transparent: true, opacity: 0.15 });
+const innerGlow = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 32), innerGlowMat);
+sphere.add(innerGlow);
+
+// 2. Torus knot - gradient blue/purple
+const torusKnotMat = createGradientMaterial(0x60a5fa, 0xa78bfa, 0.2);
+const torusKnot = new THREE.Mesh(new THREE.TorusKnotGeometry(0.8, 0.25, 128, 32), torusKnotMat);
+torusKnot.position.set(-3.2, 0.8, -1);
+objectsGroup.add(torusKnot);
+
+// 3. Torus - glass blue
+const torusMat = createGlassMaterial(0x60a5fa, {
+  transmission: 0.9, thickness: 2.5, ior: 1.6, roughness: 0.05, attenuationColor: 0x3b82f6,
+});
+const torus = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.35, 32, 64), torusMat);
+torus.position.set(3.0, -0.5, -0.5);
+torus.rotation.set(Math.PI / 4, 0, Math.PI / 6);
+objectsGroup.add(torus);
+
+// 4. Icosahedron - gradient teal
+const icoMat = createGradientMaterial(0x34d399, 0x60a5fa, 0.25);
+const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(0.75, 0), icoMat);
+ico.position.set(2.0, 2.0, -2);
+objectsGroup.add(ico);
+
+// 5. Octahedron - glass teal
+const octMat = createGlassMaterial(0x34d399, {
+  transmission: 0.85, thickness: 2.0, ior: 1.7, roughness: 0.08, attenuationColor: 0x10b981,
+});
+const octahedron = new THREE.Mesh(new THREE.OctahedronGeometry(0.6, 0), octMat);
+octahedron.position.set(-2.0, -1.8, -1.5);
+objectsGroup.add(octahedron);
+
+// 6. Dodecahedron - gradient pink
+const dodecMat = createGradientMaterial(0xf472b6, 0xa78bfa, 0.3);
+const dodec = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45, 0), dodecMat);
+dodec.position.set(-1.5, 2.2, -2.5);
+objectsGroup.add(dodec);
+
+// 7. Capsule - glass pink
+const capsuleMat = createGlassMaterial(0xf472b6, {
+  transmission: 0.9, thickness: 1.5, roughness: 0.1, attenuationColor: 0xec4899,
+});
+const capsule = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.0, 16, 32), capsuleMat);
+capsule.position.set(1.0, -2.2, -1.0);
+capsule.rotation.set(0, 0, Math.PI / 5);
+objectsGroup.add(capsule);
+
+// ── Blob Morph (Vertex Shader Noise Displacement) ───────
+const blobGeo = new THREE.IcosahedronGeometry(1.2, 5);
+const blobMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uColor1: { value: new THREE.Color(0xa78bfa) },
+    uColor2: { value: new THREE.Color(0x60a5fa) },
+    uColor3: { value: new THREE.Color(0xf472b6) },
+    uLightDir: { value: new THREE.Vector3(1, 1, 1).normalize() },
+    uViewPos: { value: camera.position },
+    uMorphIntensity: { value: 0.4 },
+  },
+  vertexShader: `
+    uniform float uTime;
+    uniform float uMorphIntensity;
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    varying float vDisplacement;
+
+    // Multi-frequency sin-based noise (cheap approximation of simplex noise)
+    float noise3D(vec3 p) {
+      return sin(p.x * 1.7 + p.y * 2.3 + uTime * 0.8) *
+             sin(p.y * 1.9 + p.z * 2.1 + uTime * 0.6) *
+             sin(p.z * 2.0 + p.x * 1.5 + uTime * 0.7);
+    }
+
+    void main() {
+      vec3 pos = position;
+      // Multi-octave displacement along normals
+      float n1 = noise3D(pos * 1.5) * uMorphIntensity;
+      float n2 = noise3D(pos * 3.0 + 10.0) * uMorphIntensity * 0.3;
+      float n3 = noise3D(pos * 6.0 + 20.0) * uMorphIntensity * 0.1;
+      float displacement = n1 + n2 + n3;
+      pos += normal * displacement;
+
+      vDisplacement = displacement;
+      vNormal = normalize(normalMatrix * normal);
+      vWorldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor1, uColor2, uColor3;
+    uniform float uTime;
+    uniform vec3 uLightDir, uViewPos;
+    varying vec3 vNormal, vWorldPos;
+    varying float vDisplacement;
+
+    void main() {
+      // Three-way gradient based on displacement + angle
+      float t = vDisplacement * 2.0 + 0.5;
+      vec3 baseColor = mix(uColor1, uColor2, clamp(t, 0.0, 1.0));
+      baseColor = mix(baseColor, uColor3, clamp(sin(t * 3.14 + uTime * 0.5) * 0.5 + 0.5, 0.0, 1.0) * 0.4);
+
+      // Lighting
+      float diff = max(dot(vNormal, uLightDir), 0.0);
+      vec3 viewDir = normalize(uViewPos - vWorldPos);
+      vec3 halfDir = normalize(uLightDir + viewDir);
+      float spec = pow(max(dot(vNormal, halfDir), 0.0), 32.0);
+      // Fresnel rim glow (research recommendation)
+      float fresnel = pow(1.0 - abs(dot(vNormal, viewDir)), 2.5);
+
+      vec3 color = baseColor * (0.25 + diff * 0.75);
+      color += vec3(1.0, 0.9, 0.95) * spec * 0.6;
+      color += baseColor * fresnel * 0.9;
+      color += baseColor * 0.15;
+
+      gl_FragColor = vec4(color, 0.9);
+    }
+  `,
+  transparent: true,
+  side: THREE.DoubleSide,
+});
+
+const blob = new THREE.Mesh(blobGeo, blobMat);
+blob.position.set(0, 0, -1);
+blob.visible = false;
+objectsGroup.add(blob);
+
+// ── Particle System ─────────────────────────────────────
+const particleCount = CONFIG.particleCount;
+const pGeo = new THREE.BufferGeometry();
+const pPositions = new Float32Array(particleCount * 3);
+const pSizes = new Float32Array(particleCount);
+const pColors = new Float32Array(particleCount * 3);
+
+const colorPalette = [
+  new THREE.Color(0xa78bfa),
+  new THREE.Color(0x60a5fa),
+  new THREE.Color(0x34d399),
+  new THREE.Color(0xf472b6),
+  new THREE.Color(0xfbbf24),
+];
+
+for (let i = 0; i < particleCount; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = 3 + Math.random() * 18;
+  pPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  pPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+  pPositions[i * 3 + 2] = r * Math.cos(phi);
+  pSizes[i] = 0.5 + Math.random() * 2.5;
+  const col = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+  pColors[i * 3] = col.r;
+  pColors[i * 3 + 1] = col.g;
+  pColors[i * 3 + 2] = col.b;
+}
+
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+pGeo.setAttribute('size', new THREE.BufferAttribute(pSizes, 1));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+
+const particleMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+    uOpacity: { value: 0.15 },
+  },
+  vertexShader: `
+    attribute float size;
+    attribute vec3 color;
+    uniform float uTime;
+    uniform float uPixelRatio;
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main() {
+      vColor = color;
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      // Gentle floating motion
+      float offset = length(position) * 0.1;
+      mvPos.y += sin(uTime * 0.3 + offset) * 0.3;
+      mvPos.x += cos(uTime * 0.2 + offset * 1.3) * 0.2;
+      // Distance fade
+      float dist = max(-mvPos.z, 1.0);
+      vAlpha = smoothstep(30.0, 3.0, dist) * 0.8;
+      gl_PointSize = size * uPixelRatio * (150.0 / dist);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `,
+  fragmentShader: `
+    uniform float uOpacity;
+    varying vec3 vColor;
+    varying float vAlpha;
+    void main() {
+      float d = length(gl_PointCoord - 0.5);
+      if (d > 0.5) discard;
+      float alpha = smoothstep(0.5, 0.1, d) * vAlpha * uOpacity;
+      // Glow core
+      vec3 col = vColor + vColor * smoothstep(0.3, 0.0, d) * 0.5;
+      gl_FragColor = vec4(col, alpha);
+    }
+  `,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+
+const particles = new THREE.Points(pGeo, particleMat);
+scene.add(particles);
+
+// ── Mouse Tracking (with camera parallax) ───────────────
+const mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+const pointer = new THREE.Vector2(); // for raycaster (raw, unsmoothed)
+
+function updateMousePosition(clientX, clientY) {
+  mouse.targetX = (clientX / window.innerWidth) * 2 - 1;
+  mouse.targetY = -(clientY / window.innerHeight) * 2 + 1;
+  pointer.x = (clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+}
+
+window.addEventListener('mousemove', (e) => {
+  updateMousePosition(e.clientX, e.clientY);
+});
+
+// ── Raycaster Hover Detection ───────────────────────────
+const raycaster = new THREE.Raycaster();
+const interactables = [sphere, torusKnot, torus, ico, octahedron, dodec, capsule];
+
+// Store base scales for each interactable
+const baseScales = new Map();
+interactables.forEach(obj => {
+  baseScales.set(obj, { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z });
+});
+
+let hoveredObject = null;
+let hoverTween = null;
+
+function handleHover() {
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(interactables, false);
+  const canvas = renderer.domElement;
+
+  if (intersects.length > 0) {
+    const hit = intersects[0].object;
+    if (hoveredObject !== hit) {
+      // Unhover previous
+      if (hoveredObject) unhoverObject(hoveredObject);
+      // Hover new
+      hoveredObject = hit;
+      hoverObject(hit);
+      canvas.classList.add('hovering');
+    }
+  } else {
+    if (hoveredObject) {
+      unhoverObject(hoveredObject);
+      hoveredObject = null;
+      canvas.classList.remove('hovering');
+    }
+  }
+}
+
+function hoverObject(obj) {
+  const base = baseScales.get(obj);
+  // Scale up with GSAP
+  gsap.to(obj.scale, {
+    x: base.x * 1.15,
+    y: base.y * 1.15,
+    z: base.z * 1.15,
+    duration: 0.4,
+    ease: 'back.out(2)',
+  });
+  // Boost emissive/glow for MeshPhysicalMaterial
+  if (obj.material.isMeshPhysicalMaterial) {
+    gsap.to(obj.material, {
+      envMapIntensity: 3.0,
+      clearcoat: 1.0,
+      duration: 0.3,
+    });
+  }
+  // Boost emissive for ShaderMaterial
+  if (obj.material.isShaderMaterial && obj.material.uniforms.uEmissiveIntensity) {
+    gsap.to(obj.material.uniforms.uEmissiveIntensity, {
+      value: 0.6,
+      duration: 0.3,
+    });
+  }
+}
+
+function unhoverObject(obj) {
+  const base = baseScales.get(obj);
+  gsap.to(obj.scale, {
+    x: base.x,
+    y: base.y,
+    z: base.z,
+    duration: 0.5,
+    ease: 'elastic.out(1, 0.4)',
+  });
+  if (obj.material.isMeshPhysicalMaterial) {
+    gsap.to(obj.material, {
+      envMapIntensity: 1.5,
+      duration: 0.4,
+    });
+  }
+  if (obj.material.isShaderMaterial && obj.material.uniforms.uEmissiveIntensity) {
+    gsap.to(obj.material.uniforms.uEmissiveIntensity, {
+      value: obj.material.uniforms.uEmissiveIntensity._baseValue ?? 0.2,
+      duration: 0.4,
+    });
+  }
+}
+
+// Store base emissive values for gradient materials
+[torusKnotMat, icoMat, dodecMat].forEach(m => {
+  m.uniforms.uEmissiveIntensity._baseValue = m.uniforms.uEmissiveIntensity.value;
+});
+
+// ── Click Explosion Particle System ─────────────────────
+const BURST_COUNT = 60;
+const burstParticles = []; // active burst systems
+
+const _tempColor = new THREE.Color();
+const _tempHSL = {};
+
+function createBurstAt(worldPos, color) {
+  const burstGeo = new THREE.BufferGeometry();
+  const positions = new Float32Array(BURST_COUNT * 3);
+  const velocities = new Float32Array(BURST_COUNT * 3);
+  const sizes = new Float32Array(BURST_COUNT);
+  const colors = new Float32Array(BURST_COUNT * 3);
+
+  const baseColor = color instanceof THREE.Color ? color : _tempColor.set(color);
+
+  baseColor.getHSL(_tempHSL);
+
+  for (let i = 0; i < BURST_COUNT; i++) {
+    // Start at click position
+    positions[i * 3] = worldPos.x;
+    positions[i * 3 + 1] = worldPos.y;
+    positions[i * 3 + 2] = worldPos.z;
+
+    // Random outward velocity
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const speed = 1.5 + Math.random() * 3.0;
+    velocities[i * 3] = Math.sin(phi) * Math.cos(theta) * speed;
+    velocities[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * speed;
+    velocities[i * 3 + 2] = Math.cos(phi) * speed;
+
+    sizes[i] = 1.0 + Math.random() * 3.0;
+
+    // Slight color variation (reuse temp object)
+    _tempColor.setHSL(
+      _tempHSL.h + (Math.random() - 0.5) * 0.1,
+      _tempHSL.s,
+      Math.min(1, _tempHSL.l + Math.random() * 0.2)
+    );
+    colors[i * 3] = _tempColor.r;
+    colors[i * 3 + 1] = _tempColor.g;
+    colors[i * 3 + 2] = _tempColor.b;
+  }
+
+  burstGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  burstGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  burstGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const burstMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+      uOpacity: { value: 1.0 },
+    },
+    vertexShader: `
+      attribute float size;
+      attribute vec3 color;
+      uniform float uPixelRatio;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+        float dist = max(-mvPos.z, 1.0);
+        gl_PointSize = size * uPixelRatio * (100.0 / dist);
+        gl_Position = projectionMatrix * mvPos;
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      varying vec3 vColor;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        if (d > 0.5) discard;
+        float alpha = smoothstep(0.5, 0.0, d) * uOpacity;
+        vec3 col = vColor + vColor * smoothstep(0.3, 0.0, d) * 0.8;
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const burstPoints = new THREE.Points(burstGeo, burstMat);
+  scene.add(burstPoints);
+
+  burstParticles.push({
+    mesh: burstPoints,
+    velocities: velocities,
+    age: 0,
+    lifetime: 1.2, // seconds
+  });
+}
+
+function updateBurstParticles(dt) {
+  for (let b = burstParticles.length - 1; b >= 0; b--) {
+    const burst = burstParticles[b];
+    burst.age += dt;
+
+    if (burst.age >= burst.lifetime) {
+      scene.remove(burst.mesh);
+      burst.mesh.geometry.dispose();
+      burst.mesh.material.dispose();
+      burstParticles.splice(b, 1);
+      continue;
+    }
+
+    const progress = burst.age / burst.lifetime;
+    // Fade out
+    burst.mesh.material.uniforms.uOpacity.value = 1.0 - progress * progress;
+
+    // Update positions based on velocities with drag
+    const posArr = burst.mesh.geometry.attributes.position.array;
+    const vel = burst.velocities;
+    const drag = 0.96;
+
+    for (let i = 0; i < BURST_COUNT; i++) {
+      vel[i * 3] *= drag;
+      vel[i * 3 + 1] *= drag;
+      vel[i * 3 + 1] -= dt * 1.5; // gravity
+      vel[i * 3 + 2] *= drag;
+
+      posArr[i * 3] += vel[i * 3] * dt;
+      posArr[i * 3 + 1] += vel[i * 3 + 1] * dt;
+      posArr[i * 3 + 2] += vel[i * 3 + 2] * dt;
+    }
+    burst.mesh.geometry.attributes.position.needsUpdate = true;
+  }
+}
+
+// Get material color for explosion
+function getObjectColor(obj) {
+  if (obj.material.color) return obj.material.color;
+  if (obj.material.uniforms && obj.material.uniforms.uColor1) return obj.material.uniforms.uColor1.value;
+  return new THREE.Color(0xa78bfa);
+}
+
+// ── Click/Tap Handler ───────────────────────────────────
+function handleClick(clientX, clientY) {
+  const clickPointer = new THREE.Vector2(
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1
+  );
+  raycaster.setFromCamera(clickPointer, camera);
+  const intersects = raycaster.intersectObjects(interactables, false);
+
+  if (intersects.length > 0) {
+    const hit = intersects[0];
+    const obj = hit.object;
+    const color = getObjectColor(obj);
+
+    // Spawn explosion at intersection point
+    createBurstAt(hit.point, color);
+
+    // Bounce animation on the clicked object
+    const base = baseScales.get(obj);
+    gsap.fromTo(obj.scale,
+      { x: base.x * 0.85, y: base.y * 0.85, z: base.z * 0.85 },
+      { x: base.x, y: base.y, z: base.z, duration: 0.6, ease: 'elastic.out(1, 0.3)' }
+    );
+
+    // Quick flash on bloom
+    gsap.fromTo(bloomPass, { strength: 2.5 }, {
+      strength: scrollState.bloomStrength,
+      duration: 0.5,
+      ease: 'power2.out',
+    });
+  }
+}
+
+window.addEventListener('click', (e) => {
+  handleClick(e.clientX, e.clientY);
+});
+
+// ── Touch Support ───────────────────────────────────────
+let touchStartTime = 0;
+let touchStartPos = { x: 0, y: 0 };
+
+window.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    touchStartTime = performance.now();
+    touchStartPos.x = touch.clientX;
+    touchStartPos.y = touch.clientY;
+    updateMousePosition(touch.clientX, touch.clientY);
+  }
+}, { passive: true });
+
+window.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 1) {
+    const touch = e.touches[0];
+    updateMousePosition(touch.clientX, touch.clientY);
+  }
+}, { passive: true });
+
+window.addEventListener('touchend', (e) => {
+  const elapsed = performance.now() - touchStartTime;
+  // Only trigger click on quick tap (< 300ms) with minimal movement
+  if (elapsed < 300) {
+    const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.x);
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.y);
+    if (dx < 15 && dy < 15) {
+      handleClick(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+    }
+  }
+}, { passive: true });
+
+// ── GSAP Scroll-Driven Animation State ──────────────────
+// Proxy object that GSAP will tween. The render loop reads from this.
+const scrollState = {
+  progress: 0,       // 0 to 1 overall scroll progress
+  cameraZ: 8,
+  cameraY: 0,
+  groupRotY: 0,
+  geomOpacity: 1,
+  blobVisible: 0,    // 0 to 1
+  blobMorph: 0.2,
+  blobScale: 0.5,
+  particleOpacity: 0.15,
+  bloomStrength: 1.2,
+  sectionIndex: 0,   // which section is active
+};
+
+const sectionData = [
+  { title: 'GLASS FORMS', sub: 'Transparency & refraction' },
+  { title: 'GEOMETRY', sub: 'Facets & gradients' },
+  { title: 'MORPHING', sub: 'Organic deformation' },
+  { title: 'PARTICLES', sub: 'Light in motion' },
+  { title: '', sub: '' },
+];
+
+// Master timeline scrubbed by scroll
+const masterTL = gsap.timeline({
+  scrollTrigger: {
+    trigger: '#section-glass',
+    start: 'top top',
+    endTrigger: '#section-finale',
+    end: 'bottom bottom',
+    scrub: 1.5,  // smooth scrubbing
+    onUpdate: (self) => {
+      scrollState.progress = self.progress;
+      // Update progress bar
+      document.getElementById('scroll-progress').style.width = (self.progress * 100) + '%';
+      // Hide scroll hint
+      if (self.progress > 0.02) {
+        document.getElementById('scroll-hint').style.opacity = '0';
+      }
+    }
+  }
+});
+
+// Phase 1: Glass Forms (0-25%)
+masterTL.to(scrollState, {
+  cameraZ: 7,
+  cameraY: 0.5,
+  groupRotY: Math.PI * 0.15,
+  duration: 1,
+  ease: 'none',
+  onStart: () => { scrollState.sectionIndex = 0; updateSectionLabel(0); },
+});
+
+// Phase 2: Geometry Focus (25-50%)
+masterTL.to(scrollState, {
+  cameraZ: 5.5,
+  cameraY: 0.8,
+  groupRotY: Math.PI * 0.35,
+  duration: 1,
+  ease: 'none',
+  onStart: () => { scrollState.sectionIndex = 1; updateSectionLabel(1); },
+});
+
+// Phase 3: Morphing (50-75%) - blob fades in, geometry fades
+masterTL.to(scrollState, {
+  cameraZ: 5,
+  cameraY: 0.3,
+  groupRotY: Math.PI * 0.55,
+  geomOpacity: 0.3,
+  blobVisible: 1,
+  blobMorph: 0.7,
+  blobScale: 1.5,
+  bloomStrength: 1.5,
+  duration: 1,
+  ease: 'none',
+  onStart: () => { scrollState.sectionIndex = 2; updateSectionLabel(2); },
+});
+
+// Phase 4: Particles (75-100%) - blob fades, particles dominate
+masterTL.to(scrollState, {
+  cameraZ: 9.5,
+  cameraY: 0,
+  groupRotY: Math.PI * 0.8,
+  geomOpacity: 0.15,
+  blobVisible: 0,
+  blobMorph: 0.2,
+  blobScale: 0.5,
+  particleOpacity: 1.0,
+  bloomStrength: 1.8,
+  duration: 1,
+  ease: 'none',
+  onStart: () => { scrollState.sectionIndex = 3; updateSectionLabel(3); },
+});
+
+function updateSectionLabel(index) {
+  const labelEl = document.getElementById('section-label');
+  const titleEl = document.getElementById('section-title');
+  const subEl = document.getElementById('section-sub');
+  const data = sectionData[index];
+  if (data && data.title) {
+    titleEl.textContent = data.title;
+    subEl.textContent = data.sub;
+    labelEl.classList.add('visible');
+  } else {
+    labelEl.classList.remove('visible');
+  }
+}
+
+// ── Resize Handler (debounced) ──────────────────────────
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    composer.setSize(w, h);
+    bloomPass.resolution.set(Math.round(w * 0.5), Math.round(h * 0.5));
+    particleMat.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2);
+  }, 100);
+});
+
+// ── Resource Cleanup on Page Unload ─────────────────────
+window.addEventListener('beforeunload', () => {
+  scene.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(m => m.dispose());
+      } else {
+        obj.material.dispose();
+      }
+    }
+  });
+  renderer.dispose();
+  composer.dispose();
+  envMap.dispose();
+});
+
+// ── Animation Loop ──────────────────────────────────────
+const clock = new THREE.Clock();
+let loaded = false;
+let lastTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const elapsed = clock.getElapsedTime();
+  const dt = Math.min(elapsed - lastTime, 0.05);
+  lastTime = elapsed;
+
+  // ── Smooth mouse ──────────────────────────────────────
+  mouse.x += (mouse.targetX - mouse.x) * CONFIG.mouseSmooth;
+  mouse.y += (mouse.targetY - mouse.y) * CONFIG.mouseSmooth;
+
+  // ── Apply scroll state to scene ───────────────────────
+
+  // Camera position (lerp toward scroll targets + mouse parallax)
+  camera.position.z += (scrollState.cameraZ - camera.position.z) * 0.06;
+  camera.position.y += (scrollState.cameraY - camera.position.y) * 0.04;
+  // Mouse parallax on camera (subtle shift)
+  camera.position.x += (mouse.x * 0.3 - camera.position.x) * 0.03;
+
+  // Group rotation from scroll + mouse
+  const targetRotY = mouse.x * CONFIG.rotationIntensity + scrollState.groupRotY;
+  const targetRotX = mouse.y * CONFIG.rotationIntensity * 0.5;
+  objectsGroup.rotation.y += (targetRotY - objectsGroup.rotation.y) * 0.025;
+  objectsGroup.rotation.x += (targetRotX - objectsGroup.rotation.x) * 0.025;
+
+  // Bloom intensity from scroll
+  bloomPass.strength = scrollState.bloomStrength;
+
+  // ── Geometry opacity from scroll ──────────────────────
+  const gOp = scrollState.geomOpacity;
+  sphereMat.opacity = gOp * 0.9;
+  torusMat.opacity = gOp * 0.9;
+  octMat.opacity = gOp * 0.9;
+  capsuleMat.opacity = gOp * 0.9;
+
+  // ── Blob visibility from scroll ───────────────────────
+  const bv = scrollState.blobVisible;
+  blob.visible = bv > 0.01;
+  if (blob.visible) {
+    blobMat.uniforms.uMorphIntensity.value = scrollState.blobMorph;
+    blob.scale.setScalar(scrollState.blobScale);
+  }
+
+  // ── Particle opacity from scroll ──────────────────────
+  particleMat.uniforms.uOpacity.value = scrollState.particleOpacity;
+
+  // ── Individual object animations ──────────────────────
+  sphere.rotation.y = elapsed * 0.2;
+  sphere.rotation.x = Math.sin(elapsed * 0.15) * 0.1;
+  sphere.position.y = Math.sin(elapsed * 0.6) * 0.15;
+
+  torusKnot.rotation.x = elapsed * 0.3;
+  torusKnot.rotation.y = elapsed * 0.2;
+  torusKnot.position.y = 0.8 + Math.sin(elapsed * 0.5 + 1) * 0.2;
+
+  torus.rotation.x = Math.PI / 4 + elapsed * 0.25;
+  torus.rotation.z = Math.PI / 6 + elapsed * 0.15;
+  torus.position.y = -0.5 + Math.sin(elapsed * 0.7 + 2) * 0.15;
+
+  ico.rotation.x = elapsed * 0.4;
+  ico.rotation.y = elapsed * 0.3;
+  ico.position.y = 2.0 + Math.sin(elapsed * 0.8 + 3) * 0.2;
+
+  octahedron.rotation.x = elapsed * 0.35;
+  octahedron.rotation.z = elapsed * 0.25;
+  octahedron.position.y = -1.8 + Math.sin(elapsed * 0.55 + 4) * 0.15;
+
+  dodec.rotation.x = elapsed * 0.5;
+  dodec.rotation.y = elapsed * 0.35;
+  dodec.position.y = 2.2 + Math.sin(elapsed * 0.65 + 5) * 0.2;
+
+  capsule.rotation.z = Math.PI / 5 + Math.sin(elapsed * 0.3) * 0.1;
+  capsule.position.y = -2.2 + Math.sin(elapsed * 0.45 + 6) * 0.15;
+
+  // Orbiting point lights
+  pointLight1.position.x = Math.sin(elapsed * 0.7) * 4;
+  pointLight1.position.z = Math.cos(elapsed * 0.7) * 4;
+  pointLight2.position.x = Math.cos(elapsed * 0.5) * 3;
+  pointLight2.position.y = Math.sin(elapsed * 0.5) * 3;
+
+  // Blob light
+  blobLight.intensity = bv * 2.0;
+  blobLight.position.set(blob.position.x, blob.position.y, blob.position.z + 2);
+
+  // Update shader uniforms
+  const gradMats = [torusKnotMat, icoMat, dodecMat];
+  for (const m of gradMats) {
+    m.uniforms.uTime.value = elapsed;
+    m.uniforms.uViewPos.value.copy(camera.position);
+  }
+  blobMat.uniforms.uTime.value = elapsed;
+  blobMat.uniforms.uViewPos.value.copy(camera.position);
+
+  // Inner glow pulse
+  innerGlowMat.opacity = 0.1 + Math.sin(elapsed * 1.5) * 0.05;
+  innerGlow.scale.setScalar(1 + Math.sin(elapsed * 2) * 0.05);
+
+  // Particles
+  particleMat.uniforms.uTime.value = elapsed;
+  particles.rotation.y = elapsed * 0.02;
+  particles.rotation.x = elapsed * 0.01;
+
+  // Film grain
+  filmGrainPass.uniforms.uTime.value = elapsed;
+
+  // ── Raycaster hover check (throttled to ~15fps) ──────
+  if (Math.floor(elapsed * 15) !== Math.floor((elapsed - dt) * 15)) {
+    handleHover();
+  }
+
+  // ── Update burst particles ────────────────────────────
+  updateBurstParticles(dt);
+
+  // ── Render ────────────────────────────────────────────
+  composer.render();
+
+  // Loading complete after first frame
+  if (!loaded) {
+    loaded = true;
+    setTimeout(() => {
+      document.getElementById('loader').classList.add('hidden');
+      // GSAP entrance animation for UI
+      gsap.to('#glass-overlay', { opacity: 1, y: 0, duration: 1, ease: 'power2.out', delay: 0.2 });
+      gsap.to('#scroll-hint', { opacity: 1, duration: 1.5, ease: 'power2.out', delay: 0.7 });
+    }, 200);
+  }
+}
+
+animate();
+</script>
+
+</body>
+</html>
