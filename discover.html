@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  /* ─── Top Nav ─── */
+  .navbar {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 24px;
+    padding: 12px 32px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .navbar .logo {
+    font-weight: 800; font-size: 20px;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .navbar .nav-links { display: flex; gap: 20px; margin-left: 24px; }
+  .navbar .nav-links a {
+    text-decoration: none; color: #666; font-size: 14px; font-weight: 500;
+    transition: color 0.2s;
+  }
+  .navbar .nav-links a:hover, .navbar .nav-links a.active { color: #1a1a1a; }
+  .search-box {
+    margin-left: auto; display: flex; align-items: center;
+    background: #f0f0f0; border-radius: 20px; padding: 8px 16px; gap: 8px;
+    width: 260px;
+  }
+  .search-box svg { width: 16px; height: 16px; color: #999; flex-shrink: 0; }
+  .search-box input {
+    border: none; background: none; outline: none; font-size: 14px;
+    width: 100%; color: #333;
+  }
+  .nav-actions { display: flex; align-items: center; gap: 12px; }
+  .nav-actions .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn-create {
+    padding: 8px 18px; border-radius: 20px; border: none;
+    background: #1a1a1a; color: white; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .btn-create:hover { background: #333; }
+
+  /* ─── Category Pills ─── */
+  .categories {
+    display: flex; gap: 8px; padding: 16px 32px; overflow-x: auto;
+    background: white; border-bottom: 1px solid #eee;
+  }
+  .categories::-webkit-scrollbar { display: none; }
+  .pill {
+    padding: 8px 18px; border-radius: 20px; border: 1px solid #e0e0e0;
+    background: white; font-size: 13px; font-weight: 500; color: #555;
+    cursor: pointer; white-space: nowrap; transition: all 0.2s;
+  }
+  .pill:hover { border-color: #bbb; color: #1a1a1a; }
+  .pill.active {
+    background: #1a1a1a; color: white; border-color: #1a1a1a;
+  }
+
+  /* ─── Masonry Grid ─── */
+  .masonry {
+    column-count: 4; column-gap: 16px;
+    padding: 24px 32px 60px;
+    max-width: 1600px; margin: 0 auto;
+  }
+  @media (max-width: 1200px) { .masonry { column-count: 3; } }
+  @media (max-width: 800px)  { .masonry { column-count: 2; padding: 16px; } }
+  @media (max-width: 500px)  { .masonry { column-count: 1; } }
+
+  /* ─── Card Base ─── */
+  .card {
+    break-inside: avoid; margin-bottom: 16px;
+    border-radius: 16px; overflow: hidden;
+    background: white; cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+  }
+
+  /* overlay on hover */
+  .card .card-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.0);
+    transition: background 0.3s;
+    display: flex; align-items: flex-end; padding: 16px;
+    pointer-events: none;
+  }
+  .card:hover .card-overlay { background: rgba(0,0,0,0.15); }
+  .card .card-overlay .overlay-actions {
+    display: flex; gap: 8px; opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .card:hover .card-overlay .overlay-actions { opacity: 1; }
+  .overlay-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.9); border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px;
+  }
+
+  /* ─── Card: 3D Scene (canvas) ─── */
+  .card-3d canvas {
+    width: 100%; display: block;
+  }
+  .card-3d .scene-container {
+    width: 100%; aspect-ratio: 4/3; position: relative;
+    overflow: hidden;
+  }
+
+  /* ─── Card: Hero Typography ─── */
+  .card-hero {
+    padding: 40px 28px;
+    min-height: 240px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    background-size: cover; background-position: center;
+    position: relative; color: white;
+  }
+  .card-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.5));
+  }
+  .card-hero h2 {
+    position: relative; font-size: 32px; font-weight: 900;
+    line-height: 1.1; letter-spacing: -1px;
+  }
+  .card-hero p {
+    position: relative; font-size: 12px; margin-top: 8px;
+    opacity: 0.8; font-weight: 500;
+  }
+
+  /* ─── Card: Text/Info ─── */
+  .card-text {
+    padding: 28px 24px;
+  }
+  .card-text h3 {
+    font-size: 18px; font-weight: 700; margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  .card-text p {
+    font-size: 13px; color: #666; line-height: 1.6;
+  }
+  .card-text .tag {
+    display: inline-block; margin-top: 12px;
+    padding: 4px 10px; border-radius: 12px;
+    background: #f0f0f0; font-size: 11px; font-weight: 600; color: #888;
+  }
+
+  /* ─── Card: Pixel Art Style ─── */
+  .card-pixel {
+    background: #1a1a1a; color: #00ff88;
+    padding: 28px 24px;
+    font-family: 'Space Mono', monospace;
+  }
+  .card-pixel .pixel-label {
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 2px; opacity: 0.6; margin-bottom: 12px;
+  }
+  .card-pixel .pixel-body {
+    font-size: 13px; line-height: 1.7;
+    text-transform: uppercase; font-weight: 700;
+  }
+  .card-pixel .pixel-footer {
+    margin-top: 16px; font-size: 11px; opacity: 0.5;
+  }
+
+  /* ─── Card: Gradient Art ─── */
+  .card-gradient {
+    aspect-ratio: 1; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 48px; font-weight: 900;
+    color: white; text-shadow: 0 2px 20px rgba(0,0,0,0.2);
+    letter-spacing: -2px;
+  }
+
+  /* ─── Card: Map ─── */
+  .card-map {
+    aspect-ratio: 4/3; position: relative;
+    background: #e8f4e8;
+    overflow: hidden;
+  }
+  .card-map .map-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  .card-map .map-roads {
+    position: absolute; inset: 0;
+  }
+  .card-map .map-label {
+    position: absolute; bottom: 12px; left: 12px;
+    background: white; padding: 6px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .card-map .map-pin {
+    position: absolute;
+    width: 24px; height: 24px;
+    background: #ef4444; border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+  }
+
+  /* ─── Card: Presentation Deck ─── */
+  .card-deck {
+    padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .card-deck .deck-label {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #999; font-weight: 600;
+  }
+  .card-deck h3 {
+    font-size: 28px; font-weight: 900; line-height: 1.1;
+    letter-spacing: -1px;
+  }
+  .card-deck .deck-author {
+    font-size: 12px; color: #888;
+  }
+
+  /* ─── Card: Love/Heart ─── */
+  .card-love {
+    padding: 32px 24px; text-align: center;
+    background: linear-gradient(160deg, #fff5f5, #fff0f6);
+  }
+  .card-love .hearts {
+    display: flex; justify-content: center; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .card-love .heart {
+    font-size: 40px; filter: drop-shadow(0 4px 8px rgba(236,72,153,0.3));
+  }
+  .card-love h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px; font-style: italic; margin-bottom: 8px;
+  }
+  .card-love p {
+    font-size: 12px; color: #888; line-height: 1.6;
+    max-width: 240px; margin: 0 auto;
+  }
+
+  /* ─── Card: 3D Preview Image ─── */
+  .card-3d-preview {
+    position: relative; overflow: hidden;
+  }
+  .card-3d-preview .preview-canvas {
+    width: 100%; display: block;
+  }
+  .card-3d-preview .preview-info {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 16px; background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    color: white;
+  }
+  .card-3d-preview .preview-info h4 { font-size: 14px; font-weight: 600; }
+  .card-3d-preview .preview-info span { font-size: 11px; opacity: 0.7; }
+
+  /* ─── Card: Voxel/Block Art ─── */
+  .card-voxel {
+    background: #2a2a3e; padding: 0; position: relative;
+    overflow: hidden;
+  }
+  .card-voxel canvas { width: 100%; display: block; }
+
+  /* ─── Card: CJK Typography ─── */
+  .card-cjk {
+    padding: 28px 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+  }
+  .card-cjk .cjk-title {
+    font-size: 28px; font-weight: 900; line-height: 1.3;
+    margin-bottom: 8px;
+  }
+  .card-cjk .cjk-sub {
+    font-size: 12px; opacity: 0.7;
+  }
+
+  /* ─── Card: Play/Fun ─── */
+  .card-play {
+    padding: 32px 24px;
+    background: #fef3c7;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 180px;
+  }
+  .card-play h2 {
+    font-size: 48px; font-weight: 900;
+    letter-spacing: -3px; line-height: 1;
+    background: linear-gradient(135deg, #f59e0b, #ef4444, #8b5cf6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  /* ─── Card: Tool/Start ─── */
+  .card-tool {
+    padding: 20px;
+    border: 2px dashed #ddd;
+    background: #fafafa;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; min-height: 160px;
+    color: #999;
+  }
+  .card-tool .tool-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: #f0f0f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+  .card-tool p { font-size: 13px; font-weight: 500; }
+
+  /* ─── Card: Author footer ─── */
+  .card-footer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .card-footer .author-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #ddd;
+  }
+  .card-footer .author-name {
+    font-size: 12px; font-weight: 500; color: #666;
+  }
+  .card-footer .likes {
+    margin-left: auto; font-size: 12px; color: #999;
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* ─── 3D Isometric CSS Blocks ─── */
+  .iso-scene {
+    width: 100%; aspect-ratio: 4/3;
+    display: flex; align-items: center; justify-content: center;
+    perspective: 600px;
+    overflow: hidden;
+  }
+  .iso-group {
+    transform-style: preserve-3d;
+    transform: rotateX(55deg) rotateZ(-45deg);
+  }
+  .iso-block {
+    position: absolute;
+    width: 40px; height: 40px;
+    transform-style: preserve-3d;
+    transition: transform 0.4s ease;
+  }
+  .iso-block .face {
+    position: absolute; width: 40px; height: 40px;
+  }
+  .iso-block .top    { transform: translateZ(40px); }
+  .iso-block .front  { transform: rotateX(-90deg); transform-origin: bottom; }
+  .iso-block .right  { transform: rotateY(90deg); transform-origin: right; }
+
+  /* color themes for blocks */
+  .blocks-coral .top   { background: #ff7979; }
+  .blocks-coral .front { background: #eb4d4b; }
+  .blocks-coral .right { background: #c0392b; }
+
+  .blocks-mint .top   { background: #55efc4; }
+  .blocks-mint .front { background: #00b894; }
+  .blocks-mint .right { background: #00a17a; }
+
+  .blocks-sky .top   { background: #74b9ff; }
+  .blocks-sky .front { background: #0984e3; }
+  .blocks-sky .right { background: #0768b5; }
+
+  .blocks-purple .top   { background: #a29bfe; }
+  .blocks-purple .front { background: #6c5ce7; }
+  .blocks-purple .right { background: #5541d6; }
+
+  .blocks-peach .top   { background: #fab1a0; }
+  .blocks-peach .front { background: #e17055; }
+  .blocks-peach .right { background: #c0553c; }
+</style>
+</head>
+<body>
+
+<!-- ─── Navigation ─── -->
+<nav class="navbar">
+  <div class="logo">3D Lab</div>
+  <div class="nav-links">
+    <a href="#">Explore</a>
+    <a href="#" class="active">Discover</a>
+    <a href="#">Collections</a>
+    <a href="#">Learn</a>
+  </div>
+  <div class="search-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="Search designs...">
+  </div>
+  <div class="nav-actions">
+    <button class="btn-create">+ Create</button>
+    <div class="avatar">J</div>
+  </div>
+</nav>
+
+<!-- ─── Category Pills ─── -->
+<div class="categories">
+  <button class="pill active">All</button>
+  <button class="pill">3D Illustration</button>
+  <button class="pill">Typography</button>
+  <button class="pill">Branding</button>
+  <button class="pill">UI/UX</button>
+  <button class="pill">Motion</button>
+  <button class="pill">Pixel Art</button>
+  <button class="pill">Architecture</button>
+  <button class="pill">Game Design</button>
+  <button class="pill">Product</button>
+</div>
+
+<!-- ─── Masonry Grid ─── -->
+<div class="masonry" id="masonry">
+
+  <!-- Card 1: Hero — The Next Wave -->
+  <div class="card">
+    <div class="card-hero" style="background: linear-gradient(135deg, #0c3547, #204e61); min-height: 280px;">
+      <h2 style="font-size: 36px;">The next<br>wave</h2>
+      <p>Generative 3D — Explore the frontier</p>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: linear-gradient(135deg,#6366f1,#ec4899);"></div>
+      <span class="author-name">Studio Wave</span>
+      <span class="likes">♥ 2.4k</span>
+    </div>
+  </div>
+
+  <!-- Card 2: Pixel Art Text -->
+  <div class="card">
+    <div class="card-pixel">
+      <div class="pixel-label">Pixel System</div>
+      <div class="pixel-body">
+        Pixel graphics, or pixel art, is a form of digital art created by meticulous editing of an image at the pixel level. It is characterized by its low resolution, where each colored square (pixel) is clearly visible and placed intentionally to form the complete image.
+      </div>
+      <div class="pixel-footer">Pixel 01.0.6</div>
+    </div>
+    <div class="card-footer" style="background: #1a1a1a; border-color: #333;">
+      <div class="author-avatar" style="background: #00ff88;"></div>
+      <span class="author-name" style="color: #aaa;">Pixel Lab</span>
+      <span class="likes" style="color: #666;">♥ 891</span>
+    </div>
+  </div>
+
+  <!-- Card 3: 3D Isometric Blocks — Coral Stairs -->
+  <div class="card">
+    <div class="iso-scene" style="background: linear-gradient(180deg, #f8f8f8, #f0f0f0);" id="scene-coral">
+      <canvas id="canvas-coral" width="400" height="300"></canvas>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: #ff7979;"></div>
+      <span class="author-name">Isometric Co.</span>
+      <span class="likes">♥ 3.1k</span>
+    </div>
+  </div>
+
+  <!-- Card 4: Diamond Typography -->
+  <div class="card">
+    <div class="card-text" style="padding: 40px 28px; min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+      <h3 style="font-size: 42px; font-weight: 900; letter-spacing: -2px;">Dia<span style="display:inline-block; width: 36px; height: 36px; background: linear-gradient(135deg, #a8edea, #fed6e3); border-radius: 50%; vertical-align: middle; margin: 0 2px;"></span>ond</h3>
+      <p style="margin-top: 8px;">Premium 3D asset library</p>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: linear-gradient(135deg,#a8edea,#fed6e3);"></div>
+      <span class="author-name">Diamond Studio</span>
+      <span class="likes">♥ 1.8k</span>
+    </div>
+  </div>
+
+  <!-- Card 5: Castle / Nature -->
+  <div class="card">
+    <div class="card-hero" style="background: linear-gradient(135deg, #2d5016, #1a3a0a); min-height: 260px;">
+      <h2>The <span style="opacity: 0.5;">&#9678;</span> stle</h2>
+      <p>Medieval architecture reimagined in 3D</p>
+    </div>
+  </div>
+
+  <!-- Card 6: Brainstorm Cards -->
+  <div class="card">
+    <div class="card-text" style="background: #f8f8f8;">
+      <div style="display: flex; gap: 4px; margin-bottom: 12px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span>
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e;"></span>
+      </div>
+      <h3>Brainstorm<br>Cards</h3>
+      <p>Collaborative ideation toolkit for creative teams</p>
+      <span class="tag">Productivity</span>
+    </div>
+  </div>
+
+  <!-- Card 7: 3D Blocks — Mint Composition -->
+  <div class="card">
+    <div class="iso-scene" style="background: linear-gradient(180deg, #f0faf5, #e8f4ee);">
+      <canvas id="canvas-mint" width="400" height="300"></canvas>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: #55efc4;"></div>
+      <span class="author-name">Block Studio</span>
+      <span class="likes">♥ 2.7k</span>
+    </div>
+  </div>
+
+  <!-- Card 8: Map Card -->
+  <div class="card">
+    <div class="card-map">
+      <div class="map-grid"></div>
+      <svg class="map-roads" viewBox="0 0 400 300" fill="none">
+        <path d="M0 150 Q100 120 200 160 T400 130" stroke="#ccc" stroke-width="3"/>
+        <path d="M150 0 Q170 100 160 200 T180 300" stroke="#ccc" stroke-width="3"/>
+        <path d="M50 250 Q150 200 250 220 T380 190" stroke="#ddd" stroke-width="2"/>
+        <circle cx="200" cy="155" r="6" fill="#22c55e" opacity="0.6"/>
+        <circle cx="160" cy="195" r="4" fill="#3b82f6" opacity="0.5"/>
+        <circle cx="250" cy="140" r="5" fill="#f59e0b" opacity="0.5"/>
+      </svg>
+      <div class="map-pin" style="top: 35%; left: 48%;"></div>
+      <div class="map-label">San Francisco, CA</div>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: #22c55e;"></div>
+      <span class="author-name">Jesse Smith</span>
+      <span class="likes">♥ 456</span>
+    </div>
+  </div>
+
+  <!-- Card 9: Pitch Deck -->
+  <div class="card">
+    <div class="card-deck" style="background: #f9fafb; min-height: 180px;">
+      <span class="deck-label">Pitch Deck</span>
+      <h3 style="background: linear-gradient(135deg, #1a1a1a, #555); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Next<br>Side
+      </h3>
+      <span class="deck-author">By Jesse Smith<br>This Year</span>
+    </div>
+  </div>
+
+  <!-- Card 10: Love Letter -->
+  <div class="card">
+    <div class="card-love">
+      <div class="hearts">
+        <span class="heart" style="color: #f472b6;">♥</span>
+        <span class="heart" style="color: #fb7185; font-size: 50px;">♥</span>
+        <span class="heart" style="color: #fda4af;">♥</span>
+      </div>
+      <h3>Love Letter</h3>
+      <p>Love is a canvas furnished by nature and embroidered by imagination. It draws out the most tender emotions.</p>
+    </div>
+  </div>
+
+  <!-- Card 11: MIX Typography / Abstract -->
+  <div class="card">
+    <div style="padding: 32px 24px; background: white; min-height: 200px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+      <div style="font-size: 72px; font-weight: 900; letter-spacing: -4px; color: #e8e8e8; position: relative;">
+        M<span style="color: #22c55e;">✦</span>x
+      </div>
+      <div style="position: absolute; top: 16px; right: 16px; font-size: 11px; color: #bbb;">By Jesse Smith<br>This Year</div>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: #22c55e;"></div>
+      <span class="author-name">Mix Lab</span>
+      <span class="likes">♥ 1.2k</span>
+    </div>
+  </div>
+
+  <!-- Card 12: Tool / Get Started -->
+  <div class="card">
+    <div class="card-tool">
+      <div class="tool-icon">+</div>
+      <p>Get started with a new file.</p>
+    </div>
+  </div>
+
+  <!-- Card 13: CJK Typography -->
+  <div class="card">
+    <div class="card-cjk">
+      <div class="cjk-title">3D设计趋势</div>
+      <div class="cjk-sub">Exploring the future of dimensional design</div>
+    </div>
+    <div class="card-footer" style="background: #5b21b6; border: none;">
+      <div class="author-avatar" style="background: #c4b5fd;"></div>
+      <span class="author-name" style="color: #c4b5fd;">创意工坊</span>
+      <span class="likes" style="color: #8b5cf6;">♥ 672</span>
+    </div>
+  </div>
+
+  <!-- Card 14: Play Jam -->
+  <div class="card">
+    <div class="card-play">
+      <h2>play<br>jam!</h2>
+    </div>
+    <div class="card-footer" style="background: #fef3c7; border-color: #fde68a;">
+      <div class="author-avatar" style="background: #f59e0b;"></div>
+      <span class="author-name">Game Jam 2024</span>
+      <span class="likes">♥ 934</span>
+    </div>
+  </div>
+
+  <!-- Card 15: Purple 3D Blocks -->
+  <div class="card">
+    <div class="iso-scene" style="background: #2a2a3e;">
+      <canvas id="canvas-purple" width="400" height="350"></canvas>
+    </div>
+    <div class="card-footer" style="background: #2a2a3e; border-color: #3a3a4e;">
+      <div class="author-avatar" style="background: #a29bfe;"></div>
+      <span class="author-name" style="color: #aaa;">Voxel Art</span>
+      <span class="likes" style="color: #666;">♥ 2.1k</span>
+    </div>
+  </div>
+
+  <!-- Card 16: Gradient "Diamond" shape -->
+  <div class="card">
+    <div class="card-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); aspect-ratio: 1;">
+      <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.15); transform: rotate(45deg); border-radius: 8px;"></div>
+    </div>
+  </div>
+
+  <!-- Card 17: Another map -->
+  <div class="card">
+    <div class="card-map" style="background: #f0f4e8;">
+      <div class="map-grid"></div>
+      <svg class="map-roads" viewBox="0 0 400 300" fill="none">
+        <path d="M0 100 Q80 80 160 110 T320 90 400 100" stroke="#c5cbb5" stroke-width="3"/>
+        <path d="M100 0 Q110 80 95 160 T110 300" stroke="#c5cbb5" stroke-width="2.5"/>
+        <path d="M250 0 Q240 100 260 200 T240 300" stroke="#d5dbc5" stroke-width="2"/>
+        <rect x="140" y="80" width="50" height="35" rx="4" fill="#dce2d0" opacity="0.6"/>
+        <rect x="220" y="120" width="40" height="30" rx="4" fill="#dce2d0" opacity="0.5"/>
+      </svg>
+      <div class="map-pin" style="top: 40%; left: 55%;"></div>
+      <div class="map-label">Tokyo, JP</div>
+    </div>
+  </div>
+
+  <!-- Card 18: Sky Blue 3D Blocks -->
+  <div class="card">
+    <div class="iso-scene" style="background: linear-gradient(180deg, #eef6ff, #dbeafe);">
+      <canvas id="canvas-sky" width="400" height="300"></canvas>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: #74b9ff;"></div>
+      <span class="author-name">Blue Studio</span>
+      <span class="likes">♥ 1.5k</span>
+    </div>
+  </div>
+
+  <!-- Card 19: Dark Hero -->
+  <div class="card">
+    <div class="card-hero" style="background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 220px;">
+      <h2 style="font-family: 'Playfair Display', serif; font-style: italic; font-size: 28px;">Creative<br>Vision</h2>
+      <p>Pushing boundaries in digital art</p>
+    </div>
+  </div>
+
+  <!-- Card 20: Peach Blocks -->
+  <div class="card">
+    <div class="iso-scene" style="background: #fff5f0;">
+      <canvas id="canvas-peach" width="400" height="300"></canvas>
+    </div>
+    <div class="card-footer">
+      <div class="author-avatar" style="background: #fab1a0;"></div>
+      <span class="author-name">Warm Studio</span>
+      <span class="likes">♥ 987</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── 3D Rendering Script ─── -->
+<script>
+// Simple isometric block renderer
+function drawIsometricBlocks(canvasId, blocks, palette) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const size = 32;
+  const centerX = w / 2;
+  const centerY = h / 2 - 20;
+
+  // Sort blocks for correct draw order
+  blocks.sort((a, b) => (a.x + a.y) - (b.x + b.y) || a.z - b.z);
+
+  blocks.forEach(block => {
+    const { x, y, z } = block;
+    // Isometric projection
+    const px = centerX + (x - y) * size * 0.866;
+    const py = centerY + (x + y) * size * 0.5 - z * size;
+
+    // Top face
+    ctx.beginPath();
+    ctx.moveTo(px, py - size * 0.5);
+    ctx.lineTo(px + size * 0.866, py);
+    ctx.lineTo(px, py + size * 0.5);
+    ctx.lineTo(px - size * 0.866, py);
+    ctx.closePath();
+    ctx.fillStyle = palette.top;
+    ctx.fill();
+
+    // Left face
+    ctx.beginPath();
+    ctx.moveTo(px - size * 0.866, py);
+    ctx.lineTo(px, py + size * 0.5);
+    ctx.lineTo(px, py + size);
+    ctx.lineTo(px - size * 0.866, py + size * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = palette.left;
+    ctx.fill();
+
+    // Right face
+    ctx.beginPath();
+    ctx.moveTo(px + size * 0.866, py);
+    ctx.lineTo(px, py + size * 0.5);
+    ctx.lineTo(px, py + size);
+    ctx.lineTo(px + size * 0.866, py + size * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = palette.right;
+    ctx.fill();
+  });
+}
+
+// Coral staircase
+drawIsometricBlocks('canvas-coral', [
+  {x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},
+  {x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},{x:3,y:1,z:0},
+  {x:0,y:0,z:1},{x:1,y:0,z:1},{x:2,y:0,z:1},
+  {x:0,y:1,z:1},{x:1,y:1,z:1},{x:2,y:1,z:1},
+  {x:0,y:0,z:2},{x:1,y:0,z:2},
+  {x:0,y:1,z:2},{x:1,y:1,z:2},
+  {x:0,y:0,z:3},
+  {x:0,y:1,z:3},
+], { top: '#ff7979', left: '#eb4d4b', right: '#c44040' });
+
+// Mint L-shape
+drawIsometricBlocks('canvas-mint', [
+  {x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},
+  {x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},
+  {x:0,y:0,z:1},{x:1,y:0,z:1},
+  {x:0,y:1,z:1},{x:1,y:1,z:1},
+  {x:0,y:2,z:0},{x:1,y:2,z:0},{x:2,y:2,z:0},
+  {x:0,y:2,z:1},
+], { top: '#55efc4', left: '#00b894', right: '#009a7a' });
+
+// Purple tetris-like
+drawIsometricBlocks('canvas-purple', [
+  {x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},
+  {x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},
+  {x:1,y:0,z:1},{x:2,y:0,z:1},
+  {x:1,y:1,z:1},{x:2,y:1,z:1},
+  {x:2,y:0,z:2},{x:2,y:1,z:2},
+  {x:0,y:2,z:0},{x:1,y:2,z:0},
+  {x:3,y:0,z:0},{x:3,y:1,z:0},
+  {x:3,y:0,z:1},
+], { top: '#a29bfe', left: '#6c5ce7', right: '#5541d6' });
+
+// Sky blocks
+drawIsometricBlocks('canvas-sky', [
+  {x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},
+  {x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},{x:3,y:1,z:0},
+  {x:1,y:0,z:1},{x:2,y:0,z:1},{x:3,y:0,z:1},
+  {x:1,y:1,z:1},{x:2,y:1,z:1},
+  {x:2,y:0,z:2},{x:2,y:1,z:2},
+], { top: '#74b9ff', left: '#0984e3', right: '#0768b5' });
+
+// Peach composition
+drawIsometricBlocks('canvas-peach', [
+  {x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0},
+  {x:2,y:0,z:0},{x:2,y:1,z:0},{x:2,y:2,z:0},
+  {x:0,y:0,z:1},{x:1,y:0,z:1},
+  {x:0,y:1,z:1},
+  {x:0,y:0,z:2},
+  {x:0,y:2,z:0},{x:1,y:2,z:0},
+], { top: '#fab1a0', left: '#e17055', right: '#c0553c' });
+
+// ─── Category pill click ───
+document.querySelectorAll('.pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+
+// ─── Subtle hover animation on 3D cards ───
+document.querySelectorAll('.iso-scene canvas').forEach(canvas => {
+  canvas.parentElement.parentElement.addEventListener('mouseenter', () => {
+    canvas.style.transform = 'scale(1.02)';
+    canvas.style.transition = 'transform 0.3s ease';
+  });
+  canvas.parentElement.parentElement.addEventListener('mouseleave', () => {
+    canvas.style.transform = 'scale(1)';
+  });
+});
+</script>
+
+</body>
+</html>
