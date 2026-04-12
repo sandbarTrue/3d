@@ -2745,19 +2745,78 @@ function createMiniScene(el, config) {
   }
 
   else if (sceneType === 'glow') {
-    camera.position.set(0, 0, 4);
+    camera.position.set(0, 0.3, 4.0);
     camera.lookAt(0, 0, 0);
-    const geo = new THREE.TorusKnotGeometry(0.6, 0.2, 100, 16);
-    const mat = createEditorMaterial('nebula');
-    shaderMats.push(mat);
-    const knot = new THREE.Mesh(geo, mat);
-    group.add(knot);
-    const point = new THREE.PointLight(0xa78bfa, 1, 5);
-    point.position.set(0, 0, 2);
-    scene.add(point);
+
+    // Dramatic lighting — purple + blue + pink
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x0a0520, 0.3));
+    const purpleLight = new THREE.PointLight(0xa78bfa, 1.5, 6);
+    purpleLight.position.set(-1, 2, 2);
+    scene.add(purpleLight);
+    const blueLight = new THREE.PointLight(0x60a5fa, 0.8, 5);
+    blueLight.position.set(1, -1, 3);
+    scene.add(blueLight);
+    const pinkLight = new THREE.PointLight(0xf472b6, 0.6, 4);
+    pinkLight.position.set(0, 0, -2);
+    scene.add(pinkLight);
+
+    // Central orb with nebula shader
+    const glowOrbMat = createEditorMaterial('nebula');
+    shaderMats.push(glowOrbMat);
+    const glowOrb = new THREE.Mesh(new THREE.SphereGeometry(0.55, 48, 48), glowOrbMat);
+    group.add(glowOrb);
+
+    // Inner glow core
+    const glowCoreMat = new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.3 });
+    const glowCore = new THREE.Mesh(new THREE.SphereGeometry(0.35, 24, 24), glowCoreMat);
+    group.add(glowCore);
+
+    // Orbiting rings
+    const glowRings = [];
+    const ringDefs = [
+      { color: 0xa78bfa, r: 0.80, rx: Math.PI / 2, ry: 0 },
+      { color: 0x60a5fa, r: 0.95, rx: 0.8, ry: 1.2 },
+      { color: 0xf472b6, r: 1.10, rx: -0.4, ry: 0.6 },
+    ];
+    ringDefs.forEach((rd, i) => {
+      const rMat = new THREE.MeshBasicMaterial({ color: rd.color, transparent: true, opacity: 0.35 + i * 0.08, side: THREE.DoubleSide });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(rd.r, 0.008, 8, 64), rMat);
+      ring.rotation.x = rd.rx;
+      ring.rotation.y = rd.ry;
+      group.add(ring);
+      glowRings.push(ring);
+    });
+
+    // Sparkle particles
+    const sparkCount = 30;
+    const sparkGeo = new THREE.BufferGeometry();
+    const sparkPos = new Float32Array(sparkCount * 3);
+    for (let i = 0; i < sparkCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.random() * Math.PI;
+      const r = 1.0 + Math.random() * 0.8;
+      sparkPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      sparkPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) - 0.2;
+      sparkPos[i * 3 + 2] = r * Math.cos(phi);
+    }
+    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+    const sparkMat = new THREE.PointsMaterial({ color: 0xc8b4ff, size: 0.025, transparent: true, opacity: 0.6 });
+    const sparks = new THREE.Points(sparkGeo, sparkMat);
+    group.add(sparks);
+
     animFn = (t, hover) => {
-      knot.rotation.x = t * (hover ? 0.8 : 0.2);
-      knot.rotation.y = t * (hover ? 1.2 : 0.3);
+      glowOrb.rotation.x = t * 0.15;
+      glowOrb.rotation.y = t * 0.10;
+      glowCore.scale.setScalar(1.0 + Math.sin(t * 1.5) * 0.08);
+      glowCoreMat.opacity = 0.25 + 0.10 * Math.sin(t * 2.0);
+      glowRings.forEach((ring, i) => {
+        ring.rotation.z = t * (0.15 + i * 0.08) * (i % 2 ? -1 : 1);
+      });
+      sparks.rotation.y = t * 0.05;
+      sparkMat.opacity = 0.4 + 0.2 * Math.sin(t * 1.0);
+      group.rotation.y = t * (hover ? 0.2 : 0.06);
     };
   }
 
@@ -2867,104 +2926,98 @@ function createMiniScene(el, config) {
     };
   }
 
-  // ═══════ Glass Text — Chrome/Glass Spheres ═══════
+  // ═══════ Glass Spheres — Chrome/Glass Cluster ═══════
   else if (sceneType === 'glass-text') {
-    camera.position.set(0, 0, 3.5);
+    camera.position.set(0, 0.5, 3.5);
     camera.lookAt(0, 0, 0);
 
-    // Text-like stripe planes behind
-    const stripeMat = new THREE.MeshBasicMaterial({ color: 0xccccdd, transparent: true, opacity: 0.3 });
-    const stripeWidths = [1.8, 1.4, 1.6, 1.2, 1.5, 0.9];
-    stripeWidths.forEach((w, i) => {
-      const geo = new THREE.PlaneGeometry(w, 0.06);
-      const stripe = new THREE.Mesh(geo, stripeMat);
-      stripe.position.set((Math.random() - 0.5) * 0.2, 0.6 - i * 0.22, -0.5);
-      group.add(stripe);
-    });
+    // Premium lighting for glass
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x0a0a14, 0.3));
+    const glKeyLight = new THREE.DirectionalLight(0xeeeeff, 0.8);
+    glKeyLight.position.set(3, 4, 4);
+    scene.add(glKeyLight);
+    const glFillLight = new THREE.DirectionalLight(0x6666aa, 0.4);
+    glFillLight.position.set(-2, 2, -1);
+    scene.add(glFillLight);
+    const glRimLight = new THREE.PointLight(0x8888ff, 0.8, 5);
+    glRimLight.position.set(0, -1, -2);
+    scene.add(glRimLight);
 
-    // Glass sphere shader
-    function makeGlassMat() {
+    function makeGlassMat(tint) {
+      const tc = new THREE.Color(tint || 0x8888ff);
       const mat = new THREE.ShaderMaterial({
         uniforms: {
-          uTime: { value: 0 },
-          uHover: { value: 0 },
+          uTime: { value: 0 }, uHover: { value: 0 },
+          uTint: { value: new THREE.Vector3(tc.r, tc.g, tc.b) }
         },
         vertexShader: `
-          varying vec3 vNormal, vViewPos, vPos, vWorldNormal;
+          varying vec3 vNormal, vViewPos;
           void main(){
             vNormal = normalize(normalMatrix * normal);
-            vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-            vPos = position;
             vec4 mv = modelViewMatrix * vec4(position, 1.0);
             vViewPos = -mv.xyz;
             gl_Position = projectionMatrix * mv;
-          }
-        `,
+          }`,
         fragmentShader: `
           uniform float uTime, uHover;
-          varying vec3 vNormal, vViewPos, vPos, vWorldNormal;
+          uniform vec3 uTint;
+          varying vec3 vNormal, vViewPos;
           void main(){
-            vec3 V = normalize(vViewPos);
-            vec3 N = normalize(vNormal);
-            float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.0);
-
-            // Fake environment reflection
-            vec3 refl = reflect(-V, N);
-            float ey = refl.y * 0.5 + 0.5;
-            vec3 envColor = mix(vec3(0.02, 0.02, 0.06), vec3(0.12, 0.10, 0.18), ey);
-            envColor += vec3(0.3, 0.25, 0.5) * pow(max(dot(refl, normalize(vec3(0.5, 0.8, 0.3))), 0.0), 12.0);
-            envColor += vec3(0.1, 0.2, 0.5) * pow(max(dot(refl, normalize(vec3(-0.6, 0.2, 0.7))), 0.0), 8.0);
-
-            // Dark base with strong reflection
-            vec3 base = vec3(0.03, 0.03, 0.05);
-            base = mix(base, envColor, 0.6 + fresnel * 0.4);
-
-            // Purple/blue tint in reflections
-            base += vec3(0.08, 0.04, 0.15) * fresnel;
-
-            // High specular
-            vec3 L = normalize(vec3(0.5, 0.8, 0.6));
+            vec3 V = normalize(vViewPos), N = normalize(vNormal);
+            float fres = pow(1.0 - max(dot(V, N), 0.0), 3.0);
+            vec3 R = reflect(-V, N);
+            float ey = R.y * 0.5 + 0.5;
+            vec3 env = mix(vec3(0.03, 0.03, 0.08), vec3(0.15, 0.12, 0.22), ey);
+            env += vec3(0.5, 0.45, 0.7) * pow(max(dot(R, normalize(vec3(0.5,0.8,0.3))), 0.0), 16.0);
+            env += uTint * pow(max(dot(R, normalize(vec3(-0.6,0.2,0.7))), 0.0), 10.0) * 0.5;
+            vec3 base = mix(vec3(0.02), env, 0.5 + fres * 0.5);
+            base += uTint * fres * 0.3;
+            vec3 L = normalize(vec3(0.5,0.8,0.6));
             vec3 H = normalize(V + L);
-            float spec = pow(max(dot(N, H), 0.0), 200.0) * 1.5;
-            base += vec3(1.0, 0.98, 0.95) * spec;
-
-            // Secondary spec
-            vec3 L2 = normalize(vec3(-0.4, 0.3, 0.8));
+            base += vec3(1.0) * pow(max(dot(N, H), 0.0), 180.0) * 1.2;
+            vec3 L2 = normalize(vec3(-0.4,0.3,0.8));
             vec3 H2 = normalize(V + L2);
-            float spec2 = pow(max(dot(N, H2), 0.0), 100.0) * 0.8;
-            base += vec3(0.8, 0.85, 1.0) * spec2;
-
-            base += vec3(0.1, 0.08, 0.15) * uHover;
+            base += vec3(0.85, 0.9, 1.0) * pow(max(dot(N, H2), 0.0), 80.0) * 0.6;
+            base += uTint * uHover * 0.1;
             gl_FragColor = vec4(base, 1.0);
-          }
-        `
+          }`
       });
       shaderMats.push(mat);
       return mat;
     }
 
-    // Large sphere
-    const bigSphereGeo = new THREE.SphereGeometry(0.6, 48, 48);
-    const bigSphere = new THREE.Mesh(bigSphereGeo, makeGlassMat());
-    bigSphere.position.set(-0.2, -0.1, 0.3);
-    group.add(bigSphere);
+    // Sphere cluster — 4 glass spheres, each with unique tint
+    const glSphereDefs = [
+      { r: 0.50, pos: [-0.3, -0.15, 0.2], tint: 0x8888ff },
+      { r: 0.22, pos: [0.55, 0.35, 0.4], tint: 0xaa88ff },
+      { r: 0.14, pos: [-0.55, 0.50, -0.2], tint: 0x88aaff },
+      { r: 0.30, pos: [0.25, -0.30, -0.3], tint: 0xcc88ff },
+    ];
+    const glSpheres = glSphereDefs.map(s => {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(s.r, 48, 48), makeGlassMat(s.tint));
+      mesh.position.set(s.pos[0], s.pos[1], s.pos[2]);
+      group.add(mesh);
+      return mesh;
+    });
 
-    // Small sphere
-    const smallSphereGeo = new THREE.SphereGeometry(0.2, 32, 32);
-    const smallSphere = new THREE.Mesh(smallSphereGeo, makeGlassMat());
-    smallSphere.position.set(0.5, 0.35, 0.5);
-    group.add(smallSphere);
+    // Reflective pedestal
+    const glPedestal = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.9, 0.9, 0.03, 48),
+      createRobotMaterial(0x1a1a24, { rimHex: 0x4444aa, rimStr: 0.5, specInt: 0.6 })
+    );
+    glPedestal.position.y = -0.55;
+    group.add(glPedestal);
+    shaderMats.push(glPedestal.material);
 
-    let orbitAngle = 0;
     animFn = (t, hover) => {
-      orbitAngle = t * 0.3;
-      bigSphere.position.x = -0.2 + Math.sin(orbitAngle) * 0.15;
-      bigSphere.position.y = -0.1 + Math.cos(orbitAngle * 0.7) * 0.08;
-      smallSphere.position.x = 0.5 + Math.cos(orbitAngle * 1.3) * 0.2;
-      smallSphere.position.y = 0.35 + Math.sin(orbitAngle * 1.1) * 0.12;
-      bigSphere.rotation.y = t * 0.2;
-      smallSphere.rotation.y = -t * 0.3;
-      group.rotation.y = Math.sin(t * 0.15) * 0.1;
+      glSpheres.forEach((s, i) => {
+        const phase = t * 0.4 + i * 1.5;
+        s.position.y = glSphereDefs[i].pos[1] + Math.sin(phase) * 0.06;
+        s.rotation.y = t * (0.1 + i * 0.05);
+      });
+      group.rotation.y = t * (hover ? 0.15 : 0.05);
     };
   }
 
@@ -3380,98 +3433,106 @@ function createMiniScene(el, config) {
     camera.position.set(4, 4, 4);
     camera.lookAt(0, 0, 0);
 
-    // Override lighting
     scene.children.length = 0;
     scene.add(group);
-    scene.add(new THREE.AmbientLight(0x222222, 0.5));
-    const isoLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    scene.add(new THREE.AmbientLight(0x111111, 0.4));
+    const isoLight = new THREE.DirectionalLight(0xffffff, 0.8);
     isoLight.position.set(5, 8, 5);
     scene.add(isoLight);
-    const greenGlow = new THREE.PointLight(0x88ff44, 0.4, 8);
-    greenGlow.position.set(0, 2, 0);
+    const greenGlow = new THREE.PointLight(0x88ff44, 0.6, 8);
+    greenGlow.position.set(0, 3, 0);
     scene.add(greenGlow);
 
-    const tileMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 });
-    const iconMat = new THREE.MeshBasicMaterial({ color: 0x88ff44 });
+    // Premium dark tile
+    const igTileMat = createRobotMaterial(0x18181E, { rimHex: 0x333344, rimStr: 0.2, specInt: 0.3, matte: 0.5 });
+    shaderMats.push(igTileMat);
 
-    const icons = [];
-    const iconGeos = [
-      // 0: compass (torus + cone)
-      null,
-      // 1: cone
-      new THREE.ConeGeometry(0.15, 0.3, 12),
-      // 2: atom (sphere + torus)
-      null,
-      // 3: cylinder pin
+    // Per-icon unique color
+    const igColors = [
+      { hex: 0x88ff44, rim: 0xaaffaa },
+      { hex: 0xffaa44, rim: 0xffddaa },
+      { hex: 0x44aaff, rim: 0xaaddff },
+      { hex: 0xff6688, rim: 0xffaacc },
+      { hex: 0xffd644, rim: 0xffeeaa },
+      { hex: 0xaa88ff, rim: 0xccbbff },
+      { hex: 0x44ffcc, rim: 0xaaffee },
+      { hex: 0xff88aa, rim: 0xffbbcc },
+      { hex: 0x88ccff, rim: 0xbbddff },
+    ];
+    const igGeos = [
+      null, new THREE.ConeGeometry(0.15, 0.3, 12), null,
       new THREE.CylinderGeometry(0.08, 0.08, 0.3, 12),
-      // 4: cube
       new THREE.BoxGeometry(0.22, 0.22, 0.22),
-      // 5: small face (sphere)
       new THREE.SphereGeometry(0.14, 16, 16),
-      // 6: torus
       new THREE.TorusGeometry(0.13, 0.04, 16, 32),
-      // 7: icosahedron
       new THREE.IcosahedronGeometry(0.15, 0),
-      // 8: octahedron
       new THREE.OctahedronGeometry(0.15, 0),
     ];
 
+    const igIcons = [];
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 3; col++) {
         const idx = row * 3 + col;
-        const tx = (col - 1) * 1.0;
-        const tz = (row - 1) * 1.0;
+        const tx = (col - 1) * 1.0, tz = (row - 1) * 1.0;
 
-        // Dark tile
-        const tile = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.8), tileMat);
+        const tile = new THREE.Mesh(new RoundedBoxGeometry(0.8, 0.12, 0.8, 2, 0.03), igTileMat);
         tile.position.set(tx, 0, tz);
         group.add(tile);
 
-        // Icon on tile
+        // Glow disc under icon
+        const gd = new THREE.Mesh(
+          new THREE.CircleGeometry(0.2, 24),
+          new THREE.MeshBasicMaterial({ color: igColors[idx].hex, transparent: true, opacity: 0.15 })
+        );
+        gd.rotation.x = -Math.PI / 2;
+        gd.position.set(tx, 0.07, tz);
+        group.add(gd);
+
+        // Per-icon material with unique color + Fresnel
+        const iMat = createRobotMaterial(igColors[idx].hex, {
+          rimHex: igColors[idx].rim, rimStr: 0.5, specInt: 0.4, envStr: 0.15
+        });
+        shaderMats.push(iMat);
+
         let iconMesh;
         if (idx === 0) {
-          // Compass: torus + cone needle
-          const compassGroup = new THREE.Group();
-          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.02, 12, 32), iconMat);
-          compassGroup.add(ring);
-          const needle = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 6), iconMat);
-          compassGroup.add(needle);
-          compassGroup.position.set(tx, 0.25, tz);
-          group.add(compassGroup);
-          iconMesh = compassGroup;
+          const cg = new THREE.Group();
+          cg.add(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.02, 12, 32), iMat));
+          cg.add(new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 6), iMat));
+          cg.position.set(tx, 0.25, tz);
+          group.add(cg);
+          iconMesh = cg;
         } else if (idx === 2) {
-          // Atom: sphere + torus orbits
-          const atomGroup = new THREE.Group();
-          const nucleus = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), iconMat);
-          atomGroup.add(nucleus);
-          const orbit1 = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 32), iconMat);
-          atomGroup.add(orbit1);
-          const orbit2 = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 32), iconMat);
-          orbit2.rotation.x = Math.PI / 3;
-          atomGroup.add(orbit2);
-          atomGroup.position.set(tx, 0.25, tz);
-          group.add(atomGroup);
-          iconMesh = atomGroup;
+          const ag = new THREE.Group();
+          ag.add(new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), iMat));
+          const o1 = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 32), iMat);
+          ag.add(o1);
+          const o2 = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 32), iMat);
+          o2.rotation.x = Math.PI / 3;
+          ag.add(o2);
+          ag.position.set(tx, 0.25, tz);
+          group.add(ag);
+          iconMesh = ag;
         } else {
-          const geo = iconGeos[idx];
+          const geo = igGeos[idx];
           if (geo) {
-            iconMesh = new THREE.Mesh(geo, iconMat);
+            iconMesh = new THREE.Mesh(geo, iMat);
             iconMesh.position.set(tx, 0.25, tz);
             group.add(iconMesh);
           }
         }
-        if (iconMesh) {
-          icons.push({ mesh: iconMesh, baseY: 0.25, tileX: tx, tileZ: tz, tile });
-        }
+        if (iconMesh) igIcons.push({ mesh: iconMesh, baseY: 0.25, tile, gd });
       }
     }
 
     animFn = (t, hover) => {
-      icons.forEach((ic, i) => {
+      igIcons.forEach((ic, i) => {
         ic.mesh.rotation.y = t * (0.3 + i * 0.05);
-        // Subtle wave displacement on tiles
-        ic.tile.position.y = Math.sin(t * 0.5 + i * 0.7) * 0.03;
-        ic.mesh.position.y = ic.baseY + Math.sin(t * 0.5 + i * 0.7) * 0.03;
+        const wave = Math.sin(t * 0.5 + i * 0.7) * 0.04;
+        ic.tile.position.y = wave;
+        ic.mesh.position.y = ic.baseY + wave;
+        ic.gd.position.y = 0.07 + wave;
+        ic.gd.material.opacity = 0.12 + 0.06 * Math.sin(t * 1.0 + i * 0.5);
       });
     };
   }
