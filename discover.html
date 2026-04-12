@@ -252,16 +252,7 @@
 
   /* Hover states */
   .card:hover .card-happy-robot .robot-body{
-    animation:none;transform:translateX(-50%) translateY(-8px) rotate(3deg);
-    transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .card:hover .card-happy-robot .robot-eye::before{
-    transform:rotate(0deg) scaleY(0.5);border-radius:0 0 10px 10px;top:4px;left:0;
-    transition:all 0.3s ease;
-  }
-  .card:hover .card-happy-robot .robot-eye::after{
-    transform:rotate(0deg) scaleY(0.5);border-radius:0 0 10px 10px;top:4px;left:6px;
-    transition:all 0.3s ease;
+    animation:none;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
   }
   .card:hover .card-happy-robot .robot-sphere{animation-duration:1.5s}
   .card:hover .card-happy-robot .robot-container::after{
@@ -270,6 +261,56 @@
     animation:hoverBurst 0.5s ease-out forwards;pointer-events:none;
   }
   @keyframes hoverBurst{0%{transform:scale(0.5);opacity:0}50%{opacity:1}100%{transform:scale(1.8);opacity:0}}
+
+  /* Mouse tracking — eyes follow cursor */
+  .card-happy-robot .robot-face{transition:transform 0.15s ease-out}
+  .card-happy-robot .robot-eye{transition:transform 0.12s ease-out}
+  .card-happy-robot .robot-container{transition:transform 0.3s ease-out}
+
+  /* Click ripple effect */
+  .card-happy-robot .click-ripple{
+    position:absolute;width:40px;height:40px;border-radius:50%;
+    background:radial-gradient(circle,rgba(167,139,250,0.5),transparent);
+    pointer-events:none;z-index:10;
+    transform:translate(-50%,-50%) scale(0);opacity:1;
+    animation:clickRipple 0.6s ease-out forwards;
+  }
+  @keyframes clickRipple{
+    0%{transform:translate(-50%,-50%) scale(0);opacity:1}
+    100%{transform:translate(-50%,-50%) scale(4);opacity:0}
+  }
+
+  /* Excited state (triggered by click) */
+  .card-happy-robot.excited .robot-body{
+    animation:excitedBounce 0.4s cubic-bezier(0.34,1.56,0.64,1) 3!important;
+  }
+  @keyframes excitedBounce{
+    0%,100%{transform:translateX(-50%) translateY(0) scale(1)}
+    50%{transform:translateX(-50%) translateY(-12px) scale(1.06)}
+  }
+  .card-happy-robot.excited .robot-antenna-tip{
+    animation:excitedGlow 0.2s ease-in-out 6 alternate!important;
+  }
+  @keyframes excitedGlow{
+    0%{box-shadow:0 0 6px rgba(255,107,107,0.5);background:radial-gradient(circle,#ff6b6b,#e74c3c)}
+    100%{box-shadow:0 0 20px rgba(255,220,100,0.9);background:radial-gradient(circle,#ffdd44,#ffaa00)}
+  }
+
+  /* Heart particle for click */
+  .card-happy-robot .heart-particle{
+    position:absolute;font-size:16px;pointer-events:none;z-index:10;opacity:0;
+    animation:heartFloat 1s ease-out forwards;
+  }
+  @keyframes heartFloat{
+    0%{opacity:1;transform:translateY(0) scale(0.5)}
+    50%{opacity:1;transform:translateY(-30px) scale(1.2)}
+    100%{opacity:0;transform:translateY(-60px) scale(0.8)}
+  }
+
+  /* Mouse interaction transitions for all bot variants */
+  .card-dancing-robot .robot-face,.card-sleepy-robot .robot-face,.card-party-robot .robot-face{transition:transform 0.15s ease-out}
+  .card-dancing-robot .robot-eye,.card-sleepy-robot .robot-eye,.card-party-robot .robot-eye{transition:transform 0.12s ease-out}
+  .card-dancing-robot .robot-container,.card-sleepy-robot .robot-container,.card-party-robot .robot-container{transition:transform 0.3s ease-out}
 
   /* ─── Dancing Robot Card ─── */
   .card-dancing-robot{
@@ -805,6 +846,35 @@ const cards = [
 
   // 35: Wall-E Lab
   { type: '3d-robot', height: 300, bg: '#1a1408', robotStyle: 'walle', palette: 'clay', foot: { color: '#a08070', name: 'Wall-E Lab', likes: '4.1k' } },
+
+  // 36: Sunset Stack — Stacked Glowing Planes
+  { type: '3d', height: 280, bg: '#0a0808', scene: 'sunset-stack',
+    foot: { color: '#ff6b35', name: 'DesignGabor', likes: '3.8k' } },
+
+  // 37: Glass Text — Chrome/Glass Spheres
+  { type: '3d', height: 260, bg: '#0a0a0f', scene: 'glass-text',
+    foot: { color: '#aaaacc', name: 'sanny.verkissen', likes: '2.9k' } },
+
+  // 38: Holographic Logo — Edge-Lit Shape
+  { type: '3d', height: 260, bg: '#000000', scene: 'holo-logo',
+    foot: { color: '#00ddff', name: 'samborek', likes: '4.2k' } },
+
+  // 39: Nexbot — Premium Dark Robot
+  { type: '3d', height: 300, bg: '#e8e8ee', scene: 'nexbot',
+    foot: { color: '#333333', name: 'aximoris', likes: '5.1k' } },
+
+  // 40: Clay Heads — Claymation Character Group
+  { type: '3d', height: 280, bg: '#1a0a2e', scene: 'clay-heads',
+    foot: { color: '#c084fc', name: 'heyvlad', likes: '3.5k' } },
+
+  // 41: Icon Grid — Isometric 3D Icon Tiles
+  { type: '3d', height: 260, bg: '#0a0c08', scene: 'icon-grid',
+    foot: { color: '#88ff44', name: 'adriandaniluk', likes: '2.4k' } },
+
+  // 42: Desert Game — Sunset Game Scene
+  { type: '3d-hero', height: 280, bg: '#1a0e06', scene: 'desert-game',
+    title: 'SPEEDER', sub: 'THE GAME',
+    foot: { color: '#f59e0b', name: 'vladkolokolnikov', likes: '3.1k' } },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -1575,16 +1645,22 @@ function createRobotAnimFn(robot, style) {
         break;
 
       case 'walle':
-        // Curious head tilt
+        // Curious head tilt — override common headJoint rotation
         if (robot.headJoint) {
-          robot.headJoint.rotation.z = Math.sin(t * 0.6) * 0.2;
+          robot.headJoint.rotation.y = Math.sin(t * 0.5) * 0.3;
+          robot.headJoint.rotation.z = Math.sin(t * 0.6) * 0.15;
           robot.headJoint.rotation.x = Math.sin(t * 0.4) * 0.1 + 0.05;
         }
-        // Eyes track — look around
-        if (robot.eyes) {
-          robot.eyes.forEach(eye => {
-            eye.position.x += Math.sin(t * 0.8) * 0.0005;
-          });
+        // Neck telescoping subtle animation
+        if (robot.neckJoint) {
+          robot.neckJoint.scale.y = 1.0 + Math.sin(t * 0.8) * 0.05;
+        }
+        // Eyes track — absolute position (no drift!)
+        if (robot.eyes && robot.eyes.length >= 2) {
+          const lookX = Math.sin(t * 0.8) * 0.015;
+          const lookY = Math.cos(t * 0.6) * 0.01;
+          robot.eyes[0].position.set(-0.11 + lookX, 0.05 + lookY, 0.06);
+          robot.eyes[1].position.set(0.11 + lookX, 0.05 + lookY, 0.06);
         }
         // Arms fidget
         if (robot.leftArm) {
@@ -1592,7 +1668,6 @@ function createRobotAnimFn(robot, style) {
           robot.leftArm.armJoint.rotation.x = Math.sin(t * 0.7) * 0.06;
           robot.rightArm.armJoint.rotation.z = Math.sin(t * 0.5 + 1.5) * 0.08;
           robot.rightArm.armJoint.rotation.x = -0.1 + Math.sin(t * 0.9) * 0.12;
-          // Elbow fidget
           robot.leftArm.elbowJoint.rotation.x = -0.2 + Math.sin(t * 0.6) * 0.05;
           robot.rightArm.elbowJoint.rotation.x = -0.15 + Math.sin(t * 1.2) * 0.1;
         }
@@ -1776,7 +1851,7 @@ cards.forEach((c, i) => {
       sceneBadge.className = 'badge-3d';
       sceneBadge.textContent = '3D';
       sceneDiv.appendChild(sceneBadge);
-      const sceneLabels = { architecture: 'Floating Architecture', crystal: 'Crystal Cluster', abstract: 'Abstract Mix' };
+      const sceneLabels = { architecture: 'Floating Architecture', crystal: 'Crystal Cluster', abstract: 'Abstract Mix', 'sunset-stack': 'Chasing Sunsets', 'glass-text': 'Glass Reflection', 'holo-logo': 'Holographic Logo', 'nexbot': 'NEXBOT', 'clay-heads': 'Animated Characters', 'icon-grid': '3D Icons', 'desert-game': 'Speeder Game' };
       if (sceneLabels[c.scene]) {
         const label = document.createElement('div');
         label.className = 'shape-label';
@@ -1944,7 +2019,7 @@ function createMiniScene(el, config) {
     let camY = 0.2, camZ = 3.5;
     switch (config.robotStyle) {
       case 'drone': camY = 0.5; camZ = 3.2; break;
-      case 'walle': camY = 0.3; camZ = 2.2; break;
+      case 'walle': camY = 0.15; camZ = 2.8; break;
     }
     camera.position.set(0, camY, camZ);
     camera.lookAt(0, 0, 0);
@@ -1952,6 +2027,16 @@ function createMiniScene(el, config) {
     const robot = createRobot(config.robotStyle, config.palette);
     group.add(robot.root);
     shaderMats.push(...robot.shaderMats);
+
+    // Extra warm light for Wall-E's metallic parts
+    if (config.robotStyle === 'walle') {
+      const warmLight = new THREE.PointLight(0xffcc88, 0.6, 5);
+      warmLight.position.set(1, 1.5, 2);
+      scene.add(warmLight);
+      const fillLight = new THREE.PointLight(0x8888cc, 0.3, 5);
+      fillLight.position.set(-1, 0.5, 1);
+      scene.add(fillLight);
+    }
 
     const robotAnim = createRobotAnimFn(robot, config.robotStyle);
     animFn = (t, hover) => robotAnim(t, hover);
@@ -2588,6 +2673,713 @@ function createMiniScene(el, config) {
     };
   }
 
+  // ═══════ Sunset Stack — Stacked Glowing Planes ═══════
+  else if (sceneType === 'sunset-stack') {
+    camera.position.set(0, 0.3, 3.5);
+    camera.lookAt(0, 0, 0);
+
+    // Override lighting for warm scene
+    scene.children.length = 0; // clear default lights
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x331100, 0.3));
+    const warmDir = new THREE.DirectionalLight(0xff8844, 0.6);
+    warmDir.position.set(2, 4, 3);
+    scene.add(warmDir);
+
+    const planeCount = 6;
+    const planes = [];
+    const planeMats = [];
+
+    for (let i = 0; i < planeCount; i++) {
+      const geo = new THREE.PlaneGeometry(1.6, 1.0, 1, 1);
+      // Skew to parallelogram
+      const pos = geo.attributes.position;
+      for (let v = 0; v < pos.count; v++) {
+        const y = pos.getY(v);
+        pos.setX(v, pos.getX(v) + y * 0.4);
+      }
+      geo.computeVertexNormals();
+
+      const phase = i / planeCount;
+      const mat = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthWrite: false,
+        uniforms: {
+          uTime: { value: 0 },
+          uHover: { value: 0 },
+          uPhase: { value: phase },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          varying vec3 vNormal, vViewPos;
+          void main(){
+            vUv = uv;
+            vNormal = normalize(normalMatrix * normal);
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vViewPos = -mv.xyz;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform float uTime, uHover, uPhase;
+          varying vec2 vUv;
+          varying vec3 vNormal, vViewPos;
+          void main(){
+            vec3 V = normalize(vViewPos);
+            vec3 N = normalize(vNormal);
+            float fresnel = pow(1.0 - abs(dot(V, N)), 2.0);
+
+            // Warm gradient from center to edge
+            float dist = length(vUv - 0.5) * 2.0;
+            vec3 centerColor = vec3(1.0, 0.55, 0.1); // bright orange
+            vec3 edgeColor = vec3(0.7, 0.1, 0.05);   // deep red
+            vec3 base = mix(centerColor, edgeColor, dist);
+
+            // Time-based color shift
+            base += vec3(0.1, 0.05, 0.0) * sin(uTime * 0.5 + uPhase * 6.28);
+
+            // Bright edge glow (Fresnel)
+            vec3 glowColor = vec3(1.0, 0.75, 0.3); // orange-white
+            base += glowColor * fresnel * 1.8;
+
+            // Feathered transparency at edges
+            float alpha = smoothstep(1.0, 0.3, dist) * (0.7 + fresnel * 0.3);
+            alpha *= 0.75 + 0.25 * sin(uTime * 0.3 + uPhase * 3.14);
+
+            // Hover boost
+            base += vec3(0.15, 0.08, 0.02) * uHover;
+
+            gl_FragColor = vec4(base, alpha);
+          }
+        `
+      });
+      planeMats.push(mat);
+      shaderMats.push(mat);
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(
+        (i - planeCount / 2 + 0.5) * 0.15,
+        (i - planeCount / 2 + 0.5) * 0.08,
+        -i * 0.3
+      );
+      mesh.rotation.y = 0.15 + i * 0.03;
+      mesh.rotation.x = -0.1;
+      group.add(mesh);
+      planes.push(mesh);
+    }
+
+    animFn = (t, hover) => {
+      group.rotation.y = t * 0.08;
+      planes.forEach((p, i) => {
+        const phase = t * 0.6 + i * 0.8;
+        p.position.y = (i - planeCount / 2 + 0.5) * 0.08 + Math.sin(phase) * 0.06;
+        p.rotation.z = Math.sin(phase * 0.7) * 0.03;
+      });
+    };
+  }
+
+  // ═══════ Glass Text — Chrome/Glass Spheres ═══════
+  else if (sceneType === 'glass-text') {
+    camera.position.set(0, 0, 3.5);
+    camera.lookAt(0, 0, 0);
+
+    // Text-like stripe planes behind
+    const stripeMat = new THREE.MeshBasicMaterial({ color: 0xccccdd, transparent: true, opacity: 0.3 });
+    const stripeWidths = [1.8, 1.4, 1.6, 1.2, 1.5, 0.9];
+    stripeWidths.forEach((w, i) => {
+      const geo = new THREE.PlaneGeometry(w, 0.06);
+      const stripe = new THREE.Mesh(geo, stripeMat);
+      stripe.position.set((Math.random() - 0.5) * 0.2, 0.6 - i * 0.22, -0.5);
+      group.add(stripe);
+    });
+
+    // Glass sphere shader
+    function makeGlassMat() {
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uHover: { value: 0 },
+        },
+        vertexShader: `
+          varying vec3 vNormal, vViewPos, vPos, vWorldNormal;
+          void main(){
+            vNormal = normalize(normalMatrix * normal);
+            vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+            vPos = position;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vViewPos = -mv.xyz;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform float uTime, uHover;
+          varying vec3 vNormal, vViewPos, vPos, vWorldNormal;
+          void main(){
+            vec3 V = normalize(vViewPos);
+            vec3 N = normalize(vNormal);
+            float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.0);
+
+            // Fake environment reflection
+            vec3 refl = reflect(-V, N);
+            float ey = refl.y * 0.5 + 0.5;
+            vec3 envColor = mix(vec3(0.02, 0.02, 0.06), vec3(0.12, 0.10, 0.18), ey);
+            envColor += vec3(0.3, 0.25, 0.5) * pow(max(dot(refl, normalize(vec3(0.5, 0.8, 0.3))), 0.0), 12.0);
+            envColor += vec3(0.1, 0.2, 0.5) * pow(max(dot(refl, normalize(vec3(-0.6, 0.2, 0.7))), 0.0), 8.0);
+
+            // Dark base with strong reflection
+            vec3 base = vec3(0.03, 0.03, 0.05);
+            base = mix(base, envColor, 0.6 + fresnel * 0.4);
+
+            // Purple/blue tint in reflections
+            base += vec3(0.08, 0.04, 0.15) * fresnel;
+
+            // High specular
+            vec3 L = normalize(vec3(0.5, 0.8, 0.6));
+            vec3 H = normalize(V + L);
+            float spec = pow(max(dot(N, H), 0.0), 200.0) * 1.5;
+            base += vec3(1.0, 0.98, 0.95) * spec;
+
+            // Secondary spec
+            vec3 L2 = normalize(vec3(-0.4, 0.3, 0.8));
+            vec3 H2 = normalize(V + L2);
+            float spec2 = pow(max(dot(N, H2), 0.0), 100.0) * 0.8;
+            base += vec3(0.8, 0.85, 1.0) * spec2;
+
+            base += vec3(0.1, 0.08, 0.15) * uHover;
+            gl_FragColor = vec4(base, 1.0);
+          }
+        `
+      });
+      shaderMats.push(mat);
+      return mat;
+    }
+
+    // Large sphere
+    const bigSphereGeo = new THREE.SphereGeometry(0.6, 48, 48);
+    const bigSphere = new THREE.Mesh(bigSphereGeo, makeGlassMat());
+    bigSphere.position.set(-0.2, -0.1, 0.3);
+    group.add(bigSphere);
+
+    // Small sphere
+    const smallSphereGeo = new THREE.SphereGeometry(0.2, 32, 32);
+    const smallSphere = new THREE.Mesh(smallSphereGeo, makeGlassMat());
+    smallSphere.position.set(0.5, 0.35, 0.5);
+    group.add(smallSphere);
+
+    let orbitAngle = 0;
+    animFn = (t, hover) => {
+      orbitAngle = t * 0.3;
+      bigSphere.position.x = -0.2 + Math.sin(orbitAngle) * 0.15;
+      bigSphere.position.y = -0.1 + Math.cos(orbitAngle * 0.7) * 0.08;
+      smallSphere.position.x = 0.5 + Math.cos(orbitAngle * 1.3) * 0.2;
+      smallSphere.position.y = 0.35 + Math.sin(orbitAngle * 1.1) * 0.12;
+      bigSphere.rotation.y = t * 0.2;
+      smallSphere.rotation.y = -t * 0.3;
+      group.rotation.y = Math.sin(t * 0.15) * 0.1;
+    };
+  }
+
+  // ═══════ Holographic Logo — Edge-Lit Shape ═══════
+  else if (sceneType === 'holo-logo') {
+    camera.position.set(0, 0, 3.5);
+    camera.lookAt(0, 0, 0);
+
+    // Pure black background - override lights
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x000000, 0.0));
+
+    const holoMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: { value: 0 },
+        uHover: { value: 0 },
+      },
+      vertexShader: `
+        varying vec3 vNormal, vViewPos, vPos;
+        void main(){
+          vNormal = normalize(normalMatrix * normal);
+          vPos = position;
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vViewPos = -mv.xyz;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime, uHover;
+        varying vec3 vNormal, vViewPos, vPos;
+
+        vec3 hsvToRgb(float h, float s, float v){
+          vec3 c = vec3(h, s, v);
+          vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0);
+          return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+        }
+
+        void main(){
+          vec3 V = normalize(vViewPos);
+          vec3 N = normalize(vNormal);
+
+          vec3 base = vec3(0.02);
+          float fresnel = pow(1.0 - abs(dot(V, N)), 2.5);
+
+          // Cycling hue for rim
+          float hue = fract(uTime * 0.1 + vPos.y * 0.3);
+          vec3 rimColor = hsvToRgb(hue, 0.8, 2.5); // HDR bright
+
+          base += rimColor * fresnel;
+
+          // Additional inner glow at steep angles
+          float innerGlow = pow(1.0 - abs(dot(V, N)), 4.0);
+          vec3 innerColor = hsvToRgb(fract(hue + 0.33), 0.6, 1.5);
+          base += innerColor * innerGlow * 0.3;
+
+          // Hover intensifies
+          base += rimColor * fresnel * uHover * 0.5;
+
+          gl_FragColor = vec4(base, 1.0);
+        }
+      `
+    });
+    shaderMats.push(holoMat);
+
+    const knotGeo = new THREE.TorusKnotGeometry(0.7, 0.22, 128, 32, 2, 3);
+    const knot = new THREE.Mesh(knotGeo, holoMat);
+    group.add(knot);
+
+    animFn = (t, hover) => {
+      group.rotation.y = t * (hover ? 0.3 : 0.12);
+      group.rotation.x = Math.sin(t * 0.2) * 0.1;
+    };
+  }
+
+  // ═══════ Nexbot — Premium Dark Robot ═══════
+  else if (sceneType === 'nexbot') {
+    camera.position.set(0, 0.3, 3.0);
+    camera.lookAt(0, 0.1, 0);
+
+    // Override lights for light background
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0xcccccc, 0.6));
+    const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    mainLight.position.set(3, 5, 4);
+    scene.add(mainLight);
+    const fillLight = new THREE.DirectionalLight(0x8888aa, 0.3);
+    fillLight.position.set(-2, 3, -1);
+    scene.add(fillLight);
+    // Rim light from behind
+    const rimLight = new THREE.PointLight(0xffffff, 0.7, 5);
+    rimLight.position.set(0, 1, -2);
+    scene.add(rimLight);
+
+    const bodyGroup = new THREE.Group();
+
+    // Head — chrome mirror sphere
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 1.0, roughness: 0.05 });
+    const headGeo = new THREE.SphereGeometry(0.25, 48, 48);
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 0.75;
+    bodyGroup.add(head);
+
+    // Visor / face area
+    const visorMat = new THREE.MeshBasicMaterial({ color: 0x111118 });
+    const visorGeo = new THREE.BoxGeometry(0.22, 0.08, 0.06);
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.set(0, 0.73, 0.22);
+    bodyGroup.add(visor);
+
+    // LED dot-matrix eyes (3x4 grid of tiny emissive spheres)
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x88ffaa });
+    const ledDotGeo = new THREE.SphereGeometry(0.008, 8, 8);
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 4; col++) {
+        // Only show certain dots to form "eye" pattern
+        if ((row === 0 && (col === 0 || col === 3)) ||
+            (row === 1 && (col === 1 || col === 2)) ||
+            (row === 2 && (col === 0 || col === 3))) {
+          const dot = new THREE.Mesh(ledDotGeo, ledMat);
+          dot.position.set(
+            -0.03 + col * 0.02,
+            0.74 + (1 - row) * 0.02,
+            0.253
+          );
+          bodyGroup.add(dot);
+        }
+      }
+    }
+
+    // Neck
+    const neckMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.2 });
+    const neckGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.12, 16);
+    const neck = new THREE.Mesh(neckGeo, neckMat);
+    neck.position.y = 0.45;
+    bodyGroup.add(neck);
+
+    // Shoulders — angular
+    const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x181818, metalness: 0.4, roughness: 0.8 });
+    const leftShoulder = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.15), shoulderMat);
+    leftShoulder.position.set(-0.25, 0.35, 0);
+    leftShoulder.rotation.z = 0.15;
+    bodyGroup.add(leftShoulder);
+    const rightShoulder = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.15), shoulderMat);
+    rightShoulder.position.set(0.25, 0.35, 0);
+    rightShoulder.rotation.z = -0.15;
+    bodyGroup.add(rightShoulder);
+
+    // Upper body / torso
+    const torsoMat = new THREE.MeshStandardMaterial({ color: 0x141414, metalness: 0.5, roughness: 0.6 });
+    const torsoGeo = new THREE.CapsuleGeometry(0.18, 0.3, 16, 32);
+    const torso = new THREE.Mesh(torsoGeo, torsoMat);
+    torso.position.y = 0.1;
+    bodyGroup.add(torso);
+
+    group.add(bodyGroup);
+
+    let headRotY = 0;
+    animFn = (t, hover) => {
+      // Slow head turn
+      const targetRot = Math.sin(t * 0.4) * 0.3;
+      headRotY += (targetRot - headRotY) * 0.05;
+      head.rotation.y = headRotY;
+      visor.rotation.y = headRotY;
+      // Subtle body sway
+      bodyGroup.rotation.z = Math.sin(t * 0.3) * 0.02;
+      bodyGroup.position.y = Math.sin(t * 0.5) * 0.015;
+      group.rotation.y = t * (hover ? 0.15 : 0.05);
+    };
+  }
+
+  // ═══════ Clay Heads — Claymation Character Group ═══════
+  else if (sceneType === 'clay-heads') {
+    camera.position.set(0, 0.3, 3.8);
+    camera.lookAt(0, 0, 0);
+
+    // Warm fill lighting
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x2a1040, 0.6));
+    const warmLight = new THREE.DirectionalLight(0xffddbb, 0.8);
+    warmLight.position.set(3, 5, 4);
+    scene.add(warmLight);
+    const fillLight2 = new THREE.DirectionalLight(0x8866cc, 0.3);
+    fillLight2.position.set(-2, 3, -2);
+    scene.add(fillLight2);
+
+    const headColors = [0xffb5a7, 0xfcd5ce, 0x8b6b52, 0x89b4fa, 0x81c784, 0xce93d8, 0xffb74d];
+    const headPositions = [
+      // Row 1 (back)
+      { x: -0.45, y: 0.35, z: -0.3 },
+      { x: 0.0,   y: 0.40, z: -0.35 },
+      { x: 0.45,  y: 0.33, z: -0.3 },
+      // Row 2 (front)
+      { x: -0.28, y: -0.05, z: 0.15 },
+      { x: 0.28,  y: -0.03, z: 0.15 },
+      // Row 3 (closest)
+      { x: -0.5,  y: -0.35, z: 0.45 },
+      { x: 0.15,  y: -0.38, z: 0.5 },
+    ];
+
+    const heads = [];
+    headPositions.forEach((pos, i) => {
+      const headGroup = new THREE.Group();
+      headGroup.position.set(pos.x + (Math.random() - 0.5) * 0.05, pos.y, pos.z);
+
+      const r = 0.22 + Math.random() * 0.06;
+      // Main head sphere
+      const headMat = new THREE.MeshStandardMaterial({
+        color: headColors[i % headColors.length],
+        roughness: 0.7, metalness: 0.0
+      });
+      const headMesh = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24), headMat);
+      headGroup.add(headMesh);
+
+      // Eyes — dark with white highlight
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+      const eyeHighlight = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      [-0.08, 0.08].forEach(ex => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), eyeMat);
+        eye.position.set(ex, 0.04, r * 0.88);
+        headGroup.add(eye);
+        const highlight = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), eyeHighlight);
+        highlight.position.set(ex + 0.01, 0.055, r * 0.92);
+        headGroup.add(highlight);
+      });
+
+      // Tiny nose bump
+      const noseMat = new THREE.MeshStandardMaterial({ color: headColors[i % headColors.length], roughness: 0.7 });
+      const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), noseMat);
+      nose.position.set(0, -0.02, r * 0.95);
+      headGroup.add(nose);
+
+      // Special accessories
+      if (i === 0) {
+        // Party hat (cone with stripes via shader)
+        const hatMat = new THREE.ShaderMaterial({
+          uniforms: { uTime: { value: 0 }, uHover: { value: 0 } },
+          vertexShader: `
+            varying vec3 vPos;
+            void main(){
+              vPos = position;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }`,
+          fragmentShader: `
+            varying vec3 vPos;
+            void main(){
+              float stripe = step(0.5, fract(vPos.y * 8.0));
+              vec3 col = mix(vec3(1.0, 0.5, 0.0), vec3(1.0, 1.0, 1.0), stripe);
+              gl_FragColor = vec4(col, 1.0);
+            }`
+        });
+        shaderMats.push(hatMat);
+        const hat = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.25, 12), hatMat);
+        hat.position.y = r + 0.1;
+        headGroup.add(hat);
+      }
+      if (i === 2) {
+        // Glasses — two small torus rings
+        const glassesMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+        [-0.08, 0.08].forEach(gx => {
+          const lens = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.006, 8, 24), glassesMat);
+          lens.position.set(gx, 0.04, r * 0.92);
+          headGroup.add(lens);
+        });
+        // Bridge
+        const bridge = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.06, 6), glassesMat);
+        bridge.position.set(0, 0.04, r * 0.92);
+        bridge.rotation.z = Math.PI / 2;
+        headGroup.add(bridge);
+      }
+      if (i === 4) {
+        // Mohawk — 3 small spheres on top
+        const mohawkMat = new THREE.MeshStandardMaterial({ color: 0xff69b4, roughness: 0.6 });
+        for (let m = 0; m < 3; m++) {
+          const spike = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), mohawkMat);
+          spike.position.set((m - 1) * 0.06, r + 0.03, -0.02);
+          headGroup.add(spike);
+        }
+      }
+
+      group.add(headGroup);
+      heads.push({ group: headGroup, baseY: pos.y, speed: 0.5 + Math.random() * 0.5, phase: Math.random() * Math.PI * 2 });
+    });
+
+    animFn = (t, hover) => {
+      heads.forEach((h, i) => {
+        h.group.position.y = h.baseY + Math.sin(t * h.speed + h.phase) * 0.04;
+        h.group.rotation.z = Math.sin(t * h.speed * 0.7 + h.phase) * 0.05;
+      });
+      group.rotation.y = t * (hover ? 0.15 : 0.04);
+    };
+  }
+
+  // ═══════ Icon Grid — Isometric 3D Icon Tiles ═══════
+  else if (sceneType === 'icon-grid') {
+    camera.position.set(4, 4, 4);
+    camera.lookAt(0, 0, 0);
+
+    // Override lighting
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x222222, 0.5));
+    const isoLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    isoLight.position.set(5, 8, 5);
+    scene.add(isoLight);
+    const greenGlow = new THREE.PointLight(0x88ff44, 0.4, 8);
+    greenGlow.position.set(0, 2, 0);
+    scene.add(greenGlow);
+
+    const tileMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.3 });
+    const iconMat = new THREE.MeshBasicMaterial({ color: 0x88ff44 });
+
+    const icons = [];
+    const iconGeos = [
+      // 0: compass (torus + cone)
+      null,
+      // 1: cone
+      new THREE.ConeGeometry(0.15, 0.3, 12),
+      // 2: atom (sphere + torus)
+      null,
+      // 3: cylinder pin
+      new THREE.CylinderGeometry(0.08, 0.08, 0.3, 12),
+      // 4: cube
+      new THREE.BoxGeometry(0.22, 0.22, 0.22),
+      // 5: small face (sphere)
+      new THREE.SphereGeometry(0.14, 16, 16),
+      // 6: torus
+      new THREE.TorusGeometry(0.13, 0.04, 16, 32),
+      // 7: icosahedron
+      new THREE.IcosahedronGeometry(0.15, 0),
+      // 8: octahedron
+      new THREE.OctahedronGeometry(0.15, 0),
+    ];
+
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        const idx = row * 3 + col;
+        const tx = (col - 1) * 1.0;
+        const tz = (row - 1) * 1.0;
+
+        // Dark tile
+        const tile = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.15, 0.8), tileMat);
+        tile.position.set(tx, 0, tz);
+        group.add(tile);
+
+        // Icon on tile
+        let iconMesh;
+        if (idx === 0) {
+          // Compass: torus + cone needle
+          const compassGroup = new THREE.Group();
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.02, 12, 32), iconMat);
+          compassGroup.add(ring);
+          const needle = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 6), iconMat);
+          compassGroup.add(needle);
+          compassGroup.position.set(tx, 0.25, tz);
+          group.add(compassGroup);
+          iconMesh = compassGroup;
+        } else if (idx === 2) {
+          // Atom: sphere + torus orbits
+          const atomGroup = new THREE.Group();
+          const nucleus = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), iconMat);
+          atomGroup.add(nucleus);
+          const orbit1 = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 32), iconMat);
+          atomGroup.add(orbit1);
+          const orbit2 = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 32), iconMat);
+          orbit2.rotation.x = Math.PI / 3;
+          atomGroup.add(orbit2);
+          atomGroup.position.set(tx, 0.25, tz);
+          group.add(atomGroup);
+          iconMesh = atomGroup;
+        } else {
+          const geo = iconGeos[idx];
+          if (geo) {
+            iconMesh = new THREE.Mesh(geo, iconMat);
+            iconMesh.position.set(tx, 0.25, tz);
+            group.add(iconMesh);
+          }
+        }
+        if (iconMesh) {
+          icons.push({ mesh: iconMesh, baseY: 0.25, tileX: tx, tileZ: tz, tile });
+        }
+      }
+    }
+
+    animFn = (t, hover) => {
+      icons.forEach((ic, i) => {
+        ic.mesh.rotation.y = t * (0.3 + i * 0.05);
+        // Subtle wave displacement on tiles
+        ic.tile.position.y = Math.sin(t * 0.5 + i * 0.7) * 0.03;
+        ic.mesh.position.y = ic.baseY + Math.sin(t * 0.5 + i * 0.7) * 0.03;
+      });
+    };
+  }
+
+  // ═══════ Desert Game — Sunset Game Scene ═══════
+  else if (sceneType === 'desert-game') {
+    camera.position.set(0, 2, 5);
+    camera.lookAt(0, 0.5, -1);
+
+    // Override lighting for warm desert
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x553322, 0.5));
+    const sunLight = new THREE.DirectionalLight(0xff8844, 0.8);
+    sunLight.position.set(0, 3, -5);
+    scene.add(sunLight);
+
+    // Sky gradient backdrop
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      uniforms: { uTime: { value: 0 }, uHover: { value: 0 } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        void main(){
+          vec3 top = vec3(0.08, 0.04, 0.15);
+          vec3 mid = vec3(0.6, 0.25, 0.1);
+          vec3 bottom = vec3(1.0, 0.6, 0.15);
+          vec3 col = mix(bottom, mid, smoothstep(0.0, 0.5, vUv.y));
+          col = mix(col, top, smoothstep(0.5, 1.0, vUv.y));
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `
+    });
+    shaderMats.push(skyMat);
+    const skyPlane = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), skyMat);
+    skyPlane.position.set(0, 3, -8);
+    group.add(skyPlane);
+
+    // Sun sphere at horizon
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffaa44 });
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), sunMat);
+    sun.position.set(0, 1.0, -7);
+    group.add(sun);
+
+    // Terrain — rolling dunes
+    const terrainGeo = new THREE.PlaneGeometry(10, 8, 32, 32);
+    terrainGeo.rotateX(-Math.PI / 2);
+    const terrainPos = terrainGeo.attributes.position;
+    for (let i = 0; i < terrainPos.count; i++) {
+      const x = terrainPos.getX(i);
+      const z = terrainPos.getZ(i);
+      terrainPos.setY(i, Math.sin(x * 0.5) * 0.3 + Math.sin(z * 0.7) * 0.2);
+    }
+    terrainGeo.computeVertexNormals();
+    const terrainMat = new THREE.MeshStandardMaterial({ color: 0xcc8844, roughness: 0.9, metalness: 0.0 });
+    const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+    terrain.position.y = -0.8;
+    group.add(terrain);
+
+    // Spacecraft
+    const shipMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+    const ships = [];
+    [{ x: -1.5, y: 1.2, z: 0 }, { x: 1.0, y: 1.6, z: -1 }].forEach((sp, si) => {
+      const shipGroup = new THREE.Group();
+      // Nose cone
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.25, 8), shipMat);
+      nose.rotation.z = -Math.PI / 2;
+      shipGroup.add(nose);
+      // Body cylinder
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.3, 8), shipMat);
+      body.rotation.z = -Math.PI / 2;
+      body.position.x = -0.25;
+      shipGroup.add(body);
+      // Engine trail
+      const trailMat = new THREE.MeshBasicMaterial({
+        color: 0x44ddff, transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      const trail = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.04), trailMat);
+      trail.position.x = -0.7;
+      shipGroup.add(trail);
+
+      shipGroup.position.set(sp.x, sp.y, sp.z);
+      group.add(shipGroup);
+      ships.push({ group: shipGroup, baseX: sp.x });
+    });
+
+    animFn = (t, hover) => {
+      // Spacecraft fly slowly across
+      ships.forEach((s, i) => {
+        s.group.position.x = s.baseX + Math.sin(t * 0.2 + i * 2) * 1.5;
+        s.group.position.y += Math.sin(t * 0.5 + i) * 0.001;
+      });
+      // Subtle terrain ripple
+      for (let i = 0; i < terrainPos.count; i++) {
+        const x = terrainPos.getX(i);
+        const z = terrainPos.getZ(i);
+        terrainPos.setY(i, Math.sin(x * 0.5 + t * 0.3) * 0.3 + Math.sin(z * 0.7 + t * 0.2) * 0.2);
+      }
+      terrainGeo.attributes.position.needsUpdate = true;
+      terrainGeo.computeVertexNormals();
+      group.rotation.y = Math.sin(t * 0.1) * 0.05;
+    };
+  }
+
   else if (sceneType === '3d-map') {
     camera.position.set(0, 3, 3);
     camera.lookAt(0, 0, 0);
@@ -2744,6 +3536,106 @@ document.querySelectorAll('.pill').forEach(p => {
   p.addEventListener('click', () => {
     document.querySelectorAll('.pill').forEach(q => q.classList.remove('on'));
     p.classList.add('on');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// HAPPY BOT MOUSE INTERACTION
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.card-happy-robot').forEach(bot => {
+  const card = bot.closest('.card');
+  const face = bot.querySelector('.robot-face');
+  const eyes = bot.querySelectorAll('.robot-eye');
+  const container = bot.querySelector('.robot-container');
+  const body = bot.querySelector('.robot-body');
+
+  // Mouse tracking — eyes and face follow cursor
+  card.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    // Normalized mouse position: -1 to 1
+    const mx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    const my = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+
+    // Eyes follow mouse — shift within face
+    eyes.forEach(eye => {
+      eye.style.transform = `translate(${mx * 3}px, ${my * 2}px) scaleY(1)`;
+    });
+
+    // Face turns slightly toward mouse
+    if (face) {
+      face.style.transform = `translate(calc(-50% + ${mx * 4}px), calc(-50% + ${my * 2}px))`;
+    }
+
+    // Body tilts toward mouse (3D perspective feel)
+    if (body) {
+      body.style.transform = `translateX(-50%) rotateY(${mx * 8}deg) rotateX(${-my * 5}deg) translateY(${-Math.abs(my) * 3}px)`;
+    }
+
+    // Container subtle parallax
+    if (container) {
+      container.style.transform = `translateX(${mx * 3}px) translateY(${my * 2}px)`;
+    }
+  });
+
+  // Reset on mouse leave
+  card.addEventListener('mouseleave', () => {
+    eyes.forEach(eye => {
+      eye.style.transform = '';
+    });
+    if (face) face.style.transform = '';
+    if (body) body.style.transform = '';
+    if (container) container.style.transform = '';
+  });
+
+  // Click interaction — excited bounce + ripple + heart
+  card.addEventListener('click', (e) => {
+    // Ripple at click position
+    const rect = bot.getBoundingClientRect();
+    const ripple = document.createElement('div');
+    ripple.className = 'click-ripple';
+    ripple.style.left = (e.clientX - rect.left) + 'px';
+    ripple.style.top = (e.clientY - rect.top) + 'px';
+    bot.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+
+    // Heart particles
+    for (let i = 0; i < 3; i++) {
+      const heart = document.createElement('div');
+      heart.className = 'heart-particle';
+      heart.textContent = ['❤️', '💜', '✨'][i];
+      heart.style.left = (30 + Math.random() * 60) + '%';
+      heart.style.top = (20 + Math.random() * 30) + '%';
+      heart.style.animationDelay = (i * 0.15) + 's';
+      bot.appendChild(heart);
+      setTimeout(() => heart.remove(), 1200);
+    }
+
+    // Excited state
+    bot.classList.add('excited');
+    setTimeout(() => bot.classList.remove('excited'), 1500);
+  });
+});
+
+// Also add mouse tracking to dancing/sleepy/party bot variants
+document.querySelectorAll('.card-dancing-robot, .card-sleepy-robot, .card-party-robot').forEach(bot => {
+  const card = bot.closest('.card');
+  const face = bot.querySelector('.robot-face');
+  const eyes = bot.querySelectorAll('.robot-eye');
+  const container = bot.querySelector('.robot-container');
+  const body = bot.querySelector('.robot-body');
+
+  card.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    const mx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    const my = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    if (eyes.length) eyes.forEach(eye => { eye.style.transform = `translate(${mx * 3}px, ${my * 2}px)`; });
+    if (face) face.style.transform = `translate(calc(-50% + ${mx * 4}px), calc(-50% + ${my * 2}px))`;
+    if (container) container.style.transform = `translateX(${mx * 3}px) translateY(${my * 2}px)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    if (eyes.length) eyes.forEach(eye => { eye.style.transform = ''; });
+    if (face) face.style.transform = '';
+    if (container) container.style.transform = '';
   });
 });
 </script>
