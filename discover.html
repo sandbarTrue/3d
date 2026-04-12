@@ -136,6 +136,343 @@
     color:rgba(167,139,250,1);
   }
 
+  /* ─── Happy Robot Button Card ─── */
+  .card-happy-robot{
+    padding:0;background:#d5d0e6;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+  }
+  .card-happy-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-happy-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#fff 0%,#f0eef5 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    box-shadow:0 8px 30px rgba(0,0,0,0.08),inset 0 -4px 8px rgba(0,0,0,0.03);
+    z-index:2;
+  }
+  .card-happy-robot .robot-face{
+    width:80px;height:48px;background:#1a1a2e;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-happy-robot .robot-eye{
+    width:16px;height:16px;position:relative;
+  }
+  .card-happy-robot .robot-eye::before,.card-happy-robot .robot-eye::after{
+    content:'';position:absolute;width:10px;height:3px;background:#4a9eff;border-radius:2px;
+  }
+  .card-happy-robot .robot-eye::before{transform:rotate(-45deg);top:6px;left:0}
+  .card-happy-robot .robot-eye::after{transform:rotate(45deg);top:6px;left:6px}
+  .card-happy-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#555 0%,#333 100%);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-happy-robot .robot-ear.left{left:8px}
+  .card-happy-robot .robot-ear.right{right:8px}
+  .card-happy-robot .robot-neck{
+    width:20px;height:12px;background:#e8e4f0;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  .card-happy-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fff,#e0dce8);
+    border-radius:50%;position:absolute;z-index:1;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    animation:robotFloat 3s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-sphere.s1{bottom:5px;left:18px;animation-delay:0s;width:22px;height:22px}
+  .card-happy-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:1s;width:14px;height:14px}
+  @keyframes robotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .card-happy-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;
+    padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#ff6b6b,#f59e0b);
+    color:white;font-size:13px;font-weight:600;letter-spacing:0.3px;
+    box-shadow:0 4px 16px rgba(255,107,107,0.3);
+    transition:transform .2s ease,box-shadow .2s ease;
+  }
+  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,107,0.4)}
+  .card-happy-robot .robot-title{
+    font-size:18px;font-weight:700;color:#2a2a3e;margin-top:0;
+  }
+
+  /* ─── Happy Robot Animations ─── */
+  /* Eye blink */
+  @keyframes robotBlink{0%,92%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(0.1)}}
+  .card-happy-robot .robot-eye{animation:robotBlink 3.5s ease-in-out infinite}
+  .card-happy-robot .robot-eye:nth-child(2){animation-delay:0.1s}
+
+  /* Body breathing */
+  @keyframes robotBreathe{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.02)}}
+  .card-happy-robot .robot-body{animation:robotBreathe 3s ease-in-out infinite}
+
+  /* Ear wiggle */
+  @keyframes earWiggleL{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+  @keyframes earWiggleR{0%,100%{transform:rotate(0deg)}25%{transform:rotate(4deg)}75%{transform:rotate(-4deg)}}
+  .card-happy-robot .robot-ear.left{animation:earWiggleL 2.5s ease-in-out infinite}
+  .card-happy-robot .robot-ear.right{animation:earWiggleR 2.5s ease-in-out infinite 0.3s}
+
+  /* Antenna */
+  .card-happy-robot .robot-antenna{
+    width:4px;height:20px;background:linear-gradient(180deg,#888,#555);
+    border-radius:2px;position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
+  }
+  .card-happy-robot .robot-antenna-tip{
+    width:10px;height:10px;background:radial-gradient(circle,#ff6b6b,#e74c3c);
+    border-radius:50%;position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    box-shadow:0 0 8px rgba(255,107,107,0.6);
+  }
+  @keyframes antennaBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+  .card-happy-robot .robot-antenna{animation:antennaBob 2s ease-in-out infinite}
+  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(255,107,107,0.5)}50%{box-shadow:0 0 14px rgba(255,107,107,0.9)}}
+  .card-happy-robot .robot-antenna-tip{animation:antennaTipGlow 1.5s ease-in-out infinite}
+
+  /* Button glow pulse */
+  .card-happy-robot .robot-btn{position:relative;z-index:1}
+  .card-happy-robot .robot-btn::before{
+    content:'';position:absolute;inset:-4px;border-radius:28px;z-index:-1;
+    background:linear-gradient(135deg,rgba(255,107,107,0.4),rgba(245,158,11,0.4));
+    filter:blur(8px);opacity:0.5;
+    animation:btnGlowPulse 2s ease-in-out infinite;
+  }
+  @keyframes btnGlowPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.08)}}
+
+  /* Sparkle particles */
+  .card-happy-robot .sparkle{
+    position:absolute;width:5px;height:5px;border-radius:50%;z-index:1;
+    background:radial-gradient(circle,rgba(167,139,250,0.8),transparent);
+    pointer-events:none;
+  }
+  @keyframes sparkleDrift1{0%{transform:translate(0,0);opacity:0.7}25%{opacity:1}50%{transform:translate(12px,-18px);opacity:0.5}100%{transform:translate(-8px,-30px);opacity:0}}
+  @keyframes sparkleDrift2{0%{transform:translate(0,0);opacity:0.5}30%{opacity:0.9}60%{transform:translate(-14px,-12px);opacity:0.6}100%{transform:translate(6px,-26px);opacity:0}}
+  @keyframes sparkleDrift3{0%{transform:translate(0,0);opacity:0.6}40%{opacity:1}70%{transform:translate(10px,-20px);opacity:0.4}100%{transform:translate(-5px,-35px);opacity:0}}
+  @keyframes sparkleDrift4{0%{transform:translate(0,0);opacity:0.4}35%{opacity:0.8}65%{transform:translate(-10px,-15px);opacity:0.5}100%{transform:translate(8px,-28px);opacity:0}}
+  .card-happy-robot .sparkle:nth-child(1){left:20%;top:60%;animation:sparkleDrift1 3.5s ease-in-out infinite}
+  .card-happy-robot .sparkle:nth-child(2){right:18%;top:50%;animation:sparkleDrift2 4s ease-in-out infinite 0.8s}
+  .card-happy-robot .sparkle:nth-child(3){left:30%;bottom:35%;animation:sparkleDrift3 3s ease-in-out infinite 1.5s}
+  .card-happy-robot .sparkle:nth-child(4){right:25%;bottom:40%;animation:sparkleDrift4 3.8s ease-in-out infinite 0.4s}
+
+  /* Hover states */
+  .card:hover .card-happy-robot .robot-body{
+    animation:none;transform:translateX(-50%) translateY(-8px) rotate(3deg);
+    transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .card:hover .card-happy-robot .robot-eye::before{
+    transform:rotate(0deg) scaleY(0.5);border-radius:0 0 10px 10px;top:4px;left:0;
+    transition:all 0.3s ease;
+  }
+  .card:hover .card-happy-robot .robot-eye::after{
+    transform:rotate(0deg) scaleY(0.5);border-radius:0 0 10px 10px;top:4px;left:6px;
+    transition:all 0.3s ease;
+  }
+  .card:hover .card-happy-robot .robot-sphere{animation-duration:1.5s}
+  .card:hover .card-happy-robot .robot-container::after{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at 50% 60%,rgba(167,139,250,0.15),transparent 60%);
+    animation:hoverBurst 0.5s ease-out forwards;pointer-events:none;
+  }
+  @keyframes hoverBurst{0%{transform:scale(0.5);opacity:0}50%{opacity:1}100%{transform:scale(1.8);opacity:0}}
+
+  /* ─── Dancing Robot Card ─── */
+  .card-dancing-robot{
+    padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+    background:linear-gradient(-45deg,#ee7752,#e73c7e,#23a6d5,#23d5ab);
+    background-size:400% 400%;animation:danceBg 6s ease infinite;
+  }
+  @keyframes danceBg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .card-dancing-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-dancing-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#fff 0%,#f0eef5 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;
+    box-shadow:0 8px 30px rgba(0,0,0,0.12);z-index:2;
+    animation:danceMove 1s ease-in-out infinite;
+  }
+  @keyframes danceMove{0%,100%{transform:translateX(-50%) translateX(-6px) rotate(-3deg)}50%{transform:translateX(-50%) translateX(6px) rotate(3deg)}}
+  .card-dancing-robot .robot-face{
+    width:80px;height:48px;background:#1a1a2e;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-dancing-robot .robot-eye{
+    width:16px;height:8px;border-radius:0 0 10px 10px;background:#4aff6b;
+  }
+  .card-dancing-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#555,#333);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-dancing-robot .robot-ear.left{left:8px}
+  .card-dancing-robot .robot-ear.right{right:8px}
+  .card-dancing-robot .robot-neck{
+    width:20px;height:12px;background:#e8e4f0;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  .card-dancing-robot .disco-ball{
+    width:24px;height:24px;border-radius:50%;position:absolute;top:-4px;left:50%;transform:translateX(-50%);z-index:3;
+    background:radial-gradient(circle at 30% 30%,#fff,#ccc 40%,#999 70%,#666);
+    box-shadow:0 0 12px rgba(255,255,255,0.4);
+    animation:discoSpin 2s linear infinite;
+  }
+  @keyframes discoSpin{from{transform:translateX(-50%) rotate(0deg)}to{transform:translateX(-50%) rotate(360deg)}}
+  .card-dancing-robot .music-note{
+    position:absolute;font-size:16px;opacity:0;z-index:1;pointer-events:none;
+  }
+  @keyframes noteFloat1{0%{transform:translateY(0);opacity:0}15%{opacity:0.9}100%{transform:translateY(-60px) translateX(10px);opacity:0}}
+  @keyframes noteFloat2{0%{transform:translateY(0);opacity:0}15%{opacity:0.8}100%{transform:translateY(-55px) translateX(-12px);opacity:0}}
+  @keyframes noteFloat3{0%{transform:translateY(0);opacity:0}20%{opacity:0.7}100%{transform:translateY(-50px) translateX(8px);opacity:0}}
+  .card-dancing-robot .music-note:nth-child(1){left:10%;top:45%;animation:noteFloat1 2.5s ease-out infinite}
+  .card-dancing-robot .music-note:nth-child(2){right:12%;top:50%;animation:noteFloat2 2.8s ease-out infinite 0.6s}
+  .card-dancing-robot .music-note:nth-child(3){left:18%;top:55%;animation:noteFloat3 3s ease-out infinite 1.2s}
+  .card-dancing-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fff,#e0dce8);
+    border-radius:50%;position:absolute;z-index:1;box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    animation:robotFloat 2s ease-in-out infinite;
+  }
+  .card-dancing-robot .robot-sphere.s1{bottom:5px;left:18px;width:22px;height:22px}
+  .card-dancing-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:0.5s;width:14px;height:14px}
+  .card-dancing-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#23d5ab,#23a6d5);color:white;font-size:13px;font-weight:600;
+    box-shadow:0 4px 16px rgba(35,213,171,0.3);transition:transform .2s,box-shadow .2s;
+  }
+
+  /* ─── Sleepy Robot Card ─── */
+  .card-sleepy-robot{
+    padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+    background:linear-gradient(160deg,#1a1a3e,#0e0e28);
+  }
+  .card-sleepy-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-sleepy-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#c8c4d8 0%,#b0acc0 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;
+    box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:2;
+    animation:sleepySway 4s ease-in-out infinite;
+  }
+  @keyframes sleepySway{0%,100%{transform:translateX(-50%) rotate(-2deg)}50%{transform:translateX(-50%) rotate(2deg)}}
+  .card-sleepy-robot .robot-face{
+    width:80px;height:48px;background:#12122a;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .card-sleepy-robot .robot-eye{
+    width:16px;height:3px;background:#667;border-radius:2px;
+  }
+  .card-sleepy-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#444,#2a2a2a);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-sleepy-robot .robot-ear.left{left:8px}
+  .card-sleepy-robot .robot-ear.right{right:8px}
+  .card-sleepy-robot .robot-neck{
+    width:20px;height:12px;background:#a8a4b8;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  /* ZZZ bubbles */
+  .card-sleepy-robot .zzz{
+    position:absolute;z-index:3;font-weight:700;color:rgba(167,139,250,0.7);
+    pointer-events:none;
+  }
+  @keyframes zzzFloat1{0%{transform:translate(0,0) scale(0.6);opacity:0}20%{opacity:0.8}100%{transform:translate(15px,-50px) scale(1.2);opacity:0}}
+  @keyframes zzzFloat2{0%{transform:translate(0,0) scale(0.5);opacity:0}25%{opacity:0.7}100%{transform:translate(20px,-45px) scale(1.1);opacity:0}}
+  @keyframes zzzFloat3{0%{transform:translate(0,0) scale(0.4);opacity:0}30%{opacity:0.6}100%{transform:translate(12px,-40px) scale(1.0);opacity:0}}
+  .card-sleepy-robot .zzz:nth-child(1){right:25%;top:20%;font-size:14px;animation:zzzFloat1 3s ease-out infinite}
+  .card-sleepy-robot .zzz:nth-child(2){right:20%;top:25%;font-size:11px;animation:zzzFloat2 3s ease-out infinite 1s}
+  .card-sleepy-robot .zzz:nth-child(3){right:22%;top:30%;font-size:9px;animation:zzzFloat3 3s ease-out infinite 2s}
+  /* Snoring pulse */
+  @keyframes snorePulse{0%,100%{transform:translateX(-50%) rotate(-2deg) scale(1)}50%{transform:translateX(-50%) rotate(2deg) scale(1.015)}}
+  .card-sleepy-robot .robot-body{animation:snorePulse 4s ease-in-out infinite}
+  .card-sleepy-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#a8a4c0,#8884a0);
+    border-radius:50%;position:absolute;z-index:1;box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    animation:robotFloat 4s ease-in-out infinite;
+  }
+  .card-sleepy-robot .robot-sphere.s1{bottom:5px;left:18px;width:22px;height:22px}
+  .card-sleepy-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:1.5s;width:14px;height:14px}
+  .card-sleepy-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#4a4a8a,#6a5acd);color:rgba(255,255,255,0.7);font-size:13px;font-weight:600;
+    box-shadow:0 4px 16px rgba(106,90,205,0.2);transition:transform .2s,box-shadow .2s;
+  }
+
+  /* ─── Party Robot Card ─── */
+  .card-party-robot{
+    padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,#ff6b6b,#feca57,#48dbfb,#ff9ff3);
+    background-size:300% 300%;animation:partyBg 4s ease infinite;
+  }
+  @keyframes partyBg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .card-party-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-party-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#fff 0%,#f0eef5 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;
+    box-shadow:0 8px 30px rgba(0,0,0,0.1);z-index:2;
+    animation:partyBounce 0.8s ease-in-out infinite;
+  }
+  @keyframes partyBounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-8px)}}
+  .card-party-robot .robot-face{
+    width:80px;height:48px;background:#1a1a2e;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-party-robot .robot-eye{
+    width:16px;height:16px;border-radius:50%;
+    background:linear-gradient(135deg,#ff0000,#ff9900,#ffff00,#00ff00,#0099ff,#9900ff);
+    background-size:400% 400%;animation:rainbowEye 2s linear infinite;
+  }
+  @keyframes rainbowEye{0%{background-position:0% 50%}100%{background-position:400% 50%}}
+  .card-party-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#ff6b6b,#feca57);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-party-robot .robot-ear.left{left:8px}
+  .card-party-robot .robot-ear.right{right:8px}
+  .card-party-robot .robot-neck{
+    width:20px;height:12px;background:#e8e4f0;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  /* Party hat */
+  .card-party-robot .party-hat{
+    width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;
+    border-bottom:28px solid #ff6b6b;position:absolute;top:-8px;left:50%;transform:translateX(-50%);z-index:3;
+  }
+  .card-party-robot .party-hat::before{
+    content:'';position:absolute;top:-4px;left:-3px;width:6px;height:6px;
+    background:#feca57;border-radius:50%;
+  }
+  .card-party-robot .party-hat::after{
+    content:'';position:absolute;top:8px;left:-14px;width:28px;height:3px;
+    background:repeating-linear-gradient(90deg,#48dbfb 0,#48dbfb 4px,#feca57 4px,#feca57 8px);
+    border-radius:2px;
+  }
+  /* Confetti */
+  .card-party-robot .confetti{
+    position:absolute;width:6px;height:6px;z-index:1;pointer-events:none;
+  }
+  @keyframes confettiFall1{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(300px) rotate(720deg);opacity:0.3}}
+  @keyframes confettiFall2{0%{transform:translateY(-30px) rotate(45deg);opacity:1}100%{transform:translateY(280px) rotate(600deg);opacity:0.2}}
+  @keyframes confettiFall3{0%{transform:translateY(-10px) rotate(90deg);opacity:0.9}100%{transform:translateY(310px) rotate(540deg);opacity:0.1}}
+  .card-party-robot .confetti:nth-child(1){left:10%;top:0;background:#ff6b6b;border-radius:1px;animation:confettiFall1 3s linear infinite}
+  .card-party-robot .confetti:nth-child(2){left:30%;top:0;background:#feca57;border-radius:50%;animation:confettiFall2 2.5s linear infinite 0.3s}
+  .card-party-robot .confetti:nth-child(3){right:25%;top:0;background:#48dbfb;border-radius:1px;animation:confettiFall3 2.8s linear infinite 0.7s}
+  .card-party-robot .confetti:nth-child(4){right:10%;top:0;background:#ff9ff3;border-radius:50%;animation:confettiFall1 3.2s linear infinite 1.1s}
+  .card-party-robot .confetti:nth-child(5){left:50%;top:0;background:#00ff00;border-radius:1px;animation:confettiFall2 2.6s linear infinite 0.5s}
+  .card-party-robot .confetti:nth-child(6){left:70%;top:0;background:#feca57;border-radius:50%;animation:confettiFall3 3.1s linear infinite 1.5s}
+  .card-party-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fff,#e0dce8);
+    border-radius:50%;position:absolute;z-index:1;box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    animation:robotFloat 2s ease-in-out infinite;
+  }
+  .card-party-robot .robot-sphere.s1{bottom:5px;left:18px;width:22px;height:22px}
+  .card-party-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:0.5s;width:14px;height:14px}
+  .card-party-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#ff6b6b,#feca57);color:white;font-size:13px;font-weight:600;
+    box-shadow:0 4px 16px rgba(255,107,107,0.3);transition:transform .2s,box-shadow .2s;
+  }
+
   /* ─── Entrance animation ─── */
   @keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   .card{opacity:0;animation:cardIn .45s ease forwards}
@@ -453,6 +790,21 @@ const cards = [
   { type: '3d-robot', height: 260, bg: '#12101e',
     robotStyle: 'drone', palette: 'hologram',
     foot: { color: '#a29bfe', name: 'Drone Lab', likes: '1.9k' } },
+
+  // 31: Happy Robot Button
+  { type: 'happy-robot' },
+
+  // 32: Dancing Robot
+  { type: 'dancing-robot' },
+
+  // 33: Sleepy Robot
+  { type: 'sleepy-robot' },
+
+  // 34: Party Robot
+  { type: 'party-robot' },
+
+  // 35: Wall-E Lab
+  { type: '3d-robot', height: 300, bg: '#1a1408', robotStyle: 'walle', palette: 'clay', foot: { color: '#a08070', name: 'Wall-E Lab', likes: '4.1k' } },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -948,6 +1300,177 @@ function buildDroneRobot(palette) {
   return { root, body, eyeLens, eyeInner, sensorLight, legs, shaderMats: [shellMat, jointMat] };
 }
 
+function buildWalleRobot(palette) {
+  const root = new THREE.Group();
+  const bodyMat = createEditorMaterial('clay');
+  const accentMat = createEditorMaterial('ember');
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x665544, metalness: 0.7, roughness: 0.3 });
+  const lensMat = new THREE.MeshBasicMaterial({ color: 0x88ccff });
+  const darkRingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.5, roughness: 0.4 });
+  const irisMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.3 });
+
+  // Body — compactor box
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 0.4), bodyMat);
+  root.add(body);
+  // Panel lines on body
+  const panelH = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.015, 0.42), darkRingMat);
+  panelH.position.set(0, 0.08, 0);
+  root.add(panelH);
+  const panelV = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.47, 0.42), darkRingMat);
+  panelV.position.set(0.12, 0, 0);
+  root.add(panelV);
+
+  // Neck — telescoping segments
+  const neckJoint = new THREE.Group();
+  neckJoint.position.set(0, 0.225, 0);
+  root.add(neckJoint);
+  const neckSeg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8), metalMat);
+  neckSeg1.position.set(0, 0.06, 0);
+  neckJoint.add(neckSeg1);
+  const neckRing1 = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.008, 6, 16), darkRingMat);
+  neckRing1.position.set(0, 0.12, 0);
+  neckRing1.rotation.x = PI / 2;
+  neckJoint.add(neckRing1);
+  const neckSeg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.10, 8), metalMat);
+  neckSeg2.position.set(0, 0.17, 0);
+  neckJoint.add(neckSeg2);
+  const neckRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 6, 16), darkRingMat);
+  neckRing2.position.set(0, 0.22, 0);
+  neckRing2.rotation.x = PI / 2;
+  neckJoint.add(neckRing2);
+  const neckSeg3 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.08, 8), metalMat);
+  neckSeg3.position.set(0, 0.26, 0);
+  neckJoint.add(neckSeg3);
+
+  // Eye assembly — binoculars
+  const headJoint = new THREE.Group();
+  headJoint.position.set(0, 0.30, 0);
+  neckJoint.add(headJoint);
+
+  // Eye housing — two cylinders side by side
+  const eyeHousingGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.15, 16);
+  const leftEyeHousing = new THREE.Mesh(eyeHousingGeo, accentMat);
+  leftEyeHousing.rotation.x = PI / 2;
+  leftEyeHousing.position.set(-0.11, 0.05, 0);
+  headJoint.add(leftEyeHousing);
+  const rightEyeHousing = new THREE.Mesh(eyeHousingGeo, accentMat);
+  rightEyeHousing.rotation.x = PI / 2;
+  rightEyeHousing.position.set(0.11, 0.05, 0);
+  headJoint.add(rightEyeHousing);
+
+  // Connecting bar between eyes
+  const connectBar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.12), metalMat);
+  connectBar.position.set(0, 0.05, 0);
+  headJoint.add(connectBar);
+
+  // Eye rims (dark ring around front of each cylinder)
+  const eyeRimGeo = new THREE.TorusGeometry(0.12, 0.012, 8, 24);
+  const leftRim = new THREE.Mesh(eyeRimGeo, darkRingMat);
+  leftRim.position.set(-0.11, 0.05, 0.076);
+  headJoint.add(leftRim);
+  const rightRim = new THREE.Mesh(eyeRimGeo, darkRingMat);
+  rightRim.position.set(0.11, 0.05, 0.076);
+  headJoint.add(rightRim);
+
+  // Lenses inside each eye
+  const lensGeo = new THREE.SphereGeometry(0.08, 16, 16);
+  const leftLens = new THREE.Mesh(lensGeo, lensMat);
+  leftLens.position.set(-0.11, 0.05, 0.06);
+  headJoint.add(leftLens);
+  const rightLens = new THREE.Mesh(lensGeo, lensMat);
+  rightLens.position.set(0.11, 0.05, 0.06);
+  headJoint.add(rightLens);
+
+  // Iris rings inside lenses
+  const irisGeo = new THREE.TorusGeometry(0.045, 0.008, 6, 16);
+  const leftIris = new THREE.Mesh(irisGeo, irisMat);
+  leftIris.position.set(-0.11, 0.05, 0.09);
+  headJoint.add(leftIris);
+  const rightIris = new THREE.Mesh(irisGeo, irisMat);
+  rightIris.position.set(0.11, 0.05, 0.09);
+  headJoint.add(rightIris);
+
+  // Arms — thin with gripper hands
+  function buildArm(sign) {
+    const armJoint = new THREE.Group();
+    armJoint.position.set(sign * 0.28, 0.05, 0);
+    root.add(armJoint);
+    // Shoulder ball joint
+    const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), metalMat);
+    armJoint.add(shoulder);
+    // Upper arm
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25, 6), metalMat);
+    upper.position.set(0, -0.14, 0);
+    armJoint.add(upper);
+    // Elbow
+    const elbowJoint = new THREE.Group();
+    elbowJoint.position.set(0, -0.27, 0);
+    armJoint.add(elbowJoint);
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), metalMat);
+    elbowJoint.add(elbow);
+    // Forearm
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.2, 6), metalMat);
+    forearm.position.set(0, -0.11, 0);
+    elbowJoint.add(forearm);
+    // Gripper — three tiny boxes fanning out
+    const gripJoint = new THREE.Group();
+    gripJoint.position.set(0, -0.22, 0);
+    elbowJoint.add(gripJoint);
+    for (let f = 0; f < 3; f++) {
+      const angle = (f - 1) * 0.5;
+      const finger = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.06, 0.012), metalMat);
+      finger.position.set(Math.sin(angle) * 0.02, -0.03, Math.cos(angle) * 0.02);
+      finger.rotation.z = angle * 0.3;
+      gripJoint.add(finger);
+    }
+    return { armJoint, elbowJoint };
+  }
+  const leftArm = buildArm(-1);
+  const rightArm = buildArm(1);
+
+  // Treads — two track assemblies
+  function buildTread(sign) {
+    const treadGroup = new THREE.Group();
+    treadGroup.position.set(sign * 0.3, -0.28, 0);
+    root.add(treadGroup);
+    // Front wheel
+    const wheelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.06, 12);
+    const frontWheel = new THREE.Mesh(wheelGeo, darkRingMat);
+    frontWheel.rotation.z = PI / 2;
+    frontWheel.position.set(0, -0.02, 0.14);
+    treadGroup.add(frontWheel);
+    // Back wheel
+    const backWheel = new THREE.Mesh(wheelGeo, darkRingMat);
+    backWheel.rotation.z = PI / 2;
+    backWheel.position.set(0, -0.02, -0.14);
+    treadGroup.add(backWheel);
+    // Track plates (connecting top and bottom)
+    const trackTop = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.32), darkRingMat);
+    trackTop.position.set(0, 0.06, 0);
+    treadGroup.add(trackTop);
+    const trackBot = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.32), darkRingMat);
+    trackBot.position.set(0, -0.10, 0);
+    treadGroup.add(trackBot);
+    // Side plate
+    const sidePlate = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.12, 0.34), metalMat);
+    sidePlate.position.set(sign * 0.025, -0.02, 0);
+    treadGroup.add(sidePlate);
+    return treadGroup;
+  }
+  buildTread(-1);
+  buildTread(1);
+
+  // Shadow disc
+  const shadowGeo = new THREE.CircleGeometry(0.4, 24);
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.rotation.x = -PI / 2;
+  shadow.position.set(0, -0.42, 0);
+  root.add(shadow);
+
+  return { root, headJoint, neckJoint, leftArm, rightArm, body, eyes: [leftLens, rightLens], shaderMats: [bodyMat, accentMat] };
+}
+
 // ── createRobot factory ──
 function createRobot(style, palette) {
   switch (style) {
@@ -955,6 +1478,7 @@ function createRobot(style, palette) {
     case 'mech':  return buildMechRobot(palette);
     case 'retro': return buildRetroRobot(palette);
     case 'drone': return buildDroneRobot(palette);
+    case 'walle': return buildWalleRobot(palette);
     default: return buildCuteRobot(palette);
   }
 }
@@ -1049,6 +1573,32 @@ function createRobotAnimFn(robot, style) {
           robot.sensorLight.material.color.setHSL(0.4, 1.0, 0.3 + Math.sin(t * 5) * 0.5);
         }
         break;
+
+      case 'walle':
+        // Curious head tilt
+        if (robot.headJoint) {
+          robot.headJoint.rotation.z = Math.sin(t * 0.6) * 0.2;
+          robot.headJoint.rotation.x = Math.sin(t * 0.4) * 0.1 + 0.05;
+        }
+        // Eyes track — look around
+        if (robot.eyes) {
+          robot.eyes.forEach(eye => {
+            eye.position.x += Math.sin(t * 0.8) * 0.0005;
+          });
+        }
+        // Arms fidget
+        if (robot.leftArm) {
+          robot.leftArm.armJoint.rotation.z = Math.sin(t * 0.5) * 0.08;
+          robot.leftArm.armJoint.rotation.x = Math.sin(t * 0.7) * 0.06;
+          robot.rightArm.armJoint.rotation.z = Math.sin(t * 0.5 + 1.5) * 0.08;
+          robot.rightArm.armJoint.rotation.x = -0.1 + Math.sin(t * 0.9) * 0.12;
+          // Elbow fidget
+          robot.leftArm.elbowJoint.rotation.x = -0.2 + Math.sin(t * 0.6) * 0.05;
+          robot.rightArm.elbowJoint.rotation.x = -0.15 + Math.sin(t * 1.2) * 0.1;
+        }
+        // Subtle body sway
+        robot.root.rotation.z = Math.sin(t * 0.3) * 0.02;
+        break;
     }
 
     // Hover: speed up rotation
@@ -1111,6 +1661,90 @@ cards.forEach((c, i) => {
     card.innerHTML = `
       <div class="card-cjk"><h3>3D设计趋势</h3><p>Exploring the future of dimensional design</p></div>
       <div class="card-foot" style="background:rgba(40,20,80,0.9);border:none"><div class="dot" style="background:#c4b5fd"></div><span class="name" style="color:#c4b5fd">创意工坊</span><span class="likes" style="color:rgba(139,92,246,0.6)">&#9829; 672</span></div>`;
+  } else if (c.type === 'happy-robot') {
+    card.innerHTML = `
+      <div class="card-happy-robot">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        <div class="robot-container">
+          <div class="robot-antenna"><div class="robot-antenna-tip"></div></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <button class="robot-btn">Get in touch</button>
+      </div>
+      <div class="card-foot"><div class="dot" style="background:#7c5cbf"></div><span class="name">victorgg</span><span class="likes">&#9829; 1,025</span></div>`;
+  } else if (c.type === 'dancing-robot') {
+    card.innerHTML = `
+      <div class="card-dancing-robot">
+        <div class="music-note">&#9835;</div><div class="music-note">&#9834;</div><div class="music-note">&#9833;</div>
+        <div class="robot-container">
+          <div class="disco-ball"></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <button class="robot-btn">Dance!</button>
+      </div>
+      <div class="card-foot"><div class="dot" style="background:#23d5ab"></div><span class="name">DJ Bot</span><span class="likes">&#9829; 2,340</span></div>`;
+  } else if (c.type === 'sleepy-robot') {
+    card.innerHTML = `
+      <div class="card-sleepy-robot">
+        <div class="zzz">Z</div><div class="zzz">Z</div><div class="zzz">Z</div>
+        <div class="robot-container">
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <button class="robot-btn">Wake up</button>
+      </div>
+      <div class="card-foot"><div class="dot" style="background:#6a5acd"></div><span class="name">Sleepy Bot</span><span class="likes">&#9829; 1,780</span></div>`;
+  } else if (c.type === 'party-robot') {
+    card.innerHTML = `
+      <div class="card-party-robot">
+        <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
+        <div class="confetti"></div><div class="confetti"></div><div class="confetti"></div>
+        <div class="robot-container">
+          <div class="party-hat"></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <button class="robot-btn">Party!</button>
+      </div>
+      <div class="card-foot"><div class="dot" style="background:#ff6b6b"></div><span class="name">Party Bot</span><span class="likes">&#9829; 3,120</span></div>`;
   } else if (c.type === 'tool') {
     card.innerHTML = `<div class="card-tool"><div class="icon">+</div><p>Get started with a new file.</p></div>`;
   } else if (['3d','3d-hero','3d-text','3d-map','3d-shape','3d-robot'].includes(c.type)) {
@@ -1156,7 +1790,7 @@ cards.forEach((c, i) => {
       robotBadge.className = 'badge-3d';
       robotBadge.textContent = 'ROBOT';
       sceneDiv.appendChild(robotBadge);
-      const styleNames = { cute: 'Cute Bot', mech: 'Mech Warrior', retro: 'Retro Tin', drone: 'Spider Drone' };
+      const styleNames = { cute: 'Cute Bot', mech: 'Mech Warrior', retro: 'Retro Tin', drone: 'Spider Drone', walle: 'Wall-E' };
       const palName = (PALETTES[c.palette]||{}).name || c.palette;
       const label = document.createElement('div');
       label.className = 'shape-label';
@@ -1307,8 +1941,11 @@ function createMiniScene(el, config) {
 
   // ═══════ Robot card ═══════
   else if (sceneType === '3d-robot') {
-    const camY = config.robotStyle === 'drone' ? 0.5 : 0.2;
-    const camZ = config.robotStyle === 'drone' ? 3.2 : 3.5;
+    let camY = 0.2, camZ = 3.5;
+    switch (config.robotStyle) {
+      case 'drone': camY = 0.5; camZ = 3.2; break;
+      case 'walle': camY = 0.3; camZ = 2.2; break;
+    }
     camera.position.set(0, camY, camZ);
     camera.lookAt(0, 0, 0);
 
