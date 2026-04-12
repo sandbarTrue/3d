@@ -778,7 +778,11 @@ const cards = [
     title: 'The ✦ stle', sub: 'Medieval architecture reimagined',
     scene: 'nature', foot: { color: '#4ade80', name: 'Nature Lab', likes: '1.6k' } },
 
-  // 6: Brainstorm cards
+  // 6: Palette Gallery — all 12 palettes on spheres
+  { type: '3d', height: 300, bg: '#0a0a14', scene: 'palette-gallery',
+    foot: { color: '#c084fc', name: 'Color System', likes: '4.5k' } },
+
+  // 7: Brainstorm cards
   { type: 'text', data: { h: 'Brainstorm<br>Cards', p: 'Collaborative ideation toolkit for creative teams', tag: 'Productivity' } },
 
   // 7: Mint — Sphere with mint palette (REPLACED isometric blocks)
@@ -803,7 +807,11 @@ const cards = [
     scene: 'abstract',
     foot: { color: '#22c55e', name: 'Mix Lab', likes: '1.2k' } },
 
-  // 12: Tool / Get started
+  // 12: Shape Collection — 15 shapes showcase
+  { type: '3d', height: 280, bg: '#0e0e18', scene: 'shape-collection',
+    foot: { color: '#60a5fa', name: 'Shape Library', likes: '3.8k' } },
+
+  // 13: Tool / Get started
   { type: 'tool' },
 
   // 13: Love letter
@@ -819,7 +827,11 @@ const cards = [
     shape: 'dodecahedron', palette: 'hologram',
     foot: { color: '#a29bfe', name: 'Voxel Art', likes: '2.1k', dark: true } },
 
-  // 16: CJK typography
+  // 16: Effects Demo — Fresnel, specular, glass, glow
+  { type: '3d', height: 280, bg: '#0a0e14', scene: 'effects-demo',
+    foot: { color: '#34d399', name: 'Effects Lab', likes: '3.2k' } },
+
+  // 17: CJK typography
   { type: 'cjk' },
 
   // 17: Play Jam
@@ -3543,6 +3555,128 @@ function createMiniScene(el, config) {
         ic.gd.position.y = 0.07 + wave;
         ic.gd.material.opacity = 0.12 + 0.06 * Math.sin(t * 1.0 + i * 0.5);
       });
+    };
+  }
+
+  // ═══════ Palette Gallery — All 12 Palettes ═══════
+  else if (sceneType === 'palette-gallery') {
+    camera.position.set(0, 0.3, 5.5);
+    camera.lookAt(0, 0, 0);
+
+    const palNames = Object.keys(PALETTES);
+    const palGeo = new THREE.SphereGeometry(0.30, 32, 32);
+    const palSpheres = [];
+
+    palNames.forEach((name, i) => {
+      const mat = createEditorMaterial(name);
+      shaderMats.push(mat);
+      const sphere = new THREE.Mesh(palGeo, mat);
+      // 4 columns × 3 rows
+      const col = i % 4, row = Math.floor(i / 4);
+      sphere.position.set((col - 1.5) * 0.90, (1 - row) * 0.90, 0);
+      group.add(sphere);
+      palSpheres.push(sphere);
+    });
+
+    animFn = (t, hover) => {
+      palSpheres.forEach((s, i) => {
+        s.rotation.y = t * (0.2 + i * 0.015);
+        s.position.z = Math.sin(t * 0.5 + i * 0.5) * 0.08;
+      });
+      group.rotation.y = Math.sin(t * 0.08) * 0.08;
+      group.rotation.x = Math.sin(t * 0.06) * 0.03;
+    };
+  }
+
+  // ═══════ Shape Collection — 15 Shape Primitives ═══════
+  else if (sceneType === 'shape-collection') {
+    camera.position.set(0, 0.3, 6.5);
+    camera.lookAt(0, 0, 0);
+
+    const scMat = createEditorMaterial('hologram');
+    shaderMats.push(scMat);
+    const scNames = Object.keys(SHAPE_CREATORS);
+    const scMeshes = [];
+
+    scNames.forEach((name, i) => {
+      const geo = SHAPE_CREATORS[name]();
+      const mesh = new THREE.Mesh(geo, scMat);
+      mesh.scale.setScalar(0.26);
+      // 5 columns × 3 rows
+      const col = i % 5, row = Math.floor(i / 5);
+      mesh.position.set((col - 2) * 1.05, (1 - row) * 1.05, 0);
+      group.add(mesh);
+      scMeshes.push(mesh);
+    });
+
+    animFn = (t, hover) => {
+      scMeshes.forEach((m, i) => {
+        m.rotation.y = t * (0.3 + i * 0.02);
+        m.rotation.x = t * 0.08;
+        m.position.z = Math.sin(t * 0.4 + i * 0.4) * 0.1;
+      });
+      group.rotation.y = Math.sin(t * 0.06) * 0.06;
+    };
+  }
+
+  // ═══════ Effects Demo — Material Capabilities ═══════
+  else if (sceneType === 'effects-demo') {
+    camera.position.set(0, 0.3, 4.8);
+    camera.lookAt(0, 0, 0);
+
+    // Effect 1: Nebula with boosted Fresnel
+    const eFres = createEditorMaterial('nebula');
+    eFres.uniforms.uFresnelStr.value = 1.3;
+    shaderMats.push(eFres);
+    const s1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 48, 48), eFres);
+    s1.position.set(-1.6, 0, 0);
+    group.add(s1);
+
+    // Effect 2: Aurora with high specular
+    const eSpec = createEditorMaterial('aurora');
+    eSpec.uniforms.uSpecInt.value = 0.9;
+    eSpec.uniforms.uSpecSharp.value = 0.85;
+    shaderMats.push(eSpec);
+    const s2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 2), eSpec);
+    s2.position.set(-0.53, 0, 0);
+    group.add(s2);
+
+    // Effect 3: Robot material — matte ceramic
+    const eMatte = createRobotMaterial(0xDDD0C0, { rimHex: 0xF0E8E0, rimStr: 0.50, specInt: 0.10, matte: 0.9 });
+    shaderMats.push(eMatte);
+    const s3 = new THREE.Mesh(new THREE.TorusKnotGeometry(0.30, 0.10, 100, 16), eMatte);
+    s3.position.set(0.53, 0, 0);
+    group.add(s3);
+
+    // Effect 4: Glass/chrome — high env + rim
+    const eGlass = createRobotMaterial(0x3344AA, { rimHex: 0x8899FF, rimStr: 0.80, specInt: 0.70, envStr: 0.35 });
+    shaderMats.push(eGlass);
+    const s4 = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.12, 32, 64), eGlass);
+    s4.position.set(1.6, 0, 0);
+    group.add(s4);
+
+    // Subtle particle dust
+    const edCount = 20;
+    const edGeo = new THREE.BufferGeometry();
+    const edPos = new Float32Array(edCount * 3);
+    for (let i = 0; i < edCount; i++) {
+      edPos[i * 3] = (Math.random() - 0.5) * 4;
+      edPos[i * 3 + 1] = (Math.random() - 0.5) * 1.5;
+      edPos[i * 3 + 2] = (Math.random() - 0.5) * 2;
+    }
+    edGeo.setAttribute('position', new THREE.BufferAttribute(edPos, 3));
+    const edMat = new THREE.PointsMaterial({ color: 0x88aacc, size: 0.02, transparent: true, opacity: 0.4 });
+    group.add(new THREE.Points(edGeo, edMat));
+
+    animFn = (t, hover) => {
+      s1.rotation.y = t * 0.25;
+      s2.rotation.y = -t * 0.20;
+      s2.rotation.x = t * 0.15;
+      s3.rotation.y = t * 0.30;
+      s3.rotation.x = t * 0.10;
+      s4.rotation.y = -t * 0.15;
+      s4.rotation.x = t * 0.20;
+      group.rotation.y = Math.sin(t * 0.08) * 0.05;
     };
   }
 
