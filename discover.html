@@ -492,172 +492,308 @@ const SHAPE_CREATORS = {
 
 function buildCuteRobot(palette) {
   const root = new THREE.Group();
-  const mat = createEditorMaterial(palette || 'porcelain');
+  // Multi-material: muted porcelain body, clay accent joints, bright emissive eyes
+  const bodyMat = createEditorMaterial('porcelain');
+  const accentMat = createEditorMaterial('clay');
+  const jointMat = new THREE.MeshStandardMaterial({ color: 0x554433, metalness: 0.6, roughness: 0.3 });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x44ffff });
   const pupilMat = new THREE.MeshBasicMaterial({ color: 0x111122 });
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xff6688 });
+  const darkRingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.5, roughness: 0.4 });
 
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.4, 8, 16), mat);
+  // Body — shorter, more spherical (cute/chibi proportions)
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.18, 8, 16), bodyMat);
   root.add(body);
 
+  // Dark ring between body and head (panel line)
+  const neckRing = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.018, 8, 24), darkRingMat);
+  neckRing.position.set(0, 0.28, 0);
+  neckRing.rotation.x = PI / 2;
+  root.add(neckRing);
+
+  // Head — 35% bigger than body (Funko Pop big-head aesthetic)
   const headJoint = new THREE.Group();
-  headJoint.position.set(0, 0.45, 0);
+  headJoint.position.set(0, 0.32, 0);
   root.add(headJoint);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 24), mat);
-  head.position.set(0, 0.22, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 32, 32), accentMat);
+  head.position.set(0, 0.32, 0);
   headJoint.add(head);
 
-  const eyeGeo = new THREE.SphereGeometry(0.06, 12, 12);
+  // Eyes — 40% larger, more forward-facing
+  const eyeGeo = new THREE.SphereGeometry(0.085, 16, 16);
   const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-  leftEye.position.set(-0.1, 0.28, 0.24);
+  leftEye.position.set(-0.14, 0.36, 0.32);
   headJoint.add(leftEye);
   const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-  rightEye.position.set(0.1, 0.28, 0.24);
+  rightEye.position.set(0.14, 0.36, 0.32);
   headJoint.add(rightEye);
 
-  const pupilGeo = new THREE.SphereGeometry(0.03, 8, 8);
-  leftEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.055));
-  rightEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.055));
+  // Eye highlight spots
+  const highlightGeo = new THREE.SphereGeometry(0.025, 8, 8);
+  const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const lHighlight = new THREE.Mesh(highlightGeo, highlightMat);
+  lHighlight.position.set(0.025, 0.025, 0.08);
+  leftEye.add(lHighlight);
+  const rHighlight = new THREE.Mesh(highlightGeo, highlightMat);
+  rHighlight.position.set(0.025, 0.025, 0.08);
+  rightEye.add(rHighlight);
 
-  const antBase = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 6), mat);
-  antBase.position.set(0, 0.5, 0);
-  headJoint.add(antBase);
-  const antTip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), glowMat);
-  antTip.position.set(0, 0.57, 0);
+  const pupilGeo = new THREE.SphereGeometry(0.04, 8, 8);
+  leftEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.075));
+  rightEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.075));
+
+  // Antenna — coiled spring feel
+  const springSegments = 8;
+  for (let i = 0; i < springSegments; i++) {
+    const t = i / springSegments;
+    const coilGeo = new THREE.TorusGeometry(0.025, 0.008, 6, 12);
+    const coil = new THREE.Mesh(coilGeo, jointMat);
+    coil.position.set(Math.sin(t * PI * 3) * 0.01, 0.68 + t * 0.14, Math.cos(t * PI * 3) * 0.01);
+    coil.rotation.x = PI / 2;
+    headJoint.add(coil);
+  }
+  const antTip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 12), glowMat);
+  antTip.position.set(0, 0.84, 0);
   headJoint.add(antTip);
 
-  const armGeo = new THREE.CapsuleGeometry(0.08, 0.25, 4, 8);
+  // Cheek blush spots
+  const blushGeo = new THREE.CircleGeometry(0.04, 12);
+  const blushMat = new THREE.MeshBasicMaterial({ color: 0xff8899, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+  const lBlush = new THREE.Mesh(blushGeo, blushMat);
+  lBlush.position.set(-0.28, 0.28, 0.24);
+  lBlush.lookAt(-0.28 - 0.5, 0.28, 0.24 + 0.5);
+  headJoint.add(lBlush);
+  const rBlush = new THREE.Mesh(blushGeo, blushMat);
+  rBlush.position.set(0.28, 0.28, 0.24);
+  rBlush.lookAt(0.28 + 0.5, 0.28, 0.24 + 0.5);
+  headJoint.add(rBlush);
+
+  // Arms with joint rings
+  const armGeo = new THREE.CapsuleGeometry(0.07, 0.2, 4, 8);
   const leftArmJoint = new THREE.Group();
-  leftArmJoint.position.set(-0.35, 0.2, 0);
+  leftArmJoint.position.set(-0.32, 0.1, 0);
   root.add(leftArmJoint);
-  leftArmJoint.add(new THREE.Mesh(armGeo, mat).translateY(-0.15));
+  const shoulderRingL = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 16), darkRingMat);
+  shoulderRingL.rotation.z = PI / 2;
+  leftArmJoint.add(shoulderRingL);
+  leftArmJoint.add(new THREE.Mesh(armGeo, accentMat).translateY(-0.15));
 
   const rightArmJoint = new THREE.Group();
-  rightArmJoint.position.set(0.35, 0.2, 0);
+  rightArmJoint.position.set(0.32, 0.1, 0);
   root.add(rightArmJoint);
-  rightArmJoint.add(new THREE.Mesh(armGeo, mat).translateY(-0.15));
+  const shoulderRingR = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 16), darkRingMat);
+  shoulderRingR.rotation.z = PI / 2;
+  rightArmJoint.add(shoulderRingR);
+  rightArmJoint.add(new THREE.Mesh(armGeo, accentMat).translateY(-0.15));
 
+  // Feet — round and cute
   const footGeo = new THREE.SphereGeometry(0.1, 12, 12);
-  const lFoot = new THREE.Mesh(footGeo, mat);
-  lFoot.position.set(-0.15, -0.55, 0.03); lFoot.scale.set(1, 0.6, 1.3);
+  const lFoot = new THREE.Mesh(footGeo, bodyMat);
+  lFoot.position.set(-0.14, -0.42, 0.03); lFoot.scale.set(1, 0.6, 1.3);
   root.add(lFoot);
-  const rFoot = new THREE.Mesh(footGeo, mat);
-  rFoot.position.set(0.15, -0.55, 0.03); rFoot.scale.set(1, 0.6, 1.3);
+  const rFoot = new THREE.Mesh(footGeo, bodyMat);
+  rFoot.position.set(0.14, -0.42, 0.03); rFoot.scale.set(1, 0.6, 1.3);
   root.add(rFoot);
 
-  return { root, headJoint, leftArmJoint, rightArmJoint, eyes: [leftEye, rightEye], antTip, body, shaderMats: [mat] };
+  // Shadow disc on ground
+  const shadowGeo = new THREE.CircleGeometry(0.35, 24);
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.rotation.x = -PI / 2;
+  shadow.position.set(0, -0.52, 0);
+  root.add(shadow);
+
+  return { root, headJoint, leftArmJoint, rightArmJoint, eyes: [leftEye, rightEye], antTip, body, shaderMats: [bodyMat, accentMat] };
 }
 
 function buildMechRobot(palette) {
   const root = new THREE.Group();
-  const mat = createEditorMaterial(palette || 'ocean');
-  const visorMat = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.85 });
-  const accentMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+  // Multi-material: stone armor, dark under-armor, intense glowing visor
+  const armorMat = createEditorMaterial('stone');
+  const underMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.7, roughness: 0.3 });
+  const visorMat = new THREE.MeshBasicMaterial({ color: 0x00ddff, transparent: true, opacity: 0.95 });
+  const visorGlowMat = new THREE.MeshBasicMaterial({ color: 0x00aaff, transparent: true, opacity: 0.3 });
+  const accentMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
+  const darkRingMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.6, roughness: 0.3 });
+  const panelMat = createEditorMaterial('ocean');
 
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.55, 0.35), mat);
+  // Torso — angular, aggressive
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.58, 0.38), armorMat);
   root.add(torso);
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.2, 0.05), accentMat);
-  chest.position.set(0, 0.08, 0.19);
+  // Chest plate accent
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.06), accentMat);
+  chest.position.set(0, 0.08, 0.20);
   root.add(chest);
+  // Under-armor visible at torso gaps
+  const underTorso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.30), underMat);
+  underTorso.position.set(0, -0.28, 0);
+  root.add(underTorso);
 
+  // Panel line ring at waist
+  const waistRing = new THREE.Mesh(new THREE.BoxGeometry(0.57, 0.025, 0.40), darkRingMat);
+  waistRing.position.set(0, -0.20, 0);
+  root.add(waistRing);
+
+  // Head — angular helmet
   const headJoint = new THREE.Group();
-  headJoint.position.set(0, 0.35, 0);
+  headJoint.position.set(0, 0.38, 0);
   root.add(headJoint);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.26), mat);
-  head.position.set(0, 0.16, 0);
+  // Neck gap (under-armor visible)
+  const neckGap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.10, 0.06, 6), underMat);
+  neckGap.position.set(0, 0.04, 0);
+  headJoint.add(neckGap);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.24, 0.28), armorMat);
+  head.position.set(0, 0.18, 0);
   headJoint.add(head);
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.05), visorMat);
-  visor.position.set(0, 0.14, 0.135);
+  // Head crest / fin
+  const crest = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.10, 0.20), panelMat);
+  crest.position.set(0, 0.33, -0.02);
+  headJoint.add(crest);
+
+  // Visor — wider, glows MORE intensely for bloom
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.06), visorMat);
+  visor.position.set(0, 0.16, 0.145);
   headJoint.add(visor);
+  // Visor glow halo behind
+  const visorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 0.02), visorGlowMat);
+  visorGlow.position.set(0, 0.16, 0.12);
+  headJoint.add(visorGlow);
 
   function buildArm(sign) {
     const armJoint = new THREE.Group();
-    armJoint.position.set(sign * 0.38, 0.18, 0);
+    armJoint.position.set(sign * 0.42, 0.20, 0);
     root.add(armJoint);
-    const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.2), mat);
-    shoulder.position.set(sign * -0.05, 0.05, 0);
+    // Shoulder pauldron — bigger, angular
+    const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.22), panelMat);
+    shoulder.position.set(sign * -0.04, 0.06, 0);
     armJoint.add(shoulder);
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.12), mat);
-    upper.position.set(0, -0.2, 0);
+    // Joint ring
+    const jointRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 12), darkRingMat);
+    jointRing.rotation.z = PI / 2;
+    jointRing.position.set(0, -0.02, 0);
+    armJoint.add(jointRing);
+    // Upper arm
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.28, 0.13), underMat);
+    upper.position.set(0, -0.20, 0);
     armJoint.add(upper);
     const elbowJoint = new THREE.Group();
     elbowJoint.position.set(0, -0.36, 0);
     armJoint.add(elbowJoint);
-    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.1), mat);
-    forearm.position.set(0, -0.13, 0);
+    // Elbow ring
+    const elbowRing = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 12), darkRingMat);
+    elbowRing.rotation.z = PI / 2;
+    elbowJoint.add(elbowRing);
+    // Forearm armor
+    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), armorMat);
+    forearm.position.set(0, -0.14, 0);
     elbowJoint.add(forearm);
     return { armJoint, elbowJoint };
   }
   const leftArm = buildArm(-1);
   const rightArm = buildArm(1);
 
-  const hip = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.3), mat);
-  hip.position.set(0, -0.34, 0);
+  // Hip — under-armor
+  const hip = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.32), underMat);
+  hip.position.set(0, -0.36, 0);
   root.add(hip);
 
   function buildLeg(sign) {
     const legJoint = new THREE.Group();
-    legJoint.position.set(sign * 0.14, -0.42, 0);
+    legJoint.position.set(sign * 0.16, -0.44, 0);
     root.add(legJoint);
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.25, 0.13), mat);
+    // Thigh armor
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.26, 0.15), armorMat);
     upper.position.set(0, -0.16, 0);
     legJoint.add(upper);
     const kneeJoint = new THREE.Group();
-    kneeJoint.position.set(0, -0.28, 0);
+    kneeJoint.position.set(0, -0.30, 0);
     legJoint.add(kneeJoint);
-    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.22, 0.11), mat);
+    // Knee ring
+    const kneeRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), darkRingMat);
+    kneeRing.rotation.z = PI / 2;
+    kneeJoint.add(kneeRing);
+    // Shin — under-armor
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), underMat);
     lower.position.set(0, -0.14, 0);
     kneeJoint.add(lower);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.22), mat);
-    foot.position.set(0, -0.28, 0.03);
+    // Foot — angular
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.07, 0.24), armorMat);
+    foot.position.set(0, -0.30, 0.04);
     kneeJoint.add(foot);
     return { legJoint, kneeJoint };
   }
   const leftLeg = buildLeg(-1);
   const rightLeg = buildLeg(1);
 
-  return { root, headJoint, visor, leftArm, rightArm, leftLeg, rightLeg, torso, body: torso, shaderMats: [mat] };
+  // Shadow disc
+  const shadowGeo = new THREE.CircleGeometry(0.45, 24);
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.rotation.x = -PI / 2;
+  shadow.position.set(0, -0.78, 0);
+  root.add(shadow);
+
+  return { root, headJoint, visor, leftArm, rightArm, leftLeg, rightLeg, torso, body: torso, shaderMats: [armorMat, panelMat] };
 }
 
 function buildRetroRobot(palette) {
   const root = new THREE.Group();
-  const mat = createEditorMaterial(palette || 'ember');
+  // Multi-material: clay body, metallic accents, bright emissive details
+  const bodyMat = createEditorMaterial('clay');
+  const plateMat = createEditorMaterial('ember');
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.85, roughness: 0.2 });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
   const dialMat = new THREE.MeshBasicMaterial({ color: 0xff3333 });
-  const grillMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.3 });
+  const grillMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.3 });
+  const darkRingMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.5, roughness: 0.4 });
   const btnColors = [0x33ff33, 0xff3333, 0x3399ff];
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.35), mat);
+  // Body — tin can aesthetic
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.35), bodyMat);
   root.add(body);
+  // Belly plate (different material)
+  const bellyPlate = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.35, 0.04), metalMat);
+  bellyPlate.position.set(0, 0, 0.19);
+  root.add(bellyPlate);
 
-  const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 12), dialMat);
-  dial.rotation.x = PI / 2; dial.position.set(0, -0.05, 0.19);
+  const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 12), dialMat);
+  dial.rotation.x = PI / 2; dial.position.set(0, -0.05, 0.22);
   root.add(dial);
 
   for (let i = 0; i < 3; i++) {
-    const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.04, 8), new THREE.MeshBasicMaterial({ color: btnColors[i] }));
-    btn.rotation.x = PI / 2; btn.position.set(-0.08 + i * 0.08, 0.15, 0.19);
+    const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.05, 8), new THREE.MeshBasicMaterial({ color: btnColors[i] }));
+    btn.rotation.x = PI / 2; btn.position.set(-0.08 + i * 0.08, 0.15, 0.22);
     root.add(btn);
   }
+
+  // Panel line between body and head
+  const neckRing = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.025, 0.37), darkRingMat);
+  neckRing.position.set(0, 0.32, 0);
+  root.add(neckRing);
 
   const headJoint = new THREE.Group();
   headJoint.position.set(0, 0.38, 0);
   root.add(headJoint);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.3), mat);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.3), plateMat);
   head.position.set(0, 0.2, 0);
   headJoint.add(head);
 
-  const eyeGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.04, 12);
+  // Face plate (metallic)
+  const facePlate = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.22, 0.04), metalMat);
+  facePlate.position.set(0, 0.2, 0.16);
+  headJoint.add(facePlate);
+
+  const eyeGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.05, 12);
   const lEye = new THREE.Mesh(eyeGeo, eyeMat);
-  lEye.rotation.x = PI / 2; lEye.position.set(-0.08, 0.24, 0.16);
+  lEye.rotation.x = PI / 2; lEye.position.set(-0.08, 0.24, 0.19);
   headJoint.add(lEye);
   const rEye = new THREE.Mesh(eyeGeo, eyeMat);
-  rEye.rotation.x = PI / 2; rEye.position.set(0.08, 0.24, 0.16);
+  rEye.rotation.x = PI / 2; rEye.position.set(0.08, 0.24, 0.19);
   headJoint.add(rEye);
 
   for (let i = 0; i < 3; i++) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.04), grillMat);
-    bar.position.set(0, 0.11 + i * 0.03, 0.16);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.05), grillMat);
+    bar.position.set(0, 0.11 + i * 0.03, 0.19);
     headJoint.add(bar);
   }
 
@@ -665,7 +801,7 @@ function buildRetroRobot(palette) {
   const antTipGeo = new THREE.SphereGeometry(0.025, 8, 8);
   const antTipMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
   [-0.1, 0.1].forEach(x => {
-    const ant = new THREE.Mesh(antGeo, mat);
+    const ant = new THREE.Mesh(antGeo, metalMat);
     ant.position.set(x, 0.44, 0);
     headJoint.add(ant);
     const tip = new THREE.Mesh(antTipGeo, antTipMat);
@@ -679,12 +815,21 @@ function buildRetroRobot(palette) {
     const joint = new THREE.Group();
     joint.position.set(sign * 0.36, 0.15, 0);
     root.add(joint);
-    joint.add(new THREE.Mesh(armGeo, mat).translateY(-0.2));
-    joint.add(new THREE.Mesh(handGeo, mat).translateY(-0.4));
+    // Shoulder ring
+    const sRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 12), darkRingMat);
+    sRing.rotation.z = PI / 2;
+    joint.add(sRing);
+    joint.add(new THREE.Mesh(armGeo, plateMat).translateY(-0.2));
+    joint.add(new THREE.Mesh(handGeo, metalMat).translateY(-0.4));
     return joint;
   }
   const leftArmJoint = buildArm(-1);
   const rightArmJoint = buildArm(1);
+
+  // Panel line at hip
+  const hipRing = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.025, 0.37), darkRingMat);
+  hipRing.position.set(0, -0.32, 0);
+  root.add(hipRing);
 
   const legGeo = new THREE.BoxGeometry(0.14, 0.3, 0.14);
   const footGeo = new THREE.BoxGeometry(0.18, 0.06, 0.24);
@@ -692,8 +837,8 @@ function buildRetroRobot(palette) {
     const joint = new THREE.Group();
     joint.position.set(sign * 0.14, -0.36, 0);
     root.add(joint);
-    joint.add(new THREE.Mesh(legGeo, mat).translateY(-0.18));
-    const foot = new THREE.Mesh(footGeo, mat);
+    joint.add(new THREE.Mesh(legGeo, bodyMat).translateY(-0.18));
+    const foot = new THREE.Mesh(footGeo, metalMat);
     foot.position.set(0, -0.36, 0.03);
     joint.add(foot);
     return joint;
@@ -701,38 +846,61 @@ function buildRetroRobot(palette) {
   const leftLegJoint = buildLeg(-1);
   const rightLegJoint = buildLeg(1);
 
-  return { root, headJoint, leftArmJoint, rightArmJoint, leftLegJoint, rightLegJoint, eyes: [lEye, rEye], body, shaderMats: [mat] };
+  // Shadow disc
+  const shadowGeo = new THREE.CircleGeometry(0.40, 24);
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.rotation.x = -PI / 2;
+  shadow.position.set(0, -0.74, 0);
+  root.add(shadow);
+
+  return { root, headJoint, leftArmJoint, rightArmJoint, leftLegJoint, rightLegJoint, eyes: [lEye, rEye], body, shaderMats: [bodyMat, plateMat] };
 }
 
 function buildDroneRobot(palette) {
   const root = new THREE.Group();
-  const mat = createEditorMaterial(palette || 'hologram');
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.8 });
+  // Multi-material: porcelain shell, metallic legs, hologram accents
+  const shellMat = createEditorMaterial('porcelain');
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x334455, metalness: 0.75, roughness: 0.25 });
+  const jointMat = createEditorMaterial('hologram');
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.85 });
   const eyeInnerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   const glowMat = new THREE.MeshBasicMaterial({ color: 0x44ffaa });
+  const darkRingMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.6, roughness: 0.3 });
 
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 24), mat);
+  // Body — main sphere shell
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 24), shellMat);
   root.add(body);
+  // Equator ring (panel line)
+  const equatorRing = new THREE.Mesh(new THREE.TorusGeometry(0.305, 0.012, 8, 32), darkRingMat);
+  equatorRing.rotation.x = PI / 2;
+  root.add(equatorRing);
 
-  const eyeLens = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), eyeMat);
+  // Eye lens — larger, more menacing
+  const eyeLens = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), eyeMat);
   eyeLens.position.set(0, 0.05, 0.28);
   root.add(eyeLens);
+  // Eye ring
+  const eyeRing = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.01, 8, 24), darkRingMat);
+  eyeRing.position.set(0, 0.05, 0.27);
+  root.add(eyeRing);
   const eyeInner = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), eyeInnerMat);
-  eyeInner.position.set(0, 0, 0.06);
+  eyeInner.position.set(0, 0, 0.07);
   eyeLens.add(eyeInner);
 
-  const sensor = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 0.12, 8), mat);
+  // Sensor antenna
+  const sensor = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 0.12, 8), legMat);
   sensor.position.set(0, 0.32, 0);
   root.add(sensor);
-  const sensorLight = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), glowMat);
+  const sensorLight = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), glowMat);
   sensorLight.position.set(0, 0.39, 0);
   root.add(sensorLight);
 
   const LEG_COUNT = 6;
   const upperGeo = new THREE.CylinderGeometry(0.025, 0.018, 0.45, 6);
   const lowerGeo = new THREE.CylinderGeometry(0.018, 0.012, 0.35, 6);
-  const kneeGeo = new THREE.SphereGeometry(0.03, 6, 6);
-  const tipGeo = new THREE.SphereGeometry(0.02, 6, 6);
+  const kneeGeo = new THREE.SphereGeometry(0.035, 8, 8);
+  const tipGeo = new THREE.SphereGeometry(0.022, 8, 8);
   const legs = [];
 
   for (let i = 0; i < LEG_COUNT; i++) {
@@ -743,16 +911,21 @@ function buildDroneRobot(palette) {
     legJoint.rotation.z = 0.6;
     root.add(legJoint);
 
-    const upper = new THREE.Mesh(upperGeo, mat);
+    // Joint anchor ring where leg meets body
+    const anchorRing = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.008, 6, 12), darkRingMat);
+    anchorRing.rotation.x = PI / 2;
+    legJoint.add(anchorRing);
+
+    const upper = new THREE.Mesh(upperGeo, legMat);
     upper.position.set(0, -0.22, 0);
     legJoint.add(upper);
 
     const kneeJoint = new THREE.Group();
     kneeJoint.position.set(0, -0.45, 0);
     legJoint.add(kneeJoint);
-    kneeJoint.add(new THREE.Mesh(kneeGeo, mat));
+    kneeJoint.add(new THREE.Mesh(kneeGeo, jointMat));
 
-    const lower = new THREE.Mesh(lowerGeo, mat);
+    const lower = new THREE.Mesh(lowerGeo, legMat);
     lower.position.set(0, -0.18, 0);
     lower.rotation.z = -0.8;
     kneeJoint.add(lower);
@@ -764,7 +937,15 @@ function buildDroneRobot(palette) {
     legs.push({ legJoint, kneeJoint });
   }
 
-  return { root, body, eyeLens, eyeInner, sensorLight, legs, shaderMats: [mat] };
+  // Shadow disc
+  const shadowGeo = new THREE.CircleGeometry(0.5, 24);
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.rotation.x = -PI / 2;
+  shadow.position.set(0, -0.85, 0);
+  root.add(shadow);
+
+  return { root, body, eyeLens, eyeInner, sensorLight, legs, shaderMats: [shellMat, jointMat] };
 }
 
 // ── createRobot factory ──
@@ -1298,106 +1479,212 @@ function createMiniScene(el, config) {
   }
 
   else if (sceneType === 'nature') {
-    // Floating crystal garden island
-    camera.position.set(0, 1.5, 4.5);
-    camera.lookAt(0, 0.2, 0);
+    // Enchanted mushroom garden on a floating mossy rock
+    camera.position.set(0, 1.2, 3.8);
+    camera.lookAt(0, 0.3, 0);
 
-    // Floating island base — a faceted rock chunk
-    const islandGeo = new THREE.DodecahedronGeometry(1.2, 1);
-    // Squash vertically and randomise vertices for organic feel
-    const islandPos = islandGeo.attributes.position;
-    for (let i = 0; i < islandPos.count; i++) {
-      const y = islandPos.getY(i);
-      islandPos.setY(i, y * 0.35);
-      islandPos.setX(i, islandPos.getX(i) + (Math.random() - 0.5) * 0.08);
-      islandPos.setZ(i, islandPos.getZ(i) + (Math.random() - 0.5) * 0.08);
+    // Floating rock base — organic shape
+    const rockGeo = new THREE.DodecahedronGeometry(1.0, 2);
+    const rockPos = rockGeo.attributes.position;
+    for (let i = 0; i < rockPos.count; i++) {
+      const y = rockPos.getY(i);
+      rockPos.setY(i, y * 0.3);
+      rockPos.setX(i, rockPos.getX(i) * (1.0 + (Math.random() - 0.5) * 0.12));
+      rockPos.setZ(i, rockPos.getZ(i) * (1.0 + (Math.random() - 0.5) * 0.12));
     }
-    islandGeo.computeVertexNormals();
-    const islandMat = new THREE.MeshStandardMaterial({ color: 0x2a3a2a, roughness: 0.85, metalness: 0.05 });
-    const island = new THREE.Mesh(islandGeo, islandMat);
-    island.position.y = -0.1;
-    group.add(island);
+    rockGeo.computeVertexNormals();
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x3a3530, roughness: 0.92, metalness: 0.02 });
+    const rock = new THREE.Mesh(rockGeo, rockMat);
+    rock.position.y = -0.15;
+    group.add(rock);
 
-    // Glowing moss top layer
-    const mossGeo = new THREE.DodecahedronGeometry(1.22, 1);
+    // Moss carpet on top — soft green glow
+    const mossGeo = new THREE.DodecahedronGeometry(1.02, 2);
     const mossPos = mossGeo.attributes.position;
     for (let i = 0; i < mossPos.count; i++) {
       const y = mossPos.getY(i);
-      if (y < 0) { mossPos.setY(i, y * 0.3 - 0.15); }
-      else { mossPos.setY(i, y * 0.12 + 0.05); }
-      mossPos.setX(i, mossPos.getX(i) + (Math.random() - 0.5) * 0.06);
-      mossPos.setZ(i, mossPos.getZ(i) + (Math.random() - 0.5) * 0.06);
+      if (y < 0) { mossPos.setY(i, y * 0.2 - 0.12); }
+      else { mossPos.setY(i, y * 0.08 + 0.06); }
+      mossPos.setX(i, mossPos.getX(i) * (1.0 + (Math.random() - 0.5) * 0.08));
+      mossPos.setZ(i, mossPos.getZ(i) * (1.0 + (Math.random() - 0.5) * 0.08));
     }
     mossGeo.computeVertexNormals();
-    const mossMat = new THREE.MeshStandardMaterial({ color: 0x3a6b3a, roughness: 0.9, emissive: 0x0a2a0a, emissiveIntensity: 0.3 });
-    const moss = new THREE.Mesh(mossGeo, mossMat);
-    moss.position.y = 0.1;
-    group.add(moss);
+    const mossMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.95, emissive: 0x0a2a0a, emissiveIntensity: 0.25 });
+    const mossLayer = new THREE.Mesh(mossGeo, mossMat);
+    mossLayer.position.y = 0.05;
+    group.add(mossLayer);
 
-    // Crystal spires growing from the island
-    const crystalMat = createEditorMaterial('aurora');
-    shaderMats.push(crystalMat);
-    const crystals = [];
-    const crystalData = [
-      { x: 0, z: 0, h: 1.1, r: 0.12, ry: 0 },
-      { x: 0.35, z: 0.2, h: 0.7, r: 0.08, ry: 0.3 },
-      { x: -0.3, z: 0.15, h: 0.85, r: 0.10, ry: -0.4 },
-      { x: 0.15, z: -0.3, h: 0.6, r: 0.07, ry: 0.6 },
-      { x: -0.2, z: -0.25, h: 0.5, r: 0.06, ry: -0.2 },
-      { x: 0.5, z: -0.1, h: 0.45, r: 0.06, ry: 0.8 },
-      { x: -0.5, z: -0.1, h: 0.55, r: 0.07, ry: -0.6 },
+    // Mushroom cap shader — dreamy, translucent color shifts
+    const mushroomCapMat = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: { value: 0 },
+        uHover: { value: 0 },
+      },
+      vertexShader: `
+        varying vec3 vNormal, vViewPos, vPos;
+        void main(){
+          vNormal = normalize(normalMatrix * normal);
+          vPos = position;
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vViewPos = -mv.xyz;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform float uTime, uHover;
+        varying vec3 vNormal, vViewPos, vPos;
+        ${PALETTE_GLSL}
+        void main(){
+          vec3 N = normalize(vNormal);
+          vec3 V = normalize(vViewPos);
+          float fres = pow(1.0 - max(dot(V, N), 0.0), 2.5);
+          // Dreamy warm palette with time shift
+          float t = vPos.y * 1.5 + vPos.x * 0.3 + uTime * 0.08;
+          vec3 base = cosPalette(t,
+            vec3(0.6, 0.35, 0.30),
+            vec3(0.35, 0.25, 0.20),
+            vec3(0.8, 0.5, 0.4),
+            vec3(0.05, 0.15, 0.25));
+          // Subsurface scattering glow
+          vec3 L = normalize(vec3(0.3, 0.8, 0.4));
+          float sss = pow(max(dot(-V, L), 0.0), 2.0) * 0.3;
+          base += vec3(1.0, 0.5, 0.3) * sss;
+          // Soft rim light
+          base += vec3(1.0, 0.7, 0.9) * fres * 0.3;
+          // Wrap lighting
+          float d = dot(N, L) * 0.4 + 0.6;
+          base *= d;
+          // Specular
+          vec3 H = normalize(V + L);
+          float spec = pow(max(dot(N, H), 0.0), 24.0) * 0.2;
+          base += vec3(1.0, 0.95, 0.85) * spec;
+          // Hover brightens
+          base += vec3(0.15, 0.1, 0.08) * uHover;
+          base = max(base, vec3(0.08, 0.04, 0.06));
+          gl_FragColor = vec4(base, 1.0);
+        }`
+    });
+    shaderMats.push(mushroomCapMat);
+
+    const stemMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc8, roughness: 0.85, metalness: 0.0 });
+    const spotMat = new THREE.MeshBasicMaterial({ color: 0xffeecc, transparent: true, opacity: 0.5 });
+
+    // Mushroom builder
+    const mushrooms = [];
+    function addMushroom(x, z, capR, capH, stemR, stemH, tilt) {
+      const mushGroup = new THREE.Group();
+      mushGroup.position.set(x, 0.08, z);
+      mushGroup.rotation.x = tilt * 0.15;
+      mushGroup.rotation.z = (Math.random() - 0.5) * 0.12;
+
+      // Stem
+      const sGeo = new THREE.CylinderGeometry(stemR * 0.7, stemR, stemH, 12);
+      const stem = new THREE.Mesh(sGeo, stemMat);
+      stem.position.y = stemH / 2;
+      mushGroup.add(stem);
+
+      // Cap — half sphere
+      const capGeo = new THREE.SphereGeometry(capR, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
+      const cap = new THREE.Mesh(capGeo, mushroomCapMat);
+      cap.position.y = stemH + capH * 0.1;
+      mushGroup.add(cap);
+
+      // Spots on cap (small flat circles)
+      for (let s = 0; s < 4; s++) {
+        const angle = (s / 4) * Math.PI * 2 + Math.random() * 0.5;
+        const phi = 0.15 + Math.random() * 0.3;
+        const spotGeo = new THREE.CircleGeometry(capR * 0.12, 8);
+        const spot = new THREE.Mesh(spotGeo, spotMat);
+        spot.position.set(
+          Math.sin(angle) * Math.sin(phi) * capR * 0.85,
+          stemH + capH * 0.1 + Math.cos(phi) * capR * 0.85,
+          Math.cos(angle) * Math.sin(phi) * capR * 0.85
+        );
+        spot.lookAt(x, stemH + capH * 0.5 + 2, z);
+        mushGroup.add(spot);
+      }
+
+      group.add(mushGroup);
+      mushrooms.push({ group: mushGroup, baseY: 0.08, cap });
+    }
+
+    // Hero mushroom (center, largest)
+    addMushroom(0, 0.1, 0.32, 0.15, 0.06, 0.55, 0);
+    // Secondary mushrooms
+    addMushroom(0.35, 0.25, 0.22, 0.10, 0.045, 0.42, 0.3);
+    addMushroom(-0.30, 0.18, 0.24, 0.12, 0.05, 0.48, -0.2);
+    addMushroom(0.18, -0.28, 0.18, 0.08, 0.035, 0.35, 0.5);
+    addMushroom(-0.22, -0.22, 0.15, 0.07, 0.03, 0.30, -0.4);
+    // Tiny baby mushrooms
+    addMushroom(0.45, -0.05, 0.10, 0.05, 0.022, 0.18, 0.6);
+    addMushroom(-0.42, 0.02, 0.11, 0.05, 0.024, 0.20, -0.5);
+    addMushroom(0.08, 0.38, 0.09, 0.04, 0.02, 0.15, 0.2);
+
+    // Small ground ferns (simple cones as foliage tufts)
+    const fernMat = new THREE.MeshStandardMaterial({ color: 0x3a7a3a, roughness: 0.9, emissive: 0x0a2a0a, emissiveIntensity: 0.15 });
+    const fernData = [
+      { x: 0.5, z: 0.3 }, { x: -0.5, z: 0.2 }, { x: 0.3, z: -0.4 },
+      { x: -0.35, z: -0.35 }, { x: 0.55, z: -0.2 },
     ];
-    crystalData.forEach(cd => {
-      const cGeo = new THREE.ConeGeometry(cd.r, cd.h, 6, 1);
-      const crystal = new THREE.Mesh(cGeo, crystalMat);
-      crystal.position.set(cd.x, 0.15 + cd.h / 2, cd.z);
-      crystal.rotation.y = cd.ry;
-      crystal.rotation.x = (Math.random() - 0.5) * 0.15;
-      crystal.rotation.z = (Math.random() - 0.5) * 0.15;
-      group.add(crystal);
-      crystals.push(crystal);
+    fernData.forEach(fd => {
+      const fGeo = new THREE.ConeGeometry(0.06, 0.12, 5);
+      const fern = new THREE.Mesh(fGeo, fernMat);
+      fern.position.set(fd.x, 0.12, fd.z);
+      group.add(fern);
     });
 
-    // Firefly particles floating around
-    const ffCount = 40;
-    const ffGeo = new THREE.BufferGeometry();
-    const ffPos = new Float32Array(ffCount * 3);
-    for (let i = 0; i < ffCount; i++) {
-      ffPos[i*3]   = (Math.random() - 0.5) * 2.5;
-      ffPos[i*3+1] = 0.2 + Math.random() * 1.5;
-      ffPos[i*3+2] = (Math.random() - 0.5) * 2.5;
+    // Firefly / spore particles
+    const sporeCount = 50;
+    const sporeGeo = new THREE.BufferGeometry();
+    const sporePos = new Float32Array(sporeCount * 3);
+    for (let i = 0; i < sporeCount; i++) {
+      sporePos[i*3]   = (Math.random() - 0.5) * 2.0;
+      sporePos[i*3+1] = 0.15 + Math.random() * 1.2;
+      sporePos[i*3+2] = (Math.random() - 0.5) * 2.0;
     }
-    ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
-    const ffMat = new THREE.PointsMaterial({
-      color: 0x88ffaa, size: 0.03, transparent: true, opacity: 0.6,
+    sporeGeo.setAttribute('position', new THREE.BufferAttribute(sporePos, 3));
+    const sporeMat = new THREE.PointsMaterial({
+      color: 0xffcc77, size: 0.025, transparent: true, opacity: 0.5,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
-    const fireflies = new THREE.Points(ffGeo, ffMat);
-    group.add(fireflies);
+    const spores = new THREE.Points(sporeGeo, sporeMat);
+    group.add(spores);
 
-    // Subtle underglow
-    const underglow = new THREE.PointLight(0x33aa66, 0.5, 3);
-    underglow.position.set(0, -0.3, 0);
+    // Warm underglow
+    const underglow = new THREE.PointLight(0xaa6633, 0.4, 3);
+    underglow.position.set(0, -0.2, 0);
     scene.add(underglow);
+    // Top moonlight
+    const moonlight = new THREE.PointLight(0x8899cc, 0.3, 4);
+    moonlight.position.set(0.5, 2.0, 0.5);
+    scene.add(moonlight);
 
-    let floatPhase = 0;
     animFn = (t, hover) => {
-      floatPhase = t;
-      // Whole island gently bobs
-      group.position.y = Math.sin(t * 0.6) * 0.08;
-      group.rotation.y = t * (hover ? 0.25 : 0.08);
-      // Crystals gently pulse scale
-      crystals.forEach((cr, ci) => {
-        cr.scale.y = 1.0 + Math.sin(t * 1.2 + ci * 1.5) * 0.05;
+      // Gentle floating
+      group.position.y = Math.sin(t * 0.5) * 0.06;
+      group.rotation.y = t * (hover ? 0.2 : 0.06);
+      // Mushrooms gently breathe
+      mushrooms.forEach((m, i) => {
+        const phase = t * 0.8 + i * 1.2;
+        m.group.position.y = m.baseY + Math.sin(phase) * 0.01;
+        m.cap.scale.x = 1.0 + Math.sin(phase) * 0.03;
+        m.cap.scale.z = 1.0 + Math.sin(phase) * 0.03;
       });
-      // Fireflies drift
-      const positions = ffGeo.attributes.position.array;
-      for (let i = 0; i < ffCount; i++) {
-        positions[i*3+1] += Math.sin(t * 0.8 + i) * 0.002;
-        positions[i*3]   += Math.cos(t * 0.5 + i * 0.7) * 0.001;
+      // Spores drift upward and reset
+      const positions = sporeGeo.attributes.position.array;
+      for (let i = 0; i < sporeCount; i++) {
+        positions[i*3+1] += 0.0015 + Math.sin(t * 0.6 + i) * 0.0008;
+        positions[i*3]   += Math.cos(t * 0.3 + i * 0.7) * 0.0006;
+        if (positions[i*3+1] > 1.5) {
+          positions[i*3+1] = 0.1;
+          positions[i*3] = (Math.random() - 0.5) * 2.0;
+          positions[i*3+2] = (Math.random() - 0.5) * 2.0;
+        }
       }
-      ffGeo.attributes.position.needsUpdate = true;
-      ffMat.opacity = 0.4 + Math.sin(t * 2) * 0.2;
+      sporeGeo.attributes.position.needsUpdate = true;
+      sporeMat.opacity = 0.35 + Math.sin(t * 1.5) * 0.15;
+      // Underglow pulses warmly
+      underglow.intensity = 0.35 + Math.sin(t * 1.0) * 0.1;
     };
   }
 
