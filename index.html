@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Lab V5</title>
+<title>3D Lab V6</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{overflow:hidden;background:#0a0a12;font-family:system-ui,sans-serif;color:#fff}
+  body{overflow:hidden;background:#0a0a14;font-family:system-ui,sans-serif}
   canvas{display:block;width:100vw;height:100vh;touch-action:pan-y}
-  #loader{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#0a0a12;transition:opacity 1.2s ease}
+  #loader{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#0a0a14;transition:opacity 1.2s ease}
   #loader.done{opacity:0;pointer-events:none}
   .dot{width:6px;height:6px;background:#a78bfa;border-radius:50%;margin:0 4px;animation:bounce .6s ease infinite}
   .dot:nth-child(2){animation-delay:.1s}.dot:nth-child(3){animation-delay:.2s}
@@ -33,202 +33,34 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // ═══════════════════════════════════════════════════════════
-// RENDERER
-// ═══════════════════════════════════════════════════════════
-const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
-camera.position.set(0, 0, 7.5);
-
-// ═══════════════════════════════════════════════════════════
-// RICH PROCEDURAL ENVIRONMENT MAP
-// The #1 most important element for PBR material quality
-// ═══════════════════════════════════════════════════════════
-function createRichEnv() {
-  const envScene = new THREE.Scene();
-  const envMat = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `
-      varying vec3 vPos;
-      void main(){
-        vec3 d = normalize(vPos);
-        float t = d.y * 0.5 + 0.5;
-
-        // Rich base: deep indigo bottom -> dark blue top
-        vec3 col = mix(vec3(0.05, 0.01, 0.12), vec3(0.03, 0.04, 0.18), smoothstep(0.0, 1.0, t));
-
-        // KEY: large warm purple softbox (top-right) - wide spread
-        col += vec3(0.8, 0.5, 1.0) * pow(max(dot(d, normalize(vec3(0.5, 0.6, 0.4))), 0.0), 6.0) * 3.5;
-
-        // FILL: cool blue softbox (left) - wide
-        col += vec3(0.3, 0.6, 1.0) * pow(max(dot(d, normalize(vec3(-0.6, 0.3, 0.5))), 0.0), 5.0) * 2.8;
-
-        // RIM: hot pink from behind-below
-        col += vec3(1.0, 0.35, 0.6) * pow(max(dot(d, normalize(vec3(0.0, -0.4, -0.7))), 0.0), 4.0) * 2.5;
-
-        // ACCENT: cyan highlight (sharp)
-        col += vec3(0.1, 0.85, 0.9) * pow(max(dot(d, normalize(vec3(-0.3, 0.5, -0.5))), 0.0), 18.0) * 2.5;
-
-        // ACCENT: gold from top
-        col += vec3(0.6, 0.4, 0.1) * pow(max(dot(d, normalize(vec3(0.1, 0.95, -0.1))), 0.0), 22.0) * 1.8;
-
-        // ACCENT: warm white front-fill
-        col += vec3(0.5, 0.45, 0.55) * pow(max(dot(d, normalize(vec3(0.0, 0.1, 1.0))), 0.0), 8.0) * 1.2;
-
-        // Warm horizon band
-        float horizon = exp(-15.0 * d.y * d.y);
-        col += vec3(0.15, 0.06, 0.22) * horizon;
-
-        // Floor bounce: subtle warm reflection from below
-        float floorBounce = max(-d.y, 0.0);
-        col += vec3(0.08, 0.04, 0.12) * floorBounce;
-
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `
-  });
-  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 64, 64), envMat));
-  const pm = new THREE.PMREMGenerator(renderer);
-  pm.compileCubemapShader();
-  const envMap = pm.fromScene(envScene, 0, 0.1, 100).texture;
-  pm.dispose();
-  return envMap;
-}
-const envMap = createRichEnv();
-scene.environment = envMap;
-
-// ═══════════════════════════════════════════════════════════
-// ANIMATED BACKGROUND (subtle nebula, NOT static)
-// ═══════════════════════════════════════════════════════════
-const bgMat = new THREE.ShaderMaterial({
-  depthWrite: false,
-  uniforms: { uTime: { value: 0 } },
-  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }`,
-  fragmentShader: `
-    varying vec2 vUv;
-    uniform float uTime;
-
-    float hash(vec2 p){
-      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.x + p3.y) * p3.z);
-    }
-    float noise(vec2 p){
-      vec2 i = floor(p), f = fract(p);
-      float a = hash(i), b = hash(i + vec2(1,0)), c = hash(i + vec2(0,1)), d = hash(i + vec2(1,1));
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-    }
-    float fbm(vec2 p){
-      float v = 0.0, a = 0.5;
-      for(int i = 0; i < 4; i++){ v += a * noise(p); p *= 2.0; a *= 0.5; }
-      return v;
-    }
-
-    void main(){
-      vec2 uv = vUv;
-      // Base gradient: deep purple bottom -> dark blue top
-      vec3 col = mix(vec3(0.06, 0.015, 0.12), vec3(0.02, 0.04, 0.11), uv.y);
-
-      // Warm center glow
-      float d = length(uv - vec2(0.5, 0.45));
-      col += vec3(0.07, 0.025, 0.10) * smoothstep(0.7, 0.0, d);
-
-      // Subtle animated nebula
-      float n = fbm(uv * 3.0 + uTime * 0.015);
-      col += vec3(0.04, 0.015, 0.06) * n * 0.6;
-
-      // Secondary glow offset
-      float d2 = length(uv - vec2(0.72, 0.6));
-      col += vec3(0.03, 0.015, 0.06) * smoothstep(0.5, 0.0, d2);
-
-      gl_FragColor = vec4(col, 1.0);
-    }
-  `
-});
-const bg = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat);
-bg.frustumCulled = false;
-bg.renderOrder = -1;
-scene.add(bg);
-
-// ═══════════════════════════════════════════════════════════
-// LIGHTING (Refined 3-point + orbiting accents)
-// ═══════════════════════════════════════════════════════════
-const keyLight = new THREE.DirectionalLight(0xc4a0ff, 3.0);
-keyLight.position.set(4, 6, 4);
-scene.add(keyLight);
-
-const fillLight = new THREE.DirectionalLight(0x6ba3ff, 1.5);
-fillLight.position.set(-5, 0.5, 3);
-scene.add(fillLight);
-
-const rimLight = new THREE.DirectionalLight(0xff5e9e, 2.5);
-rimLight.position.set(0, -1, -6);
-scene.add(rimLight);
-
-const topLight = new THREE.DirectionalLight(0xfff0e0, 0.6);
-topLight.position.set(0, 10, 0);
-scene.add(topLight);
-
-scene.add(new THREE.AmbientLight(0x1a1028, 0.8));
-
-// Orbiting point lights for dynamic reflections
-const pl1 = new THREE.PointLight(0xc084fc, 8, 12);
-const pl2 = new THREE.PointLight(0x60a5fa, 6, 12);
-const pl3 = new THREE.PointLight(0xf472b6, 6, 12);
-scene.add(pl1, pl2, pl3);
-
-// ═══════════════════════════════════════════════════════════
-// SIMPLEX NOISE (GLSL) for onBeforeCompile injection
+// SHARED GLSL
 // ═══════════════════════════════════════════════════════════
 const NOISE_GLSL = `
-vec3 mod289_n(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
-vec4 mod289_n(vec4 x){ return x - floor(x*(1.0/289.0))*289.0; }
-vec4 permute_n(vec4 x){ return mod289_n(((x*34.0)+10.0)*x); }
-vec4 taylorInvSqrt_n(vec4 r){ return 1.79284291400159 - 0.85373472095314*r; }
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+10.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
 float snoise(vec3 v){
-  const vec2 C=vec2(1.0/6.0,1.0/3.0);
-  const vec4 D=vec4(0,0.5,1,2);
-  vec3 i=floor(v+dot(v,C.yyy));
-  vec3 x0=v-i+dot(i,C.xxx);
-  vec3 g=step(x0.yzx,x0.xyz);
-  vec3 l=1.0-g;
-  vec3 i1=min(g,l.zxy);
-  vec3 i2=max(g,l.zxy);
-  vec3 x1=x0-i1+C.xxx;
-  vec3 x2=x0-i2+C.yyy;
-  vec3 x3=x0-D.yyy;
-  i=mod289_n(i);
-  vec4 p=permute_n(permute_n(permute_n(
+  const vec2 C=vec2(1.0/6.0,1.0/3.0);const vec4 D=vec4(0,0.5,1,2);
+  vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.0-g;
+  vec3 i1=min(g,l.zxy);vec3 i2=max(g,l.zxy);
+  vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;
+  i=mod289(i);
+  vec4 p=permute(permute(permute(
     i.z+vec4(0,i1.z,i2.z,1))+i.y+vec4(0,i1.y,i2.y,1))+i.x+vec4(0,i1.x,i2.x,1));
-  float n_=0.142857142857;
-  vec3 ns=n_*D.wyz-D.xzx;
+  float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;
   vec4 j=p-49.0*floor(p*ns.z*ns.z);
-  vec4 x_=floor(j*ns.z);
-  vec4 y_=floor(j-7.0*x_);
-  vec4 x=x_*ns.x+ns.yyyy;
-  vec4 y=y_*ns.x+ns.yyyy;
+  vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;
   vec4 h=1.0-abs(x)-abs(y);
-  vec4 b0=vec4(x.xy,y.xy);
-  vec4 b1=vec4(x.zw,y.zw);
-  vec4 s0=floor(b0)*2.0+1.0;
-  vec4 s1=floor(b1)*2.0+1.0;
+  vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0;vec4 s1=floor(b1)*2.0+1.0;
   vec4 sh=-step(h,vec4(0));
-  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;
-  vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
-  vec3 p0=vec3(a0.xy,h.x);
-  vec3 p1=vec3(a0.zw,h.y);
-  vec3 p2=vec3(a1.xy,h.z);
-  vec3 p3=vec3(a1.zw,h.w);
-  vec4 norm=taylorInvSqrt_n(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);
+  vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
   p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
   vec4 m=max(0.5-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);
   m=m*m;
@@ -236,351 +68,476 @@ float snoise(vec3 v){
 }
 `;
 
-// ═══════════════════════════════════════════════════════════
-// HERO BLOB: MeshPhysicalMaterial + onBeforeCompile
-// "Liquid Chrome + Iridescence" look
-// ═══════════════════════════════════════════════════════════
-const blobGeo = new THREE.IcosahedronGeometry(1.4, 5);
-const blobTimeUniform = { value: 0 };
-const blobMouseUniform = { value: new THREE.Vector2(0, 0) };
+const PALETTE_GLSL = `
+vec3 cosinePalette(float t, vec3 a, vec3 b, vec3 c, vec3 d){
+  return a + b * cos(6.283185 * (c * t + d));
+}
+`;
 
-const blobMat = new THREE.MeshPhysicalMaterial({
-  color: '#b4a0ff',
-  metalness: 0.65,
-  roughness: 0.08,
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.05,
-  envMapIntensity: 2.8,
-  iridescence: 1.0,
-  iridescenceIOR: 1.8,
-  iridescenceThicknessRange: [200, 600],
-  sheen: 1.0,
-  sheenRoughness: 0.2,
-  sheenColor: new THREE.Color('#ff6eb4'),
-  specularIntensity: 1.0,
-  specularColor: new THREE.Color('#e0d0ff'),
-  emissive: '#3b1a7e',
-  emissiveIntensity: 0.25,
+// ═══════════════════════════════════════════════════════════
+// RENDERER
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 0, 7.5);
+
+// ═══════════════════════════════════════════════════════════
+// ANIMATED BACKGROUND
+// ═══════════════════════════════════════════════════════════
+const bgMat = new THREE.ShaderMaterial({
+  depthWrite: false,
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position,1.0); }`,
+  fragmentShader: `
+    varying vec2 vUv;
+    uniform float uTime;
+    float hash(vec2 p){ vec3 p3=fract(vec3(p.xyx)*0.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
+    float noise(vec2 p){ vec2 i=floor(p),f=fract(p); float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1)); vec2 u=f*f*(3.0-2.0*f); return mix(a,b,u.x)+(c-a)*u.y*(1.0-u.x)+(d-b)*u.x*u.y; }
+    void main(){
+      vec2 uv = vUv;
+      vec3 col = mix(vec3(0.04, 0.01, 0.10), vec3(0.02, 0.03, 0.09), uv.y);
+      float d = length(uv - vec2(0.5, 0.45));
+      col += vec3(0.05, 0.02, 0.08) * smoothstep(0.7, 0.0, d);
+      float n = noise(uv * 3.0 + uTime * 0.02);
+      col += vec3(0.03, 0.01, 0.05) * n * 0.5;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `
 });
+const bg = new THREE.Mesh(new THREE.PlaneGeometry(2,2), bgMat);
+bg.frustumCulled = false; bg.renderOrder = -1;
+scene.add(bg);
 
-blobMat.onBeforeCompile = (shader) => {
-  shader.uniforms.uTime = blobTimeUniform;
-  shader.uniforms.uMouse = blobMouseUniform;
+// ═══════════════════════════════════════════════════════════
+// GRADIENT SHAPE FACTORY (Custom ShaderMaterial — NOT PBR!)
+// Vibrant colors, Fresnel rim, fake env reflection, specular
+// ═══════════════════════════════════════════════════════════
+function createGradientMaterial(opts = {}) {
+  const {
+    // Cosine palette params (a, b, c, d)
+    pa = [0.5, 0.5, 0.5],
+    pb = [0.5, 0.5, 0.5],
+    pc = [1.0, 0.7, 0.4],
+    pd = [0.00, 0.15, 0.20],
+    // Fresnel rim color
+    rimColor = [0.4, 0.9, 1.0],
+    rimPower = 3.0,
+    rimStrength = 0.6,
+    // Specular
+    specPower = 64.0,
+    specStrength = 0.4,
+    // Env reflection strength
+    envStrength = 0.15,
+    // Light direction
+    lightDir = [0.5, 0.8, 0.6],
+    lightDir2 = [-0.6, 0.3, 0.5],
+    // Emissive boost (for bloom)
+    emissiveBoost = 0.0,
+    // Is hero (has displacement)
+    isHero = false,
+  } = opts;
 
-  // ── VERTEX: Inject noise + displacement ──
-  shader.vertexShader = shader.vertexShader.replace(
-    '#include <common>',
-    `#include <common>
+  const uniforms = {
+    uTime: { value: 0 },
+    uMouse: { value: new THREE.Vector2(0, 0) },
+    uPaletteA: { value: new THREE.Vector3(...pa) },
+    uPaletteB: { value: new THREE.Vector3(...pb) },
+    uPaletteC: { value: new THREE.Vector3(...pc) },
+    uPaletteD: { value: new THREE.Vector3(...pd) },
+    uRimColor: { value: new THREE.Vector3(...rimColor) },
+    uRimPower: { value: rimPower },
+    uRimStrength: { value: rimStrength },
+    uSpecPower: { value: specPower },
+    uSpecStrength: { value: specStrength },
+    uEnvStrength: { value: envStrength },
+    uLightDir: { value: new THREE.Vector3(...lightDir).normalize() },
+    uLightDir2: { value: new THREE.Vector3(...lightDir2).normalize() },
+    uEmissiveBoost: { value: emissiveBoost },
+  };
+
+  const vertexShader = `
+    ${isHero ? NOISE_GLSL : ''}
     uniform float uTime;
     uniform vec2 uMouse;
-    ${NOISE_GLSL}
-    `
-  );
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    varying vec3 vViewPos;
+    varying float vDisp;
+    varying vec2 vUv;
 
-  // Displacement with breathing + domain warping
-  shader.vertexShader = shader.vertexShader.replace(
-    '#include <begin_vertex>',
-    `#include <begin_vertex>
-    // Breathing rhythm
-    float breathe = sin(uTime * 0.5) * 0.06;
+    void main(){
+      vUv = uv;
+      vec3 pos = position;
+      float disp = 0.0;
 
-    // Multi-octave FBM displacement
-    float n1 = snoise(position * 1.0 + uTime * 0.25) * 0.30;
-    float n2 = snoise(position * 2.2 + uTime * 0.18 + 10.0) * 0.15;
-    float n3 = snoise(position * 4.5 + uTime * 0.12 + 20.0) * 0.06;
-    float disp = n1 + n2 + n3 + breathe;
+      ${isHero ? `
+        // Low-frequency smooth displacement + subtle twist
+        float n = snoise(pos * 0.7 + uTime * 0.15) * 0.22;
+        // Breathing
+        n += sin(uTime * 0.5) * 0.04;
+        // Mouse bulge
+        vec3 mDir = normalize(vec3(uMouse, 0.3));
+        float mDot = max(dot(normalize(pos), mDir), 0.0);
+        n += mDot * mDot * 0.08;
+        disp = n;
+        pos += normal * disp;
 
-    // Mouse-reactive directional bulge
-    vec3 mouseDir = normalize(vec3(uMouse, 0.3));
-    float mouseDot = max(dot(normalize(position), mouseDir), 0.0);
-    disp += mouseDot * mouseDot * 0.12;
+        // Subtle twist along Y axis
+        float tw = sin(pos.y * 1.5 + uTime * 0.2) * 0.12;
+        float c = cos(tw), s = sin(tw);
+        pos.xz = mat2(c, -s, s, c) * pos.xz;
 
-    transformed += normal * disp;
-    `
-  );
+        // Recompute normal with finite difference
+        float eps = 0.02;
+        vec3 tang = normalize(cross(normal, vec3(0.0, 1.0, 0.01)));
+        vec3 bitang = normalize(cross(normal, tang));
+        vec3 pT = position + tang * eps;
+        vec3 pB = position + bitang * eps;
+        float dT = snoise(pT * 0.7 + uTime * 0.15) * 0.22;
+        float dB = snoise(pB * 0.7 + uTime * 0.15) * 0.22;
+        float dC = snoise(position * 0.7 + uTime * 0.15) * 0.22;
+        vec3 dispT = pT + normal * dT;
+        vec3 dispB = pB + normal * dB;
+        vec3 dispC = position + normal * dC;
+        vec3 newNormal = normalize(cross(dispT - dispC, dispB - dispC));
+        vNormal = normalize(normalMatrix * newNormal);
+      ` : `
+        vNormal = normalize(normalMatrix * normal);
+      `}
 
-  // Recompute normals after displacement (2-octave for performance)
-  shader.vertexShader = shader.vertexShader.replace(
-    '#include <beginnormal_vertex>',
-    `#include <beginnormal_vertex>
-    float eps_n = 0.015;
-    vec3 tang = normalize(cross(objectNormal, vec3(0.0, 1.0, 0.01)));
-    vec3 bitang = normalize(cross(objectNormal, tang));
-    vec3 pT = position + tang * eps_n;
-    vec3 pB = position + bitang * eps_n;
-    // 2 octaves for normal calc (skip finest detail)
-    float dT = snoise(pT*1.0+uTime*0.25)*0.30 + snoise(pT*2.2+uTime*0.18+10.0)*0.15;
-    float dB = snoise(pB*1.0+uTime*0.25)*0.30 + snoise(pB*2.2+uTime*0.18+10.0)*0.15;
-    float dC = snoise(position*1.0+uTime*0.25)*0.30 + snoise(position*2.2+uTime*0.18+10.0)*0.15;
-    vec3 displacedT = pT + objectNormal * dT;
-    vec3 displacedB = pB + objectNormal * dB;
-    vec3 displacedC = position + objectNormal * dC;
-    objectNormal = normalize(cross(displacedT - displacedC, displacedB - displacedC));
-    `
-  );
+      vDisp = disp;
+      vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+      vWorldPos = worldPos.xyz;
+      vViewPos = normalize(cameraPosition - worldPos.xyz);
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
+    }
+  `;
 
-  // ── FRAGMENT: Inject animated 4-stop rotational gradient + emissive hotspots ──
-  shader.uniforms.uTimeFrag = blobTimeUniform;
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <common>',
-    `#include <common>
-    uniform float uTimeFrag;
-    `
-  );
-  shader.fragmentShader = shader.fragmentShader.replace(
-    '#include <color_fragment>',
-    `#include <color_fragment>
-    // 4-stop rotational gradient across the surface
-    vec3 norm01 = vNormal * 0.5 + 0.5;
-    float angle = atan(norm01.z - 0.5, norm01.x - 0.5);
-    float gt = fract((angle / 6.28318) + 0.5 + uTimeFrag * 0.06);
+  const fragmentShader = `
+    ${PALETTE_GLSL}
 
-    vec3 c0 = vec3(0.486, 0.227, 0.929); // #7c3aed deep purple
-    vec3 c1 = vec3(0.231, 0.510, 0.965); // #3b82f6 blue
-    vec3 c2 = vec3(0.024, 0.714, 0.831); // #06b6d4 cyan
-    vec3 c3 = vec3(0.925, 0.286, 0.600); // #ec4899 pink
+    uniform float uTime;
+    uniform vec3 uPaletteA, uPaletteB, uPaletteC, uPaletteD;
+    uniform vec3 uRimColor;
+    uniform float uRimPower, uRimStrength;
+    uniform float uSpecPower, uSpecStrength;
+    uniform float uEnvStrength;
+    uniform vec3 uLightDir, uLightDir2;
+    uniform float uEmissiveBoost;
 
-    vec3 grad;
-    if(gt < 0.25) grad = mix(c0, c1, gt * 4.0);
-    else if(gt < 0.5) grad = mix(c1, c2, (gt - 0.25) * 4.0);
-    else if(gt < 0.75) grad = mix(c2, c3, (gt - 0.5) * 4.0);
-    else grad = mix(c3, c0, (gt - 0.75) * 4.0);
+    varying vec3 vNormal, vWorldPos, vViewPos;
+    varying float vDisp;
+    varying vec2 vUv;
 
-    // Blend gradient with height for variation
-    float heightMix = norm01.y * 0.3 + 0.35;
-    diffuseColor.rgb = mix(diffuseColor.rgb, grad, heightMix);
+    void main(){
+      vec3 N = normalize(vNormal);
+      vec3 V = normalize(vViewPos);
 
-    // Emissive hotspots that trigger bloom
-    float hotspot = pow(max(norm01.y * 2.0 - 1.0, 0.0), 3.0);
-    diffuseColor.rgb += vec3(0.2, 0.1, 0.35) * hotspot * 0.5;
-    `
-  );
-};
+      // Layer 1: Cosine palette gradient
+      float gt = N.y * 0.4 + 0.5 + vDisp * 0.6 + sin(uTime * 0.15 + N.x * 2.0) * 0.1;
+      vec3 baseColor = cosinePalette(gt, uPaletteA, uPaletteB, uPaletteC, uPaletteD);
 
-const blob = new THREE.Mesh(blobGeo, blobMat);
-blob.scale.set(0, 0, 0); // start hidden for entrance animation
-scene.add(blob);
+      // Layer 2: Diffuse lighting (soft wrap)
+      float diff1 = max(dot(N, uLightDir), 0.0) * 0.5 + 0.5; // half-lambert
+      float diff2 = max(dot(N, uLightDir2), 0.0) * 0.3 + 0.35;
+      baseColor *= (diff1 * 0.6 + diff2 * 0.4);
 
-// ═══════════════════════════════════════════════════════════
-// COMPANION: TORUS KNOT (MeshPhysicalMaterial - cool chrome)
-// ═══════════════════════════════════════════════════════════
-const tkGeo = new THREE.TorusKnotGeometry(0.55, 0.18, 200, 32, 2, 3);
-const tkMat = new THREE.MeshPhysicalMaterial({
-  color: '#7c3aed',
-  metalness: 0.6,
-  roughness: 0.1,
-  clearcoat: 0.8,
-  clearcoatRoughness: 0.1,
-  envMapIntensity: 2.5,
-  iridescence: 0.7,
-  iridescenceIOR: 1.4,
-  iridescenceThicknessRange: [150, 500],
-  sheen: 0.5,
-  sheenRoughness: 0.25,
-  sheenColor: new THREE.Color('#06b6d4'),
-  emissive: '#1e1b4b',
-  emissiveIntensity: 0.1,
-});
-const torusKnot = new THREE.Mesh(tkGeo, tkMat);
-torusKnot.position.set(-2.6, 5, -0.8); // start off-screen
-scene.add(torusKnot);
+      // Layer 3: Fresnel rim glow
+      float fresnel = pow(1.0 - max(dot(V, N), 0.0), uRimPower);
+      baseColor += uRimColor * fresnel * uRimStrength;
 
-// ═══════════════════════════════════════════════════════════
-// COMPANION: TORUS (MeshPhysicalMaterial - warm silk)
-// ═══════════════════════════════════════════════════════════
-const torGeo = new THREE.TorusGeometry(0.65, 0.22, 64, 128);
-const torMat = new THREE.MeshPhysicalMaterial({
-  color: '#ec4899',
-  metalness: 0.45,
-  roughness: 0.12,
-  clearcoat: 0.9,
-  clearcoatRoughness: 0.08,
-  envMapIntensity: 2.5,
-  sheen: 0.9,
-  sheenColor: new THREE.Color('#fbbf24'),
-  sheenRoughness: 0.3,
-  iridescence: 0.5,
-  iridescenceIOR: 1.3,
-  emissive: '#831843',
-  emissiveIntensity: 0.1,
-});
-const torus = new THREE.Mesh(torGeo, torMat);
-torus.position.set(2.4, -5, -0.5); // start off-screen
-torus.rotation.set(0.6, 0.3, 0.2);
-scene.add(torus);
+      // Layer 4: Fake environment reflection
+      vec3 reflDir = reflect(-V, N);
+      float envGrad = reflDir.y * 0.5 + 0.5;
+      vec3 envCol = mix(vec3(0.7, 0.3, 1.0), vec3(0.2, 0.5, 1.0), envGrad);
+      envCol += vec3(1.0, 0.4, 0.6) * pow(max(reflDir.x * 0.5 + 0.5, 0.0), 3.0) * 0.3;
+      baseColor = mix(baseColor, envCol, uEnvStrength);
 
-// ═══════════════════════════════════════════════════════════
-// SMALL FLOATING GEMS (MeshPhysicalMaterial for env reflections)
-// ═══════════════════════════════════════════════════════════
-const smalls = [];
-const smallConfigs = [
-  { geo: new THREE.IcosahedronGeometry(0.2, 1), pos: [-1.2, -1.5, 0.3], color: '#a78bfa', emissive: '#2e1065' },
-  { geo: new THREE.OctahedronGeometry(0.18, 0), pos: [1.5, 1.5, -1], color: '#6ee7b7', emissive: '#064e3b' },
-  { geo: new THREE.TetrahedronGeometry(0.22, 0), pos: [-0.6, 1.8, -1.5], color: '#f9a8d4', emissive: '#831843' },
-  { geo: new THREE.DodecahedronGeometry(0.15, 0), pos: [0.8, -1.7, 0.5], color: '#93c5fd', emissive: '#1e3a5f' },
-  { geo: new THREE.SphereGeometry(0.12, 32, 32), pos: [2.5, 1.2, -1.8], color: '#fbbf24', emissive: '#78350f' },
-  { geo: new THREE.OctahedronGeometry(0.14, 0), pos: [-2.2, -0.8, 0.8], color: '#34d399', emissive: '#065f46' },
-];
-smallConfigs.forEach(cfg => {
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: cfg.color,
-    metalness: 0.4,
-    roughness: 0.15,
-    clearcoat: 0.6,
-    envMapIntensity: 2.0,
-    emissive: cfg.emissive,
-    emissiveIntensity: 0.15,
+      // Layer 5: Specular highlights (2 lights)
+      vec3 H1 = normalize(V + uLightDir);
+      float spec1 = pow(max(dot(N, H1), 0.0), uSpecPower);
+      vec3 H2 = normalize(V + uLightDir2);
+      float spec2 = pow(max(dot(N, H2), 0.0), uSpecPower * 0.7);
+      baseColor += vec3(1.0, 0.95, 0.9) * spec1 * uSpecStrength;
+      baseColor += vec3(0.9, 0.95, 1.0) * spec2 * uSpecStrength * 0.5;
+
+      // Emissive boost for bloom
+      baseColor += baseColor * uEmissiveBoost;
+
+      gl_FragColor = vec4(baseColor, 1.0);
+    }
+  `;
+
+  return new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader,
+    fragmentShader,
   });
-  const mesh = new THREE.Mesh(cfg.geo, mat);
-  mesh.position.set(...cfg.pos);
-  mesh.scale.set(0, 0, 0); // start hidden
-  scene.add(mesh);
-  smalls.push(mesh);
-});
-
-// ═══════════════════════════════════════════════════════════
-// PARTICLES (soft depth-aware with DOF simulation)
-// ═══════════════════════════════════════════════════════════
-const PC = 400;
-const pGeo = new THREE.BufferGeometry();
-const pp = new Float32Array(PC * 3), ps = new Float32Array(PC), pc = new Float32Array(PC * 3);
-const pal = [new THREE.Color('#c4b5fd'), new THREE.Color('#93c5fd'), new THREE.Color('#6ee7b7'), new THREE.Color('#f9a8d4'), new THREE.Color('#fde68a')];
-for (let i = 0; i < PC; i++) {
-  const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), r = 2.5 + Math.random() * 10;
-  pp[i * 3] = r * Math.sin(ph) * Math.cos(th);
-  pp[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
-  pp[i * 3 + 2] = r * Math.cos(ph);
-  ps[i] = 0.3 + Math.random() * 1.8;
-  const co = pal[Math.floor(Math.random() * pal.length)];
-  pc[i * 3] = co.r; pc[i * 3 + 1] = co.g; pc[i * 3 + 2] = co.b;
 }
-pGeo.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-pGeo.setAttribute('size', new THREE.BufferAttribute(ps, 1));
-pGeo.setAttribute('color', new THREE.BufferAttribute(pc, 3));
-
-const pMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 }, uPR: { value: Math.min(devicePixelRatio, 2) } },
-  vertexShader: `
-    attribute float size; attribute vec3 color;
-    uniform float uTime, uPR;
-    varying vec3 vC; varying float vA;
-    void main(){
-      vC = color;
-      vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      float o = length(position) * 0.08;
-      mv.y += sin(uTime * 0.2 + o) * 0.4;
-      mv.x += cos(uTime * 0.15 + o * 1.3) * 0.3;
-      float d = max(-mv.z, 0.5);
-      // DOF simulation: far = larger + more transparent
-      float blur = smoothstep(3.0, 12.0, d);
-      vA = smoothstep(18.0, 2.0, d) * mix(0.5, 0.2, blur);
-      gl_PointSize = mix(size * 0.6, size * 2.0, blur) * uPR * (100.0 / d);
-      gl_Position = projectionMatrix * mv;
-    }
-  `,
-  fragmentShader: `
-    varying vec3 vC; varying float vA;
-    void main(){
-      float d = length(gl_PointCoord - 0.5);
-      if(d > 0.5) discard;
-      float a = smoothstep(0.5, 0.05, d) * vA;
-      gl_FragColor = vec4(vC + vC * smoothstep(0.3, 0.0, d) * 0.4, a);
-    }
-  `,
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-});
-scene.add(new THREE.Points(pGeo, pMat));
 
 // ═══════════════════════════════════════════════════════════
-// POST-PROCESSING: Bloom + Cinematic Pass + Output
+// HERO: Smooth organic shape with cosine palette
+// "Aurora" palette: purple -> blue -> cyan -> pink
+// ═══════════════════════════════════════════════════════════
+const heroGeo = new THREE.SphereGeometry(1.4, 128, 128); // smooth sphere base
+const heroMat = createGradientMaterial({
+  pa: [0.5, 0.5, 0.5],
+  pb: [0.5, 0.5, 0.5],
+  pc: [1.0, 0.7, 0.4],
+  pd: [0.00, 0.15, 0.20],
+  rimColor: [0.3, 0.85, 1.0], // cyan rim
+  rimPower: 3.0,
+  rimStrength: 0.7,
+  specPower: 80.0,
+  specStrength: 0.5,
+  envStrength: 0.12,
+  emissiveBoost: 0.08,
+  isHero: true,
+});
+const hero = new THREE.Mesh(heroGeo, heroMat);
+hero.scale.set(0, 0, 0);
+scene.add(hero);
+
+// ═══════════════════════════════════════════════════════════
+// COMPANIONS: Each with unique palette phase
+// ═══════════════════════════════════════════════════════════
+const companions = [];
+
+// Companion 1: Torus Knot — cool blue-cyan
+const c1Geo = new THREE.TorusKnotGeometry(0.45, 0.15, 200, 32, 2, 3);
+const c1Mat = createGradientMaterial({
+  pa: [0.5, 0.5, 0.5],
+  pb: [0.5, 0.5, 0.5],
+  pc: [1.0, 0.7, 0.4],
+  pd: [0.30, 0.20, 0.10], // phase shifted → blue-cyan
+  rimColor: [0.5, 0.7, 1.0],
+  rimPower: 2.5,
+  rimStrength: 0.5,
+  specPower: 100.0,
+  specStrength: 0.6,
+  envStrength: 0.1,
+});
+const c1 = new THREE.Mesh(c1Geo, c1Mat);
+c1.position.set(-2.6, 0.5, -0.8);
+c1.scale.set(0, 0, 0);
+scene.add(c1);
+companions.push({ mesh: c1, mat: c1Mat, basePos: [-2.6, 0.5, -0.8], bobSpeed: 0.35, bobAmp: 0.25, rotSpeed: [0.15, 0.12, 0] });
+
+// Companion 2: Torus — warm pink-gold
+const c2Geo = new THREE.TorusGeometry(0.5, 0.18, 64, 128);
+const c2Mat = createGradientMaterial({
+  pa: [0.8, 0.5, 0.4],
+  pb: [0.2, 0.4, 0.2],
+  pc: [2.0, 1.0, 1.0],
+  pd: [0.00, 0.25, 0.25], // warm variant
+  rimColor: [1.0, 0.6, 0.8],
+  rimPower: 3.0,
+  rimStrength: 0.5,
+  specPower: 80.0,
+  specStrength: 0.5,
+  envStrength: 0.12,
+});
+const c2 = new THREE.Mesh(c2Geo, c2Mat);
+c2.position.set(2.4, -0.6, -0.5);
+c2.rotation.set(0.6, 0.3, 0.2);
+c2.scale.set(0, 0, 0);
+scene.add(c2);
+companions.push({ mesh: c2, mat: c2Mat, basePos: [2.4, -0.6, -0.5], bobSpeed: 0.4, bobAmp: 0.2, rotSpeed: [0.12, 0, 0.08] });
+
+// Companion 3: Icosahedron — holographic candy
+const c3Geo = new THREE.IcosahedronGeometry(0.35, 1);
+const c3Mat = createGradientMaterial({
+  pa: [0.5, 0.5, 0.5],
+  pb: [0.5, 0.5, 0.5],
+  pc: [1.0, 1.0, 1.0],
+  pd: [0.00, 0.33, 0.67], // rainbow spread
+  rimColor: [0.9, 0.5, 1.0],
+  rimPower: 2.5,
+  rimStrength: 0.6,
+  specPower: 60.0,
+  specStrength: 0.4,
+  envStrength: 0.15,
+});
+const c3 = new THREE.Mesh(c3Geo, c3Mat);
+c3.position.set(1.8, 1.5, -1.2);
+c3.scale.set(0, 0, 0);
+scene.add(c3);
+companions.push({ mesh: c3, mat: c3Mat, basePos: [1.8, 1.5, -1.2], bobSpeed: 0.5, bobAmp: 0.18, rotSpeed: [0.2, 0.15, 0.1] });
+
+// Companion 4: Octahedron — deep ocean
+const c4Geo = new THREE.OctahedronGeometry(0.28, 0);
+const c4Mat = createGradientMaterial({
+  pa: [0.5, 0.5, 0.5],
+  pb: [0.5, 0.5, 0.5],
+  pc: [1.0, 0.7, 0.4],
+  pd: [0.50, 0.40, 0.30], // deep shifted
+  rimColor: [0.3, 0.6, 1.0],
+  rimPower: 3.5,
+  rimStrength: 0.5,
+  specPower: 90.0,
+  specStrength: 0.5,
+  envStrength: 0.1,
+});
+const c4 = new THREE.Mesh(c4Geo, c4Mat);
+c4.position.set(-1.5, -1.4, 0.3);
+c4.scale.set(0, 0, 0);
+scene.add(c4);
+companions.push({ mesh: c4, mat: c4Mat, basePos: [-1.5, -1.4, 0.3], bobSpeed: 0.45, bobAmp: 0.15, rotSpeed: [0.18, 0.25, 0] });
+
+// Companion 5: Dodecahedron — mint accent
+const c5Geo = new THREE.DodecahedronGeometry(0.22, 0);
+const c5Mat = createGradientMaterial({
+  pa: [0.5, 0.6, 0.5],
+  pb: [0.3, 0.4, 0.3],
+  pc: [1.0, 1.0, 0.5],
+  pd: [0.10, 0.40, 0.30],
+  rimColor: [0.3, 1.0, 0.7],
+  rimPower: 3.0,
+  rimStrength: 0.5,
+  specPower: 70.0,
+  specStrength: 0.4,
+  envStrength: 0.1,
+});
+const c5 = new THREE.Mesh(c5Geo, c5Mat);
+c5.position.set(-0.8, 1.8, -1.5);
+c5.scale.set(0, 0, 0);
+scene.add(c5);
+companions.push({ mesh: c5, mat: c5Mat, basePos: [-0.8, 1.8, -1.5], bobSpeed: 0.55, bobAmp: 0.12, rotSpeed: [0.22, 0.1, 0.15] });
+
+// Companion 6: Sphere — warm gold tiny
+const c6Geo = new THREE.SphereGeometry(0.18, 32, 32);
+const c6Mat = createGradientMaterial({
+  pa: [0.8, 0.6, 0.4],
+  pb: [0.2, 0.3, 0.2],
+  pc: [1.5, 1.0, 0.5],
+  pd: [0.00, 0.10, 0.30],
+  rimColor: [1.0, 0.8, 0.4],
+  rimPower: 2.5,
+  rimStrength: 0.5,
+  specPower: 100.0,
+  specStrength: 0.5,
+  envStrength: 0.1,
+});
+const c6 = new THREE.Mesh(c6Geo, c6Mat);
+c6.position.set(3.0, 0.3, -2.0);
+c6.scale.set(0, 0, 0);
+scene.add(c6);
+companions.push({ mesh: c6, mat: c6Mat, basePos: [3.0, 0.3, -2.0], bobSpeed: 0.38, bobAmp: 0.1, rotSpeed: [0.1, 0.2, 0.12] });
+
+// ═══════════════════════════════════════════════════════════
+// PARTICLES (subtle, atmospheric)
+// ═══════════════════════════════════════════════════════════
+const PC = 300;
+const pGeo = new THREE.BufferGeometry();
+const pp = new Float32Array(PC*3), ps = new Float32Array(PC), pc = new Float32Array(PC*3);
+const pal = [new THREE.Color('#c4b5fd'),new THREE.Color('#93c5fd'),new THREE.Color('#6ee7b7'),new THREE.Color('#f9a8d4'),new THREE.Color('#fde68a')];
+for(let i=0;i<PC;i++){
+  const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1), r=3+Math.random()*10;
+  pp[i*3]=r*Math.sin(ph)*Math.cos(th); pp[i*3+1]=r*Math.sin(ph)*Math.sin(th); pp[i*3+2]=r*Math.cos(ph);
+  ps[i]=0.2+Math.random()*1.2;
+  const co=pal[Math.floor(Math.random()*pal.length)];
+  pc[i*3]=co.r; pc[i*3+1]=co.g; pc[i*3+2]=co.b;
+}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pp,3));
+pGeo.setAttribute('size',new THREE.BufferAttribute(ps,1));
+pGeo.setAttribute('color',new THREE.BufferAttribute(pc,3));
+const pMat = new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0},uPR:{value:Math.min(devicePixelRatio,2)}},
+  vertexShader:`
+    attribute float size; attribute vec3 color;
+    uniform float uTime,uPR;
+    varying vec3 vC; varying float vA;
+    void main(){
+      vC=color;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      float o=length(position)*0.06;
+      mv.y+=sin(uTime*0.15+o)*0.3; mv.x+=cos(uTime*0.12+o*1.3)*0.2;
+      float d=max(-mv.z,0.5);
+      float blur=smoothstep(3.0,12.0,d);
+      vA=smoothstep(18.0,2.0,d)*mix(0.35,0.1,blur);
+      gl_PointSize=mix(size*0.5,size*1.5,blur)*uPR*(80.0/d);
+      gl_Position=projectionMatrix*mv;
+    }
+  `,
+  fragmentShader:`
+    varying vec3 vC; varying float vA;
+    void main(){
+      float d=length(gl_PointCoord-0.5);
+      if(d>0.5)discard;
+      float a=smoothstep(0.5,0.05,d)*vA;
+      gl_FragColor=vec4(vC, a);
+    }
+  `,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+});
+scene.add(new THREE.Points(pGeo,pMat));
+
+// ═══════════════════════════════════════════════════════════
+// POST-PROCESSING: Subtle bloom + cinematic pass
 // ═══════════════════════════════════════════════════════════
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
-// Bloom: soft, cinematic
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(innerWidth * 0.5, innerHeight * 0.5),
-  0.5, 0.5, 0.25
+  0.4, 0.4, 0.55 // subtle: strength 0.4, radius 0.4, threshold 0.55
 );
 composer.addPass(bloomPass);
 
-// Combined cinematic pass: vignette + chromatic aberration + grain + color grading
-const CinematicShader = {
+// Cinematic: vignette + subtle chromatic aberration + grain + color grading
+const cinematicPass = new ShaderPass({
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uVignetteOffset: { value: 0.95 },
-    uVignetteDarkness: { value: 1.1 },
-    uChromaticStrength: { value: 0.003 },
-    uGrainIntensity: { value: 0.035 },
-    uSaturation: { value: 1.1 },
-    uContrast: { value: 1.05 },
-    uBrightness: { value: 1.02 },
   },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-  `,
+  vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform float uTime;
-    uniform float uVignetteOffset, uVignetteDarkness;
-    uniform float uChromaticStrength;
-    uniform float uGrainIntensity;
-    uniform float uSaturation, uContrast, uBrightness;
     varying vec2 vUv;
-
-    float hash(vec2 p){
-      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.x + p3.y) * p3.z);
-    }
-
+    float hash(vec2 p){ vec3 p3=fract(vec3(p.xyx)*0.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
     void main(){
       vec2 uv = vUv;
       vec2 center = uv - 0.5;
       float dist = length(center);
 
-      // Chromatic aberration (radial, edges only)
-      float caAmount = uChromaticStrength * dist;
-      vec2 caDir = normalize(center + 0.001) * caAmount;
+      // Chromatic aberration (very subtle, edges only)
+      float ca = 0.002 * dist;
+      vec2 caDir = normalize(center + 0.001) * ca;
       float r = texture2D(tDiffuse, uv + caDir).r;
       float g = texture2D(tDiffuse, uv).g;
       float b = texture2D(tDiffuse, uv - caDir).b;
       vec3 color = vec3(r, g, b);
 
-      // Brightness + contrast
-      color *= uBrightness;
-      color = (color - 0.5) * uContrast + 0.5;
-
-      // Saturation
+      // Slight saturation + contrast
       float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-      color = mix(vec3(luma), color, uSaturation);
-
-      // Split toning: cool purple shadows, warm highlights
-      float shadowMask = 1.0 - smoothstep(0.0, 0.5, luma);
-      float highlightMask = smoothstep(0.5, 1.0, luma);
-      color = mix(color, color * vec3(0.7, 0.5, 1.2), shadowMask * 0.12);
-      color = mix(color, color * vec3(1.05, 1.0, 0.92), highlightMask * 0.08);
+      color = mix(vec3(luma), color, 1.08); // saturation
+      color = (color - 0.5) * 1.04 + 0.5; // contrast
 
       // Vignette
-      float vignette = smoothstep(uVignetteOffset, uVignetteOffset - 0.45, dist * (uVignetteDarkness + uVignetteOffset));
-      color *= vignette;
+      float vig = smoothstep(0.95, 0.5, dist * 1.3);
+      color *= vig;
 
-      // Film grain
-      float grain = hash(uv * 1000.0 + uTime * 100.0) - 0.5;
-      color += grain * uGrainIntensity;
+      // Film grain (very subtle)
+      float grain = (hash(uv * 800.0 + uTime * 60.0) - 0.5) * 0.025;
+      color += grain;
 
       gl_FragColor = vec4(max(color, 0.0), 1.0);
     }
   `
-};
-const cinematicPass = new ShaderPass(CinematicShader);
+});
 composer.addPass(cinematicPass);
 composer.addPass(new OutputPass());
 
 // ═══════════════════════════════════════════════════════════
-// MOUSE TRACKING
+// MOUSE
 // ═══════════════════════════════════════════════════════════
 const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
 addEventListener('mousemove', e => {
@@ -595,12 +552,13 @@ addEventListener('touchmove', e => {
 }, { passive: true });
 
 // ═══════════════════════════════════════════════════════════
-// HOVER INTERACTION (raycaster, throttled)
+// HOVER + CLICK
 // ═══════════════════════════════════════════════════════════
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 let hoverTarget = null;
 let lastHoverCheck = 0;
+const allMeshes = [hero, ...companions.map(c => c.mesh)];
 
 addEventListener('mousemove', e => {
   pointer.x = (e.clientX / innerWidth) * 2 - 1;
@@ -608,90 +566,52 @@ addEventListener('mousemove', e => {
 });
 
 function checkHover(t) {
-  if (t - lastHoverCheck < 0.066) return; // ~15fps
+  if (t - lastHoverCheck < 0.066) return;
   lastHoverCheck = t;
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects([blob, torusKnot, torus]);
+  const hits = raycaster.intersectObjects(allMeshes);
   const newTarget = hits.length > 0 ? hits[0].object : null;
-
   if (newTarget !== hoverTarget) {
-    // Un-hover previous
-    if (hoverTarget) {
-      gsap.to(hoverTarget.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
-      if (hoverTarget.material.emissiveIntensity !== undefined) {
-        gsap.to(hoverTarget.material, { emissiveIntensity: hoverTarget === blob ? 0.25 : 0.1, duration: 0.4 });
-      }
-    }
-    // Hover new
-    if (newTarget) {
-      gsap.to(newTarget.scale, { x: 1.08, y: 1.08, z: 1.08, duration: 0.4, ease: 'back.out(2)' });
-      if (newTarget.material.emissiveIntensity !== undefined) {
-        gsap.to(newTarget.material, { emissiveIntensity: 0.5, duration: 0.3 });
-      }
-    }
+    if (hoverTarget) gsap.to(hoverTarget.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
+    if (newTarget) gsap.to(newTarget.scale, { x: 1.1, y: 1.1, z: 1.1, duration: 0.4, ease: 'back.out(2)' });
     hoverTarget = newTarget;
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// CLICK BURST PARTICLES
-// ═══════════════════════════════════════════════════════════
+// Click burst
 const bursts = [];
-const _tempColor = new THREE.Color();
-
 function createBurstAt(pos) {
-  const count = 50;
+  const count = 40;
   const geo = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const velocities = [];
   const colors = new Float32Array(count * 3);
-  const burstPal = ['#c084fc', '#60a5fa', '#f472b6', '#34d399', '#fbbf24'];
-
+  const _tc = new THREE.Color();
+  const bp = ['#c084fc','#60a5fa','#f472b6','#34d399','#fbbf24'];
   for (let i = 0; i < count; i++) {
-    positions[i * 3] = pos.x;
-    positions[i * 3 + 1] = pos.y;
-    positions[i * 3 + 2] = pos.z;
-    const v = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(2 + Math.random() * 3);
-    velocities.push(v);
-    _tempColor.set(burstPal[Math.floor(Math.random() * burstPal.length)]);
-    colors[i * 3] = _tempColor.r; colors[i * 3 + 1] = _tempColor.g; colors[i * 3 + 2] = _tempColor.b;
+    positions[i*3]=pos.x; positions[i*3+1]=pos.y; positions[i*3+2]=pos.z;
+    velocities.push(new THREE.Vector3(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5).normalize().multiplyScalar(2+Math.random()*2));
+    _tc.set(bp[Math.floor(Math.random()*bp.length)]);
+    colors[i*3]=_tc.r; colors[i*3+1]=_tc.g; colors[i*3+2]=_tc.b;
   }
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-  const mat = new THREE.PointsMaterial({
-    size: 0.06, vertexColors: true, transparent: true, opacity: 1,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
+  geo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  const mat = new THREE.PointsMaterial({ size:0.05, vertexColors:true, transparent:true, opacity:1, blending:THREE.AdditiveBlending, depthWrite:false });
   const pts = new THREE.Points(geo, mat);
   scene.add(pts);
-
-  const burst = { pts, velocities, positions, life: 1.2, age: 0 };
-  bursts.push(burst);
-
-  // Bloom flash
-  gsap.to(bloomPass, { strength: 1.2, duration: 0.15, onComplete: () => gsap.to(bloomPass, { strength: 0.5, duration: 0.6 }) });
+  bursts.push({ pts, velocities, positions, life:1.0, age:0 });
+  gsap.to(bloomPass, { strength:0.9, duration:0.1, onComplete:()=>gsap.to(bloomPass,{strength:0.4,duration:0.5})});
 }
 
 addEventListener('click', e => {
-  const p = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  const p = new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1);
   raycaster.setFromCamera(p, camera);
-  const hits = raycaster.intersectObjects([blob, torusKnot, torus]);
+  const hits = raycaster.intersectObjects(allMeshes);
   if (hits.length > 0) createBurstAt(hits[0].point);
 });
 
-addEventListener('touchend', e => {
-  if (e.changedTouches.length === 1) {
-    const touch = e.changedTouches[0];
-    const p = new THREE.Vector2((touch.clientX / innerWidth) * 2 - 1, -(touch.clientY / innerHeight) * 2 + 1);
-    raycaster.setFromCamera(p, camera);
-    const hits = raycaster.intersectObjects([blob, torusKnot, torus]);
-    if (hits.length > 0) createBurstAt(hits[0].point);
-  }
-});
-
 // ═══════════════════════════════════════════════════════════
-// RESIZE (debounced)
+// RESIZE
 // ═══════════════════════════════════════════════════════════
 let resizeTimer;
 addEventListener('resize', () => {
@@ -706,18 +626,11 @@ addEventListener('resize', () => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// RESOURCE CLEANUP
+// CLEANUP
 // ═══════════════════════════════════════════════════════════
 addEventListener('beforeunload', () => {
-  scene.traverse(obj => {
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-      else obj.material.dispose();
-    }
-  });
+  scene.traverse(o => { if(o.geometry)o.geometry.dispose(); if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});
   renderer.dispose();
-  envMap.dispose();
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -729,112 +642,76 @@ function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
 
-  // Smooth mouse (slightly more responsive than V4)
+  // Smooth mouse
   mouse.x += (mouse.tx - mouse.x) * 0.06;
   mouse.y += (mouse.ty - mouse.y) * 0.06;
 
-  // Camera: subtle parallax
-  camera.position.x = mouse.x * 0.8;
-  camera.position.y = mouse.y * 0.5;
+  // Camera parallax
+  camera.position.x = mouse.x * 0.7;
+  camera.position.y = mouse.y * 0.4;
   camera.lookAt(0, 0, 0);
 
-  // Background time
+  // Background
   bgMat.uniforms.uTime.value = t;
 
-  // Hero blob
-  blob.rotation.y = t * 0.08;
-  blob.rotation.x = Math.sin(t * 0.2) * 0.06;
-  blob.rotation.z = mouse.x * 0.12; // tilt toward mouse
-  blob.position.y = Math.sin(t * 0.4) * 0.08;
-  blobTimeUniform.value = t;
-  blobMouseUniform.value.set(mouse.x, mouse.y);
+  // Hero
+  hero.rotation.y = t * 0.08;
+  hero.rotation.z = mouse.x * 0.1;
+  hero.position.y = Math.sin(t * 0.4) * 0.06;
+  heroMat.uniforms.uTime.value = t;
+  heroMat.uniforms.uMouse.value.set(mouse.x, mouse.y);
 
-  // Companions: slow, deliberate motion
-  torusKnot.rotation.x = t * 0.15;
-  torusKnot.rotation.y = t * 0.12;
-  torusKnot.position.x = -2.6 - mouse.x * 0.15; // parallax opposite to mouse
-  torus.rotation.x = 0.6 + t * 0.12;
-  torus.rotation.z = 0.2 + t * 0.08;
-  torus.position.x = 2.4 + mouse.x * 0.15;
-
-  // Companion breathing
-  const tkBreath = 1.0 + Math.sin(t * 0.3) * 0.02;
-  torusKnot.scale.set(tkBreath, tkBreath, tkBreath);
-  const torBreath = 1.0 + Math.sin(t * 0.35 + 1) * 0.02;
-  torus.scale.set(torBreath, torBreath, torBreath);
-
-  // Small shapes float and spin
-  smalls.forEach((s, i) => {
-    s.rotation.x = t * (0.2 + i * 0.06);
-    s.rotation.y = t * (0.15 + i * 0.08);
-    s.position.y += Math.sin(t * (0.3 + i * 0.06) + i * 1.5) * 0.0006;
+  // Companions
+  companions.forEach((c, i) => {
+    c.mat.uniforms.uTime.value = t;
+    c.mesh.rotation.x += c.rotSpeed[0] * 0.01;
+    c.mesh.rotation.y += c.rotSpeed[1] * 0.01;
+    c.mesh.rotation.z += c.rotSpeed[2] * 0.01;
+    // Bob
+    c.mesh.position.y = c.basePos[1] + Math.sin(t * c.bobSpeed + i * 1.5) * c.bobAmp;
+    // Parallax opposite to mouse
+    c.mesh.position.x = c.basePos[0] + mouse.x * (-0.1 - i * 0.02);
   });
-
-  // Orbiting lights (wider orbits, slower)
-  pl1.position.set(Math.sin(t * 0.3) * 4.5, Math.cos(t * 0.25) * 3.5, Math.cos(t * 0.3) * 3.5);
-  pl2.position.set(Math.cos(t * 0.28) * 4, Math.sin(t * 0.4) * 2.5, Math.sin(t * 0.28) * 4.5);
-  pl3.position.set(Math.sin(t * 0.25 + 2) * 3.5, -2.5, Math.cos(t * 0.25 + 2) * 3.5);
 
   // Particles
   pMat.uniforms.uTime.value = t;
 
-  // Burst particles update
+  // Bursts
   for (let i = bursts.length - 1; i >= 0; i--) {
     const b = bursts[i];
     b.age += 0.016;
     if (b.age >= b.life) {
-      scene.remove(b.pts);
-      b.pts.geometry.dispose();
-      b.pts.material.dispose();
-      bursts.splice(i, 1);
-      continue;
+      scene.remove(b.pts); b.pts.geometry.dispose(); b.pts.material.dispose();
+      bursts.splice(i, 1); continue;
     }
-    const progress = b.age / b.life;
-    b.pts.material.opacity = 1 - progress;
-    const posArr = b.positions;
+    b.pts.material.opacity = 1 - b.age / b.life;
     for (let j = 0; j < b.velocities.length; j++) {
       const v = b.velocities[j];
-      v.y -= 0.016 * 1.5; // gravity
-      v.multiplyScalar(0.96); // drag
-      posArr[j * 3] += v.x * 0.016;
-      posArr[j * 3 + 1] += v.y * 0.016;
-      posArr[j * 3 + 2] += v.z * 0.016;
+      v.y -= 0.016 * 1.5; v.multiplyScalar(0.96);
+      b.positions[j*3] += v.x * 0.016;
+      b.positions[j*3+1] += v.y * 0.016;
+      b.positions[j*3+2] += v.z * 0.016;
     }
     b.pts.geometry.attributes.position.needsUpdate = true;
   }
 
-  // Hover check
   checkHover(t);
-
-  // Cinematic pass time
   cinematicPass.uniforms.uTime.value = t;
-
   composer.render();
 }
 
 // ═══════════════════════════════════════════════════════════
-// GSAP ENTRANCE ANIMATION
+// GSAP ENTRANCE
 // ═══════════════════════════════════════════════════════════
 function startScene() {
   document.getElementById('loader').classList.add('done');
   animate();
-
   const tl = gsap.timeline({ defaults: { ease: 'elastic.out(1, 0.5)' } });
-
-  // Hero blob: scale up from 0
-  tl.to(blob.scale, { x: 1, y: 1, z: 1, duration: 1.8 }, 0);
-
-  // Companions: slide in
-  tl.to(torusKnot.position, { y: 0.5, duration: 1.4 }, 0.3);
-  tl.to(torus.position, { y: -0.6, duration: 1.4 }, 0.5);
-
-  // Small shapes: pop in staggered
-  smalls.forEach((s, i) => {
-    tl.to(s.scale, { x: 1, y: 1, z: 1, duration: 1.0 }, 0.4 + i * 0.1);
+  tl.to(hero.scale, { x: 1, y: 1, z: 1, duration: 1.8 }, 0);
+  companions.forEach((c, i) => {
+    tl.to(c.mesh.scale, { x: 1, y: 1, z: 1, duration: 1.2 }, 0.2 + i * 0.12);
   });
-
-  // Bloom swell on entrance
-  tl.fromTo(bloomPass, { strength: 1.5 }, { strength: 0.5, duration: 2, ease: 'power2.out' }, 0);
+  tl.fromTo(bloomPass, { strength: 1.2 }, { strength: 0.4, duration: 2, ease: 'power2.out' }, 0);
 }
 
 setTimeout(startScene, 400);
