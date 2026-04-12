@@ -971,13 +971,13 @@ const SHAPE_CREATORS = {
 
 function buildCuteRobot(palette) {
   const root = new THREE.Group();
-  // Unified warm cream palette — cute vinyl toy feel
-  const bodyMat = createRobotMaterial(0xF0EAE0, { rimHex: 0xC8B8E8, rimStr: 0.40, specInt: 0.30, matte: 0.3 });
-  const accentMat = createRobotMaterial(0xEDE5DA, { rimHex: 0xC8B8E8, rimStr: 0.45, specInt: 0.35, matte: 0.25 });
-  const jointMat = createRobotMaterial(0xB0A0D0, { rimStr: 0.30, specInt: 0.20, matte: 0.4 });
+  // Warm cream body + richer purple accents for contrast
+  const bodyMat = createRobotMaterial(0xDDD5CC, { rimHex: 0xF5EDE5, rimStr: 0.38, specInt: 0.30, matte: 0.3 });
+  const accentMat = createRobotMaterial(0xC0B8B0, { rimHex: 0xD8D0C8, rimStr: 0.40, specInt: 0.35, matte: 0.25 });
+  const jointMat = createRobotMaterial(0x9A7AAE, { rimHex: 0xC0A0D0, rimStr: 0.32, specInt: 0.22, matte: 0.4 });
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0x55EEFF });
   const pupilMat = new THREE.MeshBasicMaterial({ color: 0x0A0A2E });
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xFF7799 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xFF88BB });
 
   // Body — shorter, more spherical (cute/chibi proportions)
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.18, 8, 16), bodyMat);
@@ -1102,7 +1102,7 @@ function buildMechRobot(palette) {
   const torso = new THREE.Mesh(new RoundedBoxGeometry(0.55, 0.58, 0.38, 2, 0.04), armorMat);
   root.add(torso);
   // Chest plate accent — darker steel
-  const chestAccentMat = createRobotMaterial(0x3A4050, { rimHex: 0x6070A0, rimStr: 0.25, specInt: 0.15 });
+  const chestAccentMat = createRobotMaterial(0x5A6A8A, { rimHex: 0x8090B0, rimStr: 0.28, specInt: 0.20 });
   const chest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.06), chestAccentMat);
   chest.position.set(0, 0.08, 0.20);
   root.add(chest);
@@ -1220,16 +1220,16 @@ function buildMechRobot(palette) {
 
 function buildRetroRobot(palette) {
   const root = new THREE.Group();
-  // Warm tin/copper retro palette
-  const bodyMat = createRobotMaterial(0xB8ADA0, { rimHex: 0xD0C8B8, rimStr: 0.30, specInt: 0.25, matte: 0.35 });
-  const plateMat = createRobotMaterial(0xC07850, { rimHex: 0xE0A880, rimStr: 0.30, specInt: 0.25, matte: 0.3 });
-  const metalMat = createRobotMaterial(0xA8A8A0, { rimHex: 0xD0D0C8, rimStr: 0.35, specInt: 0.35 });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xEECC55 });
-  const dialMat = new THREE.MeshBasicMaterial({ color: 0xCC6644 });
-  const grillMat = createRobotMaterial(0x484038, { rimStr: 0.20, specInt: 0.12 });
-  const darkRingMat = createRobotMaterial(0x3A3228, { rimStr: 0.15, specInt: 0.08, envStr: 0.03 });
-  // Toned-down muted button colors (warm family)
-  const btnColors = [0x88bb77, 0xcc7755, 0x88aaaa];
+  // Cool-warm metal retro palette — brushed steel + copper accent
+  const bodyMat = createRobotMaterial(0xA0A8B0, { rimHex: 0xC8D0D8, rimStr: 0.32, specInt: 0.28, matte: 0.30 });
+  const plateMat = createRobotMaterial(0x8A7880, { rimHex: 0xC0A8B0, rimStr: 0.28, specInt: 0.25, matte: 0.25 });
+  const metalMat = createRobotMaterial(0xB0B0A8, { rimHex: 0xD8D8D0, rimStr: 0.38, specInt: 0.40 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x77CCFF });
+  const dialMat = new THREE.MeshBasicMaterial({ color: 0xBB7755 });
+  const grillMat = createRobotMaterial(0x484848, { rimStr: 0.22, specInt: 0.15 });
+  const darkRingMat = createRobotMaterial(0x3A3A3A, { rimStr: 0.15, specInt: 0.10, envStr: 0.04 });
+  // Brighter, more saturated buttons
+  const btnColors = [0x66dd88, 0xff6644, 0x66aadd];
 
   // Body — tin can aesthetic, rounded edges
   const body = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.6, 0.35, 2, 0.04), bodyMat);
@@ -1347,9 +1347,9 @@ function buildDroneRobot(palette) {
   const shellMat = createRobotMaterial(0xD0D0D8, { rimHex: 0xE0E0F0, rimStr: 0.40, specInt: 0.30, matte: 0.2 });
   const legMat = createRobotMaterial(0x5A5A65, { rimHex: 0x8888A0, rimStr: 0.30, specInt: 0.20 });
   const jointMat = createEditorMaterial('hologram');
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.85 });
-  const eyeInnerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0x44ffaa });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xAA3344, transparent: true, opacity: 0.85 });
+  const eyeInnerMat = new THREE.MeshBasicMaterial({ color: 0x882244 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x33EEDD });
   const darkRingMat = createRobotMaterial(0x3A3A45, { rimStr: 0.20, specInt: 0.10, envStr: 0.04 });
 
   // Body — main sphere shell
