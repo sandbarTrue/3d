@@ -41,7 +41,11 @@
   }
   .shape-btn:hover{
     background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.3);
-    color:#fff;transform:translateY(-2px);
+    color:#fff;transform:translateY(-3px);
+    box-shadow:0 4px 12px rgba(167,139,250,0.2);
+  }
+  .shape-btn:active{
+    transform:translateY(0);transition:transform 0.08s;
   }
   .shape-btn svg{width:24px;height:24px;opacity:0.6;transition:opacity 0.2s}
   .shape-btn:hover svg{opacity:1}
@@ -110,6 +114,29 @@
     opacity:0;transition:opacity 0.3s;pointer-events:none;
   }
   .selected-indicator.visible{opacity:1}
+
+  /* ── Top-right toolbar ── */
+  #toolbar{
+    position:fixed;top:20px;right:20px;z-index:50;
+    display:flex;gap:6px;
+  }
+  .toolbar-btn{
+    padding:6px 12px;font-size:10px;letter-spacing:0.5px;
+    color:rgba(255,255,255,0.5);cursor:pointer;
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
+    border-radius:10px;transition:all 0.2s;text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .toolbar-btn:hover{
+    background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.3);color:#fff;
+  }
+  .toolbar-btn.danger:hover{
+    background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:#f87171;
+  }
+
+  /* ── Hint auto-fade ── */
+  #hint.faded{opacity:0.2}
+  #hint.faded:hover{opacity:1}
 </style>
 </head>
 <body>
@@ -125,6 +152,14 @@
 
 <!-- Selection indicator -->
 <div id="sel-indicator" class="selected-indicator glass"></div>
+
+<!-- Top-right toolbar -->
+<div id="toolbar">
+  <div class="toolbar-btn" id="btn-preset-zen" title="Zen Garden: curated composition">Zen</div>
+  <div class="toolbar-btn" id="btn-preset-gems" title="Crystal Collection: faceted shapes">Gems</div>
+  <div class="toolbar-btn" id="btn-preset-solar" title="Solar System: orbital arrangement">Solar</div>
+  <div class="toolbar-btn danger" id="btn-clear" title="Remove all shapes">Clear</div>
+</div>
 
 <!-- Shape Picker Bar -->
 <div id="shape-bar" class="glass">
@@ -293,10 +328,10 @@ const PALETTES = {
   },
   flame: {
     name: 'Flame',
-    phase: [0.35, 0.10, 0.00],
-    rim1: [1.0, 0.3, 0.1],
-    rim2: [1.0, 0.6, 0.1],
-    css: 'linear-gradient(135deg, #dc2626, #f97316, #eab308)',
+    phase: [0.35, 0.08, 0.00],
+    rim1: [1.0, 0.25, 0.05],
+    rim2: [1.0, 0.55, 0.0],
+    css: 'linear-gradient(135deg, #b91c1c, #ea580c, #facc15)',
   },
   lavender: {
     name: 'Lavender',
@@ -308,9 +343,9 @@ const PALETTES = {
   arctic: {
     name: 'Arctic',
     phase: [0.08, 0.22, 0.30],
-    rim1: [0.6, 0.85, 1.0],
-    rim2: [0.9, 0.95, 1.0],
-    css: 'linear-gradient(135deg, #bfdbfe, #7dd3fc, #e0f2fe)',
+    rim1: [0.4, 0.7, 1.0],
+    rim2: [0.7, 0.9, 1.0],
+    css: 'linear-gradient(135deg, #60a5fa, #7dd3fc, #a5f3fc)',
   },
 };
 const PALETTE_KEYS = Object.keys(PALETTES);
@@ -377,7 +412,7 @@ const SHAPES = {
     name: 'Cone',
     icon: '<polygon points="12,3 22,20 2,20" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="20" rx="10" ry="2.5" fill="none" stroke="currentColor" stroke-width="1"/>',
     create: () => new THREE.ConeGeometry(0.7, 1.4, 48, 8),
-    defaultPalette: 'flame',
+    defaultPalette: 'sunset',
   },
   capsule: {
     name: 'Capsule',
@@ -477,8 +512,8 @@ const gridMat = new THREE.ShaderMaterial({
       float line = min(grid.x, grid.y);
       float alpha = 1.0 - min(line, 1.0);
       float dist = length(vWorldPos.xz);
-      alpha *= smoothstep(20.0, 4.0, dist) * 0.08;
-      gl_FragColor = vec4(vec3(0.4, 0.3, 0.6), alpha);
+      alpha *= smoothstep(20.0, 3.0, dist) * 0.12;
+      gl_FragColor = vec4(vec3(0.45, 0.35, 0.65), alpha);
     }
   `
 });
@@ -560,7 +595,7 @@ function createCompanionMaterial(palette) {
         // Fresnel rim
         float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.0);
         vec3 rimColor = mix(uRimHue1, uRimHue2, sin(uTime * 0.4) * 0.5 + 0.5);
-        baseColor += rimColor * fresnel * 0.55;
+        baseColor += rimColor * fresnel * 0.65;
 
         // Fake env reflection
         vec3 reflDir = reflect(-V, N);
@@ -568,17 +603,20 @@ function createCompanionMaterial(palette) {
         vec3 envC = cosPalette(envG + uTime * 0.03, vec3(0.5), vec3(0.3), vec3(1.0, 0.8, 0.5), vec3(0.1, 0.25, 0.35));
         baseColor = mix(baseColor, envC, 0.10 + fresnel * 0.06);
 
-        // Specular
-        vec3 H = normalize(V + mainLight);
-        float spec = pow(max(dot(N, H), 0.0), 64.0);
-        baseColor += vec3(1.0, 0.95, 0.92) * spec * 0.35;
+        // Specular (two-light for richer highlights)
+        vec3 H1 = normalize(V + mainLight);
+        vec3 H2 = normalize(V + fillLight);
+        float spec1 = pow(max(dot(N, H1), 0.0), 64.0);
+        float spec2 = pow(max(dot(N, H2), 0.0), 48.0);
+        baseColor += vec3(1.0, 0.95, 0.92) * spec1 * 0.35;
+        baseColor += vec3(0.85, 0.75, 1.0) * spec2 * 0.18;
 
         // Hover glow
         baseColor += rimColor * uHover * 0.25;
 
         // Selection outline glow
-        float selEdge = pow(1.0 - max(dot(V, N), 0.0), 4.0);
-        baseColor += vec3(0.65, 0.55, 1.0) * selEdge * uSelected * 0.8;
+        float selEdge = pow(1.0 - max(dot(V, N), 0.0), 2.8);
+        baseColor += vec3(0.65, 0.55, 1.0) * selEdge * uSelected * 0.6;
 
         gl_FragColor = vec4(baseColor, 1.0);
       }
@@ -710,8 +748,8 @@ function createDisplacedMaterial(palette) {
         baseColor += rimColor * uHover * 0.3;
 
         // Selection outline glow
-        float selEdge = pow(1.0 - max(dot(V, N), 0.0), 4.0);
-        baseColor += vec3(0.65, 0.55, 1.0) * selEdge * uSelected * 0.8;
+        float selEdge = pow(1.0 - max(dot(V, N), 0.0), 2.8);
+        baseColor += vec3(0.65, 0.55, 1.0) * selEdge * uSelected * 0.6;
 
         gl_FragColor = vec4(baseColor, 1.0);
       }
@@ -1217,6 +1255,95 @@ addEventListener('keydown', e => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// CLEAR ALL + PRESET SCENE TEMPLATES
+// ═══════════════════════════════════════════════════════════
+function clearAll() {
+  selectObject(null);
+  editorObjects.slice().forEach(obj => {
+    gsap.to(obj.mesh.scale, {
+      x: 0, y: 0, z: 0, duration: 0.3, ease: 'back.in(2)',
+      onComplete: () => {
+        scene.remove(obj.mesh);
+        obj.mesh.geometry.dispose();
+        obj.mesh.material.dispose();
+      }
+    });
+  });
+  editorObjects.length = 0;
+}
+
+function loadPreset(name) {
+  clearAll();
+  const delay = 350; // wait for clear animation
+
+  if (name === 'zen') {
+    // Zen Garden: a large twisted hero, flanked by torus + smooth orbiting smalls
+    setTimeout(() => {
+      const h = addShape('twisted', new THREE.Vector3(0, 0, 0));
+      if (h) { h.baseScale = 1.4; h.spinSpeed = 0.3; }
+    }, delay);
+    setTimeout(() => {
+      const t = addShape('torus', new THREE.Vector3(-2.8, 0.2, -0.3));
+      if (t) { t.spinSpeed = 0.4; changePalette(t, 'lavender'); }
+    }, delay + 150);
+    setTimeout(() => {
+      const s = addShape('sphere', new THREE.Vector3(2.5, -0.3, 0.2));
+      if (s) { s.baseScale = 0.7; s.spinSpeed = 0.2; changePalette(s, 'ocean'); }
+    }, delay + 300);
+    setTimeout(() => {
+      const d = addShape('dodecahedron', new THREE.Vector3(1.0, 1.5, -1.0));
+      if (d) { d.baseScale = 0.5; d.spinSpeed = 0.6; changePalette(d, 'mint'); }
+    }, delay + 450);
+    setTimeout(() => selectObject(null), delay + 700);
+  }
+
+  if (name === 'gems') {
+    // Crystal Collection: all platonic solids in a row
+    const shapes = ['tetrahedron', 'octahedron', 'icosahedron', 'dodecahedron', 'cube'];
+    const palettes = ['flame', 'mint', 'ocean', 'lavender', 'arctic'];
+    const xPositions = [-3.2, -1.6, 0, 1.6, 3.2];
+    shapes.forEach((shape, i) => {
+      setTimeout(() => {
+        const obj = addShape(shape, new THREE.Vector3(xPositions[i], 0, 0));
+        if (obj) { obj.baseScale = 0.8; obj.spinSpeed = 0.4 + i * 0.1; changePalette(obj, palettes[i]); }
+      }, delay + i * 120);
+    });
+    setTimeout(() => selectObject(null), delay + shapes.length * 120 + 300);
+  }
+
+  if (name === 'solar') {
+    // Solar System: large sphere center, shapes orbiting at different heights
+    setTimeout(() => {
+      const sun = addShape('sphere', new THREE.Vector3(0, 0, 0));
+      if (sun) { sun.baseScale = 1.2; sun.spinSpeed = 0.15; changePalette(sun, 'holographic'); }
+    }, delay);
+    const orbiters = [
+      { type: 'torusknot', pos: [2.2, 0.8, 0.5], scale: 0.6, pal: 'aurora', spin: 0.7 },
+      { type: 'capsule', pos: [-2.0, -0.5, 0.8], scale: 0.55, pal: 'sunset', spin: 0.5 },
+      { type: 'torus', pos: [0.5, -1.8, -0.5], scale: 0.5, pal: 'ocean', spin: 0.6 },
+      { type: 'cone', pos: [-1.2, 1.5, -1.0], scale: 0.45, pal: 'flame', spin: 0.8 },
+      { type: 'icosahedron', pos: [1.8, -0.8, -1.2], scale: 0.4, pal: 'mint', spin: 0.9 },
+    ];
+    orbiters.forEach((o, i) => {
+      setTimeout(() => {
+        const obj = addShape(o.type, new THREE.Vector3(...o.pos));
+        if (obj) { obj.baseScale = o.scale; obj.spinSpeed = o.spin; changePalette(obj, o.pal); }
+      }, delay + 150 + i * 120);
+    });
+    setTimeout(() => selectObject(null), delay + 150 + orbiters.length * 120 + 300);
+  }
+}
+
+document.getElementById('btn-clear').addEventListener('click', e => { e.stopPropagation(); clearAll(); });
+document.getElementById('btn-preset-zen').addEventListener('click', e => { e.stopPropagation(); loadPreset('zen'); });
+document.getElementById('btn-preset-gems').addEventListener('click', e => { e.stopPropagation(); loadPreset('gems'); });
+document.getElementById('btn-preset-solar').addEventListener('click', e => { e.stopPropagation(); loadPreset('solar'); });
+document.getElementById('toolbar').addEventListener('mousedown', e => e.stopPropagation());
+
+// Auto-fade hint after 6 seconds
+setTimeout(() => { document.getElementById('hint').classList.add('faded'); }, 6000);
+
+// ═══════════════════════════════════════════════════════════
 // RESIZE
 // ═══════════════════════════════════════════════════════════
 let resizeTimer;
@@ -1253,7 +1380,6 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
-  const dt = clock.getDelta();
 
   controls.update();
 
@@ -1315,15 +1441,30 @@ function startScene() {
   document.getElementById('loader').classList.add('done');
   animate();
 
-  // Add hero twisted sphere at center
-  const hero = addShape('twisted', new THREE.Vector3(0, 0, 0));
-  if (hero) hero.baseScale = 1.3;
+  // Hero twisted sphere -- centered, commanding
+  const hero = addShape('twisted', new THREE.Vector3(0, 0.1, 0));
+  if (hero) { hero.baseScale = 1.35; hero.spinSpeed = 0.3; }
 
-  // Add some companions with staggered timing
-  setTimeout(() => addShape('torusknot', new THREE.Vector3(-2.5, 0.5, -0.5)), 200);
-  setTimeout(() => addShape('torus', new THREE.Vector3(2.3, -0.4, -0.3)), 400);
-  setTimeout(() => addShape('icosahedron', new THREE.Vector3(-1.0, -1.2, 0.5)), 600);
-  setTimeout(() => addShape('octahedron', new THREE.Vector3(1.3, 1.3, -0.8)), 800);
+  // Companions arranged in a gentle arc around the hero
+  setTimeout(() => {
+    const tk = addShape('torusknot', new THREE.Vector3(-2.6, 0.6, -0.4));
+    if (tk) { tk.spinSpeed = 0.6; }
+  }, 200);
+  setTimeout(() => {
+    const tor = addShape('torus', new THREE.Vector3(2.4, -0.5, -0.2));
+    if (tor) { tor.spinSpeed = 0.45; }
+  }, 400);
+  setTimeout(() => {
+    const ico = addShape('icosahedron', new THREE.Vector3(-1.2, -1.3, 0.6));
+    if (ico) { ico.baseScale = 0.65; ico.spinSpeed = 0.55; }
+  }, 600);
+  setTimeout(() => {
+    const oct = addShape('octahedron', new THREE.Vector3(1.5, 1.4, -0.9));
+    if (oct) { oct.baseScale = 0.55; oct.spinSpeed = 0.7; }
+  }, 800);
+
+  // Deselect after all shapes animate in so user starts clean
+  setTimeout(() => selectObject(null), 1200);
 
   // Initial bloom flash
   gsap.fromTo(bloomPass, { strength: 1.0 }, { strength: 0.35, duration: 2, ease: 'power2.out' });
