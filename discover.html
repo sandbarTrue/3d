@@ -3043,198 +3043,211 @@ function createMiniScene(el, config) {
 
   // ═══════ Nexbot — Premium Dark Robot ═══════
   else if (sceneType === 'nexbot') {
-    camera.position.set(0, 0.3, 3.0);
-    camera.lookAt(0, 0.1, 0);
+    camera.position.set(0, 0.22, 3.2);
+    camera.lookAt(0, 0.18, 0);
 
-    // Override lights for light background
+    // Light bg lighting — bright, clean
     scene.children.length = 0;
     scene.add(group);
-    scene.add(new THREE.AmbientLight(0xcccccc, 0.7));
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+    const mainLight = new THREE.DirectionalLight(0xfff8f0, 1.0);
     mainLight.position.set(3, 5, 4);
     scene.add(mainLight);
-    const fillLight = new THREE.DirectionalLight(0x8888aa, 0.4);
-    fillLight.position.set(-2, 3, -1);
+    const fillLight = new THREE.DirectionalLight(0xe0e8ff, 0.45);
+    fillLight.position.set(-3, 3, -1);
     scene.add(fillLight);
-    // Strong rim backlight for silhouette edge definition
-    const rimLight = new THREE.PointLight(0xeeeeff, 1.2, 6);
-    rimLight.position.set(0, 2, -2.5);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    rimLight.position.set(0, 2, -3);
     scene.add(rimLight);
-    // Additional top rim for head highlight
-    const topRim = new THREE.PointLight(0xffffff, 0.6, 4);
-    topRim.position.set(0, 3, 0);
-    scene.add(topRim);
 
     const bodyGroup = new THREE.Group();
 
-    // Chrome head ShaderMaterial — fake env reflection with purple-blue tint
-    const chromeMat = new THREE.ShaderMaterial({
+    // ── Materials — premium pearl-white robot ──
+    const nxBody = createRobotMaterial(0xF0EDE8, { rimStr: 0.45, envStr: 0.18, specInt: 0.40 });
+    const nxAccent = createRobotMaterial(0xC5CAD0, { rimStr: 0.35, specInt: 0.50 });
+    const nxJoint = createRobotMaterial(0x4A4D55, { rimHex: 0x9999BB, rimStr: 0.30, specInt: 0.20 });
+    shaderMats.push(nxBody, nxAccent, nxJoint);
+
+    // Chrome head shader — lighter for white-body context
+    const nxChrome = new THREE.ShaderMaterial({
       uniforms: { uTime: { value: 0 } },
       vertexShader: `
-        varying vec3 vNormal, vViewPos, vPos;
+        varying vec3 vN, vV;
         void main(){
-          vNormal = normalize(normalMatrix * normal);
-          vPos = position;
+          vN = normalize(normalMatrix * normal);
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vViewPos = -mv.xyz;
+          vV = -mv.xyz;
           gl_Position = projectionMatrix * mv;
-        }
-      `,
+        }`,
       fragmentShader: `
-        uniform float uTime;
-        varying vec3 vNormal, vViewPos, vPos;
+        varying vec3 vN, vV;
         void main(){
-          vec3 N = normalize(vNormal);
-          vec3 V = normalize(vViewPos);
-          vec3 R = reflect(-V, N);
-          // Fake environment — gradient reflections
+          vec3 N = normalize(vN), V = normalize(vV), R = reflect(-V, N);
           float ey = R.y * 0.5 + 0.5;
-          vec3 env = mix(vec3(0.05, 0.05, 0.1), vec3(0.4, 0.45, 0.5), ey);
-          // Hot spots for realism
-          env += vec3(0.8, 0.85, 0.9) * pow(max(dot(R, normalize(vec3(0.5, 0.6, 0.4))), 0.0), 16.0);
-          env += vec3(0.3, 0.4, 0.8) * pow(max(dot(R, normalize(vec3(-0.6, 0.3, 0.5))), 0.0), 8.0);
-          // Strong Fresnel
-          float fresnel = pow(1.0 - max(dot(V, N), 0.0), 2.0);
-          vec3 base = mix(vec3(0.03), env, 0.85 + fresnel * 0.15);
-          // Sharp specular
-          vec3 L = normalize(vec3(0.5, 0.8, 0.6));
-          vec3 H = normalize(V + L);
-          float spec = pow(max(dot(N, H), 0.0), 128.0);
-          base += vec3(1.0, 0.98, 0.95) * spec * 0.6;
-          gl_FragColor = vec4(base, 1.0);
-        }
-      `
+          vec3 env = mix(vec3(0.40, 0.40, 0.45), vec3(0.88, 0.90, 0.93), ey);
+          env += vec3(1.0, 0.98, 0.95) * pow(max(dot(R, normalize(vec3(0.5,0.6,0.4))), 0.0), 24.0) * 0.5;
+          env += vec3(0.6, 0.7, 0.9) * pow(max(dot(R, normalize(vec3(-0.6,0.3,0.5))), 0.0), 12.0) * 0.25;
+          float fres = pow(1.0 - max(dot(V, N), 0.0), 2.5);
+          vec3 col = mix(vec3(0.58, 0.60, 0.63), env, 0.80 + fres * 0.20);
+          vec3 H = normalize(V + normalize(vec3(0.5, 0.8, 0.6)));
+          col += vec3(1.0) * pow(max(dot(N, H), 0.0), 96.0) * 0.5;
+          gl_FragColor = vec4(col, 1.0);
+        }`
     });
-    shaderMats.push(chromeMat);
+    shaderMats.push(nxChrome);
 
-    // Dark carbon-fiber body ShaderMaterial
-    const darkBodyMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 } },
-      vertexShader: `
-        varying vec3 vNormal, vViewPos, vPos;
-        void main(){
-          vNormal = normalize(normalMatrix * normal);
-          vPos = position;
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vViewPos = -mv.xyz;
-          gl_Position = projectionMatrix * mv;
-        }
-      `,
-      fragmentShader: `
-        uniform float uTime;
-        varying vec3 vNormal, vViewPos, vPos;
-        void main(){
-          vec3 N = normalize(vNormal);
-          vec3 V = normalize(vViewPos);
-          // Very dark base with subtle color
-          vec3 base = vec3(0.06, 0.06, 0.08);
-          // Subtle carbon-fiber cross-hatch
-          float grid = step(0.48, fract(vPos.x * 20.0)) + step(0.48, fract(vPos.y * 20.0));
-          base += grid * 0.015;
-          // Fresnel rim — cool blue-white edge highlight
-          float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.0);
-          base += vec3(0.3, 0.4, 0.6) * fresnel * 0.5;
-          // Subtle specular
-          vec3 L = normalize(vec3(0.5, 0.8, 0.6));
-          vec3 H = normalize(V + L);
-          float spec = pow(max(dot(N, H), 0.0), 64.0);
-          base += vec3(0.5, 0.6, 0.8) * spec * 0.3;
-          // Diffuse wrap
-          float diff = dot(N, L) * 0.3 + 0.7;
-          base *= diff;
-          gl_FragColor = vec4(base, 1.0);
-        }
-      `
+    const nxLedColor = 0x00DDAA;
+    const nxLedMat = new THREE.MeshBasicMaterial({ color: nxLedColor });
+
+    // ── HEAD GROUP (all head parts rotate together) ──
+    const headGroup = new THREE.Group();
+    headGroup.position.y = 0.72;
+
+    const nxHead = new THREE.Mesh(new THREE.SphereGeometry(0.19, 48, 48), nxChrome);
+    headGroup.add(nxHead);
+
+    // Ear accents
+    [-1, 1].forEach(s => {
+      const ear = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.05, 12), nxAccent);
+      ear.rotation.z = Math.PI / 2;
+      ear.position.set(s * 0.19, 0, 0);
+      headGroup.add(ear);
     });
-    shaderMats.push(darkBodyMat);
 
-    // Head — chrome sphere with custom ShaderMaterial
-    const headGeo = new THREE.SphereGeometry(0.25, 48, 48);
-    const head = new THREE.Mesh(headGeo, chromeMat);
-    head.position.y = 0.75;
-    bodyGroup.add(head);
+    // Visor — dark face plate
+    const nxVisor = new THREE.Mesh(
+      new RoundedBoxGeometry(0.21, 0.075, 0.04, 2, 0.012),
+      new THREE.MeshBasicMaterial({ color: 0x0a0a14 })
+    );
+    nxVisor.position.set(0, -0.01, 0.165);
+    headGroup.add(nxVisor);
 
-    // Visor / face area — dark with subtle blue
-    const visorMat = new THREE.MeshBasicMaterial({ color: 0x0a0a14 });
-    const visorGeo = new THREE.BoxGeometry(0.24, 0.09, 0.06);
-    const visor = new THREE.Mesh(visorGeo, visorMat);
-    visor.position.set(0, 0.73, 0.22);
-    bodyGroup.add(visor);
+    // LED glow plane
+    const nxGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.15, 0.05),
+      new THREE.MeshBasicMaterial({ color: nxLedColor, transparent: true, opacity: 0.15, side: THREE.DoubleSide })
+    );
+    nxGlow.position.set(0, 0.0, 0.185);
+    headGroup.add(nxGlow);
 
-    // Subtle glow plane behind LED eyes
-    const glowPlaneMat = new THREE.MeshBasicMaterial({ color: 0x88ffcc, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
-    const glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.06), glowPlaneMat);
-    glowPlane.position.set(0, 0.74, 0.248);
-    bodyGroup.add(glowPlane);
-
-    // LED dot-matrix eyes — bigger, brighter (0x88ffcc)
-    const ledMat = new THREE.MeshBasicMaterial({ color: 0x88ffcc });
-    const ledDotGeo = new THREE.SphereGeometry(0.012, 8, 8);
+    // LED dot-matrix eyes (same cute pattern)
+    const nxDotGeo = new THREE.SphereGeometry(0.009, 8, 8);
     for (let row = 0; row < 3; row++) {
       for (let col = 0; col < 4; col++) {
         if ((row === 0 && (col === 0 || col === 3)) ||
             (row === 1 && (col === 1 || col === 2)) ||
             (row === 2 && (col === 0 || col === 3))) {
-          const dot = new THREE.Mesh(ledDotGeo, ledMat);
-          dot.position.set(
-            -0.035 + col * 0.023,
-            0.74 + (1 - row) * 0.023,
-            0.255
-          );
-          bodyGroup.add(dot);
+          const dot = new THREE.Mesh(nxDotGeo, nxLedMat);
+          dot.position.set(-0.028 + col * 0.019, (1 - row) * 0.019, 0.19);
+          headGroup.add(dot);
         }
       }
     }
+    bodyGroup.add(headGroup);
 
-    // Neck — dark body shader
-    const neckGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.12, 16);
-    const neck = new THREE.Mesh(neckGeo, darkBodyMat);
-    neck.position.y = 0.45;
-    bodyGroup.add(neck);
+    // ── NECK ──
+    const nxNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.08, 16), nxJoint);
+    nxNeck.position.y = 0.56;
+    bodyGroup.add(nxNeck);
+    const nxNeckRing = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.007, 8, 24), nxAccent);
+    nxNeckRing.rotation.x = Math.PI / 2;
+    nxNeckRing.position.y = 0.53;
+    bodyGroup.add(nxNeckRing);
 
-    // Shoulders — wider and more angular for heroic silhouette, using dark body shader
-    const leftShoulder = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.09, 0.17), darkBodyMat);
-    leftShoulder.position.set(-0.28, 0.35, 0);
-    leftShoulder.rotation.z = 0.12;
-    bodyGroup.add(leftShoulder);
-    const rightShoulder = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.09, 0.17), darkBodyMat);
-    rightShoulder.position.set(0.28, 0.35, 0);
-    rightShoulder.rotation.z = -0.12;
-    bodyGroup.add(rightShoulder);
+    // ── TORSO ──
+    const nxTorso = new THREE.Mesh(new RoundedBoxGeometry(0.32, 0.28, 0.19, 2, 0.035), nxBody);
+    nxTorso.position.y = 0.34;
+    bodyGroup.add(nxTorso);
 
-    // Shoulder accent strips — subtle chrome edges
-    const shoulderAccentL = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.015, 0.15), chromeMat);
-    shoulderAccentL.position.set(-0.28, 0.39, 0);
-    shoulderAccentL.rotation.z = 0.12;
-    bodyGroup.add(shoulderAccentL);
-    const shoulderAccentR = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.015, 0.15), chromeMat);
-    shoulderAccentR.position.set(0.28, 0.39, 0);
-    shoulderAccentR.rotation.z = -0.12;
-    bodyGroup.add(shoulderAccentR);
+    // Chest plate accent
+    const nxChestPlate = new THREE.Mesh(new RoundedBoxGeometry(0.24, 0.05, 0.008, 2, 0.008), nxAccent);
+    nxChestPlate.position.set(0, 0.40, 0.098);
+    bodyGroup.add(nxChestPlate);
 
-    // Upper body / torso — dark carbon-fiber body
-    const torsoGeo = new THREE.CapsuleGeometry(0.18, 0.3, 16, 32);
-    const torso = new THREE.Mesh(torsoGeo, darkBodyMat);
-    torso.position.y = 0.1;
-    bodyGroup.add(torso);
+    // Chest LED line
+    const nxChestLed = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.004, 0.006), nxLedMat);
+    nxChestLed.position.set(0, 0.38, 0.10);
+    bodyGroup.add(nxChestLed);
 
-    // Chest accent line
-    const chestLine = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.008, 0.02), ledMat);
-    chestLine.position.set(0, 0.22, 0.18);
-    bodyGroup.add(chestLine);
+    // ── ARMS ──
+    [-1, 1].forEach(side => {
+      const ax = side * 0.21;
+      // Shoulder ball
+      const sh = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16), nxAccent);
+      sh.position.set(ax, 0.43, 0);
+      bodyGroup.add(sh);
+      // Upper arm
+      const ua = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.030, 0.12, 12), nxBody);
+      ua.position.set(ax, 0.34, 0);
+      bodyGroup.add(ua);
+      // Elbow
+      const el = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 12), nxJoint);
+      el.position.set(ax, 0.26, 0);
+      bodyGroup.add(el);
+      // Forearm
+      const fa = new THREE.Mesh(new RoundedBoxGeometry(0.050, 0.10, 0.050, 2, 0.010), nxBody);
+      fa.position.set(ax, 0.19, 0);
+      bodyGroup.add(fa);
+      // Hand
+      const hd = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 12), nxJoint);
+      hd.position.set(ax, 0.12, 0);
+      bodyGroup.add(hd);
+    });
+
+    // ── HIP ──
+    const nxHip = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.05, 16), nxJoint);
+    nxHip.position.y = 0.16;
+    bodyGroup.add(nxHip);
+
+    // ── LEGS ──
+    [-1, 1].forEach(side => {
+      const lx = side * 0.09;
+      // Hip joint
+      const hj = new THREE.Mesh(new THREE.SphereGeometry(0.038, 12, 12), nxJoint);
+      hj.position.set(lx, 0.11, 0);
+      bodyGroup.add(hj);
+      // Thigh
+      const th = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.035, 0.15, 12), nxBody);
+      th.position.set(lx, 0.01, 0);
+      bodyGroup.add(th);
+      // Knee cap
+      const kn = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 12), nxAccent);
+      kn.position.set(lx, -0.08, 0);
+      bodyGroup.add(kn);
+      // Shin
+      const sn = new THREE.Mesh(new RoundedBoxGeometry(0.055, 0.14, 0.055, 2, 0.010), nxBody);
+      sn.position.set(lx, -0.17, 0);
+      bodyGroup.add(sn);
+      // Ankle
+      const ak = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 10), nxJoint);
+      ak.position.set(lx, -0.26, 0);
+      bodyGroup.add(ak);
+      // Foot
+      const ft = new THREE.Mesh(new RoundedBoxGeometry(0.075, 0.028, 0.10, 2, 0.006), nxBody);
+      ft.position.set(lx, -0.29, 0.012);
+      bodyGroup.add(ft);
+    });
+
+    // Shadow disc
+    const nxShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.25, 32),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.08, side: THREE.DoubleSide })
+    );
+    nxShadow.rotation.x = -Math.PI / 2;
+    nxShadow.position.y = -0.31;
+    bodyGroup.add(nxShadow);
 
     group.add(bodyGroup);
 
-    let headRotY = 0;
+    let nxHeadRotY = 0;
     animFn = (t, hover) => {
-      // Slow head turn
-      const targetRot = Math.sin(t * 0.4) * 0.3;
-      headRotY += (targetRot - headRotY) * 0.05;
-      head.rotation.y = headRotY;
-      visor.rotation.y = headRotY;
-      // Subtle body sway
-      bodyGroup.rotation.z = Math.sin(t * 0.3) * 0.02;
-      bodyGroup.position.y = Math.sin(t * 0.5) * 0.015;
+      const targetRot = Math.sin(t * 0.4) * 0.25;
+      nxHeadRotY += (targetRot - nxHeadRotY) * 0.05;
+      headGroup.rotation.y = nxHeadRotY;
+      bodyGroup.rotation.z = Math.sin(t * 0.3) * 0.015;
+      bodyGroup.position.y = Math.sin(t * 0.5) * 0.012;
+      // Subtle LED pulse
+      nxGlow.material.opacity = 0.12 + 0.06 * Math.sin(t * 2.0);
       group.rotation.y = t * (hover ? 0.15 : 0.05);
     };
   }
