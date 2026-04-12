@@ -172,6 +172,7 @@ const heroUniforms = {
 };
 
 const heroMat = new THREE.ShaderMaterial({
+  side: THREE.DoubleSide,
   uniforms: heroUniforms,
   vertexShader: `
     uniform float uTime;
@@ -252,6 +253,16 @@ const heroMat = new THREE.ShaderMaterial({
         vec3(0.00, 0.15, 0.20)
       );
 
+      // Ensure minimum brightness — prevent black areas
+      baseColor = max(baseColor, vec3(0.12, 0.06, 0.18));
+
+      // Soft half-Lambert diffuse to shape the form without harsh shadows
+      vec3 mainLight = normalize(vec3(0.5, 0.8, 0.6));
+      vec3 fillLight = normalize(vec3(-0.6, 0.3, 0.8));
+      float diff1 = dot(N, mainLight) * 0.35 + 0.65; // wraps from 0.3 to 1.0
+      float diff2 = dot(N, fillLight) * 0.2 + 0.8;   // wraps from 0.6 to 1.0
+      baseColor *= max(diff1, diff2);
+
       // Boost saturation
       baseColor = pow(baseColor, vec3(0.85));
 
@@ -277,10 +288,8 @@ const heroMat = new THREE.ShaderMaterial({
       baseColor = mix(baseColor, envColor, 0.12 + fresnel * 0.08);
 
       // === Layer 4: Specular highlights (two lights) ===
-      vec3 light1Dir = normalize(vec3(0.5, 0.8, 0.6));
-      vec3 light2Dir = normalize(vec3(-0.6, 0.3, 0.8));
-      vec3 H1 = normalize(V + light1Dir);
-      vec3 H2 = normalize(V + light2Dir);
+      vec3 H1 = normalize(V + mainLight);
+      vec3 H2 = normalize(V + fillLight);
       float spec1 = pow(max(dot(N, H1), 0.0), 80.0);
       float spec2 = pow(max(dot(N, H2), 0.0), 60.0);
       baseColor += vec3(1.0, 0.95, 0.9) * spec1 * 0.45;
@@ -305,6 +314,7 @@ scene.add(hero);
 // ═══════════════════════════════════════════════════════════
 function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
   return new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
     uniforms: {
       uTime: { value: 0 },
       uHover: { value: 0 },
@@ -344,6 +354,17 @@ function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
           vec3(1.0, 0.7, 0.4),
           ${palettePhase}
         );
+
+        // Ensure minimum brightness — no black areas
+        baseColor = max(baseColor, vec3(0.12, 0.06, 0.18));
+
+        // Soft half-Lambert diffuse
+        vec3 mainLight = normalize(vec3(0.5, 0.7, 0.6));
+        vec3 fillLight = normalize(vec3(-0.5, 0.3, 0.7));
+        float diff1 = dot(N, mainLight) * 0.3 + 0.7;
+        float diff2 = dot(N, fillLight) * 0.2 + 0.8;
+        baseColor *= max(diff1, diff2);
+
         baseColor = pow(baseColor, vec3(0.85));
 
         // Fresnel rim
@@ -358,8 +379,7 @@ function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
         baseColor = mix(baseColor, envC, 0.10 + fresnel * 0.06);
 
         // Specular
-        vec3 lightDir = normalize(vec3(0.5, 0.7, 0.6));
-        vec3 H = normalize(V + lightDir);
+        vec3 H = normalize(V + mainLight);
         float spec = pow(max(dot(N, H), 0.0), 64.0);
         baseColor += vec3(1.0, 0.95, 0.92) * spec * 0.35;
 
