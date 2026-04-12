@@ -567,6 +567,7 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 // ═══════════════════════════════════════════════════════════
 // GLSL SNIPPETS (from index.html)
@@ -688,6 +689,62 @@ function createEditorMaterial(paletteKey){
         base+=rim*uHover*mix(0.25,0.12,uNatural);
         base=max(base,minBright);
         gl_FragColor=vec4(base,1.0);
+      }`
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SOLID ROBOT MATERIAL — fixed colors, no cosine palette animation
+// ═══════════════════════════════════════════════════════════
+function createRobotMaterial(hexColor, opts = {}) {
+  const c = new THREE.Color(hexColor);
+  const { rimHex, rimStr = 0.35, envStr = 0.10, specInt = 0.25, matte = 0.0 } = opts;
+  const rim = rimHex ? new THREE.Color(rimHex) :
+    new THREE.Color(Math.min(c.r*0.4+0.6,1), Math.min(c.g*0.4+0.6,1), Math.min(c.b*0.4+0.6,1));
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uBase:{value:new THREE.Vector3(c.r,c.g,c.b)},
+      uRim:{value:new THREE.Vector3(rim.r,rim.g,rim.b)},
+      uRimStr:{value:rimStr}, uEnvStr:{value:envStr},
+      uSpecInt:{value:specInt}, uMatte:{value:matte},
+      uTime:{value:0}, uHover:{value:0},
+    },
+    vertexShader:`
+      varying vec3 vNormal,vViewPos,vWorldPos;
+      void main(){
+        vNormal=normalize(normalMatrix*normal);
+        vWorldPos=(modelMatrix*vec4(position,1.0)).xyz;
+        vec4 mv=modelViewMatrix*vec4(position,1.0);
+        vViewPos=-mv.xyz;
+        gl_Position=projectionMatrix*mv;
+      }`,
+    fragmentShader:`
+      uniform vec3 uBase,uRim;
+      uniform float uRimStr,uEnvStr,uSpecInt,uMatte,uTime,uHover;
+      varying vec3 vNormal,vViewPos,vWorldPos;
+      void main(){
+        vec3 N=normalize(vNormal); vec3 V=normalize(vViewPos);
+        vec3 col=uBase*(1.0+clamp(vWorldPos.y,-1.0,1.0)*0.06);
+        vec3 L1=normalize(vec3(0.5,0.8,0.6));
+        vec3 L2=normalize(vec3(-0.4,0.3,0.7));
+        float d1=dot(N,L1)*0.5+0.5;
+        float d2=dot(N,L2)*0.25+0.75;
+        col*=0.55+0.45*max(d1,d2);
+        col+=uBase*pow(clamp(dot(-V,L1),0.0,1.0),2.0)*0.08;
+        float fres=pow(1.0-max(dot(V,N),0.0),3.0-uMatte);
+        col+=uRim*fres*uRimStr;
+        vec3 refl=reflect(-V,N);
+        float ey=refl.y*0.5+0.5;
+        vec3 env=mix(vec3(0.10,0.08,0.15),vec3(0.25,0.23,0.30),ey);
+        env+=vec3(0.3,0.25,0.2)*pow(max(dot(refl,normalize(vec3(0.5,0.7,0.4))),0.0),6.0)*0.4;
+        col=mix(col,env,uEnvStr*(1.0-uMatte*0.5));
+        vec3 H=normalize(V+L1);
+        float sp=pow(max(dot(N,H),0.0),mix(64.0,12.0,uMatte))*uSpecInt*(1.0-uMatte*0.6);
+        float spS=pow(max(dot(N,H),0.0),8.0)*uSpecInt*0.12*(1.0-uMatte*0.5);
+        col+=vec3(1.0,0.97,0.93)*(sp+spS);
+        col+=uRim*uHover*0.12;
+        col=max(col,uBase*0.2);
+        gl_FragColor=vec4(col,1.0);
       }`
   });
 }
@@ -914,13 +971,13 @@ const SHAPE_CREATORS = {
 
 function buildCuteRobot(palette) {
   const root = new THREE.Group();
-  // Multi-material: porcelain body, clay accent head, ShaderMaterial everywhere
-  const bodyMat = createEditorMaterial('porcelain');
-  const accentMat = createEditorMaterial('clay');
-  const jointMat = createEditorMaterial('stone'); // replaced MeshStandard with shader
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x44ffff });
-  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x111122 });
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff6688 });
+  // Unified warm cream palette — cute vinyl toy feel
+  const bodyMat = createRobotMaterial(0xF0EAE0, { rimHex: 0xC8B8E8, rimStr: 0.40, specInt: 0.30, matte: 0.3 });
+  const accentMat = createRobotMaterial(0xEDE5DA, { rimHex: 0xC8B8E8, rimStr: 0.45, specInt: 0.35, matte: 0.25 });
+  const jointMat = createRobotMaterial(0xB0A0D0, { rimStr: 0.30, specInt: 0.20, matte: 0.4 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x55EEFF });
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x0A0A2E });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xFF7799 });
 
   // Body — shorter, more spherical (cute/chibi proportions)
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.18, 8, 16), bodyMat);
@@ -946,8 +1003,8 @@ function buildCuteRobot(palette) {
   head.position.set(0, 0.30, 0);
   headJoint.add(head);
 
-  // Eyes — slightly closer together, larger highlights
-  const eyeGeo = new THREE.SphereGeometry(0.085, 16, 16);
+  // Eyes — larger for cute baby-schema appeal
+  const eyeGeo = new THREE.SphereGeometry(0.11, 16, 16);
   const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
   leftEye.position.set(-0.11, 0.34, 0.32);
   headJoint.add(leftEye);
@@ -955,8 +1012,8 @@ function buildCuteRobot(palette) {
   rightEye.position.set(0.11, 0.34, 0.32);
   headJoint.add(rightEye);
 
-  // Eye highlight spots — larger white dots
-  const highlightGeo = new THREE.SphereGeometry(0.032, 8, 8);
+  // Eye highlight spots — big sparkle for life
+  const highlightGeo = new THREE.SphereGeometry(0.042, 8, 8);
   const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const lHighlight = new THREE.Mesh(highlightGeo, highlightMat);
   lHighlight.position.set(0.025, 0.03, 0.075);
@@ -965,9 +1022,9 @@ function buildCuteRobot(palette) {
   rHighlight.position.set(0.025, 0.03, 0.075);
   rightEye.add(rHighlight);
 
-  const pupilGeo = new THREE.SphereGeometry(0.04, 8, 8);
-  leftEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.075));
-  rightEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.075));
+  const pupilGeo = new THREE.SphereGeometry(0.05, 8, 8);
+  leftEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.09));
+  rightEye.add(new THREE.Mesh(pupilGeo, pupilMat).translateZ(0.09));
 
   // Antenna — coiled spring feel, using shader joint material
   const springSegments = 8;
@@ -995,31 +1052,31 @@ function buildCuteRobot(palette) {
   rBlush.lookAt(0.28 + 0.5, 0.26, 0.24 + 0.5);
   headJoint.add(rBlush);
 
-  // Arms with shader joint rings — accent material arms, not dark stubs
-  const armGeo = new THREE.CapsuleGeometry(0.07, 0.2, 4, 8);
+  // Arms — chunkier, higher on body, wider gap from torso
+  const armGeo = new THREE.CapsuleGeometry(0.10, 0.15, 4, 8);
   const leftArmJoint = new THREE.Group();
-  leftArmJoint.position.set(-0.32, 0.1, 0);
+  leftArmJoint.position.set(-0.38, 0.16, 0);
   root.add(leftArmJoint);
-  const shoulderRingL = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 16), jointMat);
+  const shoulderRingL = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.015, 6, 16), jointMat);
   shoulderRingL.rotation.z = PI / 2;
   leftArmJoint.add(shoulderRingL);
-  leftArmJoint.add(new THREE.Mesh(armGeo, accentMat).translateY(-0.15));
+  leftArmJoint.add(new THREE.Mesh(armGeo, bodyMat).translateY(-0.15));
 
   const rightArmJoint = new THREE.Group();
-  rightArmJoint.position.set(0.32, 0.1, 0);
+  rightArmJoint.position.set(0.38, 0.16, 0);
   root.add(rightArmJoint);
-  const shoulderRingR = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 16), jointMat);
+  const shoulderRingR = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.015, 6, 16), jointMat);
   shoulderRingR.rotation.z = PI / 2;
   rightArmJoint.add(shoulderRingR);
-  rightArmJoint.add(new THREE.Mesh(armGeo, accentMat).translateY(-0.15));
+  rightArmJoint.add(new THREE.Mesh(armGeo, bodyMat).translateY(-0.15));
 
-  // Feet — bigger and rounder for cute waddle proportions
-  const footGeo = new THREE.SphereGeometry(0.13, 12, 12);
+  // Feet — bigger, closer to body, stable waddle stance
+  const footGeo = new THREE.SphereGeometry(0.16, 12, 12);
   const lFoot = new THREE.Mesh(footGeo, bodyMat);
-  lFoot.position.set(-0.14, -0.42, 0.04); lFoot.scale.set(1, 0.55, 1.4);
+  lFoot.position.set(-0.15, -0.38, 0.04); lFoot.scale.set(1, 0.50, 1.3);
   root.add(lFoot);
   const rFoot = new THREE.Mesh(footGeo, bodyMat);
-  rFoot.position.set(0.14, -0.42, 0.04); rFoot.scale.set(1, 0.55, 1.4);
+  rFoot.position.set(0.15, -0.38, 0.04); rFoot.scale.set(1, 0.50, 1.3);
   root.add(rFoot);
 
   // Shadow disc on ground
@@ -1035,22 +1092,17 @@ function buildCuteRobot(palette) {
 
 function buildMechRobot(palette) {
   const root = new THREE.Group();
-  // 3-material system: stone armor, dark under-armor shader, toned visor glow
-  const armorMat = createEditorMaterial('stone');
-  // Dark under-armor: very dark ShaderMaterial with subtle reflection, NOT black MeshStandard
-  const underMat = createEditorMaterial('ocean');
-  // Override under-armor brightness to be very dark
-  underMat.uniforms.uMinBright.value = 0.04;
-  underMat.uniforms.uFresnelStr.value = 0.3;
+  // Gunmetal armor + dark navy under-armor + teal visor
+  const armorMat = createRobotMaterial(0x6B7080, { rimHex: 0x9098B0, rimStr: 0.35, specInt: 0.30 });
+  const underMat = createRobotMaterial(0x181C28, { rimHex: 0x4050A0, rimStr: 0.30, specInt: 0.15, envStr: 0.06 });
   const visorMat = new THREE.MeshBasicMaterial({ color: 0x44aacc, transparent: true, opacity: 0.95 });
   const visorGlowMat = new THREE.MeshBasicMaterial({ color: 0x337799, transparent: true, opacity: 0.3 });
 
-  // Torso — angular, aggressive
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.58, 0.38), armorMat);
+  // Torso — angular but with rounded edges (not Minecraft)
+  const torso = new THREE.Mesh(new RoundedBoxGeometry(0.55, 0.58, 0.38, 2, 0.04), armorMat);
   root.add(torso);
-  // Chest plate accent — subtle darker armor accent, NOT garish red
-  const chestAccentMat = createEditorMaterial('ocean');
-  chestAccentMat.uniforms.uMinBright.value = 0.08;
+  // Chest plate accent — darker steel
+  const chestAccentMat = createRobotMaterial(0x3A4050, { rimHex: 0x6070A0, rimStr: 0.25, specInt: 0.15 });
   const chest = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.06), chestAccentMat);
   chest.position.set(0, 0.08, 0.20);
   root.add(chest);
@@ -1068,62 +1120,62 @@ function buildMechRobot(palette) {
   const headJoint = new THREE.Group();
   headJoint.position.set(0, 0.38, 0);
   root.add(headJoint);
-  // Neck gap (under-armor visible)
-  const neckGap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.10, 0.06, 6), underMat);
-  neckGap.position.set(0, 0.04, 0);
+  // Neck gap — wider, better mechanical joint feel
+  const neckGap = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.14, 0.08, 8), underMat);
+  neckGap.position.set(0, 0.03, 0);
   headJoint.add(neckGap);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.24, 0.28), armorMat);
-  head.position.set(0, 0.18, 0);
+  const head = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.28, 0.32, 2, 0.04), armorMat);
+  head.position.set(0, 0.15, 0);
   headJoint.add(head);
   // Head crest / fin — same armor material for cohesion
   const crest = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.10, 0.20), armorMat);
   crest.position.set(0, 0.33, -0.02);
   headJoint.add(crest);
 
-  // Visor — toned-down cyan (0x44aacc instead of 0x00ddff)
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.06), visorMat);
-  visor.position.set(0, 0.16, 0.145);
+  // Visor — wider, taller for visual impact
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 0.06), visorMat);
+  visor.position.set(0, 0.13, 0.145);
   headJoint.add(visor);
   // Visor glow halo behind
-  const visorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 0.02), visorGlowMat);
-  visorGlow.position.set(0, 0.16, 0.12);
+  const visorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.02), visorGlowMat);
+  visorGlow.position.set(0, 0.13, 0.12);
   headJoint.add(visorGlow);
 
   function buildArm(sign) {
     const armJoint = new THREE.Group();
-    armJoint.position.set(sign * 0.42, 0.20, 0);
+    armJoint.position.set(sign * 0.36, 0.20, 0);
     root.add(armJoint);
-    // Shoulder pauldron — SAME armor material as body for cohesion (not ocean/blue)
-    const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.22), armorMat);
+    // Shoulder pauldron — wider, bridges gap to torso
+    const shoulder = new THREE.Mesh(new RoundedBoxGeometry(0.26, 0.13, 0.24, 2, 0.03), armorMat);
     shoulder.position.set(sign * -0.04, 0.06, 0);
     armJoint.add(shoulder);
-    // Joint ring — dark shader material with subtle reflection
-    const jointRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 12), underMat);
+    // Joint ring
+    const jointRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.015, 6, 12), underMat);
     jointRing.rotation.z = PI / 2;
     jointRing.position.set(0, -0.02, 0);
     armJoint.add(jointRing);
-    // Upper arm — dark under-armor shader
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.28, 0.13), underMat);
-    upper.position.set(0, -0.20, 0);
+    // Upper arm — thicker
+    const upper = new THREE.Mesh(new RoundedBoxGeometry(0.16, 0.26, 0.16, 2, 0.02), underMat);
+    upper.position.set(0, -0.18, 0);
     armJoint.add(upper);
     const elbowJoint = new THREE.Group();
-    elbowJoint.position.set(0, -0.36, 0);
+    elbowJoint.position.set(0, -0.34, 0);
     armJoint.add(elbowJoint);
-    // Elbow ring — dark shader
-    const elbowRing = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 12), underMat);
+    // Elbow ring
+    const elbowRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), underMat);
     elbowRing.rotation.z = PI / 2;
     elbowJoint.add(elbowRing);
-    // Forearm armor
-    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), armorMat);
-    forearm.position.set(0, -0.14, 0);
+    // Forearm — gauntlet (wider than upper arm for visual interest)
+    const forearm = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.22, 0.14, 2, 0.02), armorMat);
+    forearm.position.set(0, -0.13, 0);
     elbowJoint.add(forearm);
     return { armJoint, elbowJoint };
   }
   const leftArm = buildArm(-1);
   const rightArm = buildArm(1);
 
-  // Hip — under-armor shader
-  const hip = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.32), underMat);
+  // Hip — under-armor, rounded
+  const hip = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.14, 0.32, 2, 0.03), underMat);
   hip.position.set(0, -0.36, 0);
   root.add(hip);
 
@@ -1131,8 +1183,8 @@ function buildMechRobot(palette) {
     const legJoint = new THREE.Group();
     legJoint.position.set(sign * 0.16, -0.44, 0);
     root.add(legJoint);
-    // Thigh armor
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.26, 0.15), armorMat);
+    // Thigh armor — rounded
+    const upper = new THREE.Mesh(new RoundedBoxGeometry(0.15, 0.26, 0.15, 2, 0.02), armorMat);
     upper.position.set(0, -0.16, 0);
     legJoint.add(upper);
     const kneeJoint = new THREE.Group();
@@ -1142,12 +1194,12 @@ function buildMechRobot(palette) {
     const kneeRing = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), underMat);
     kneeRing.rotation.z = PI / 2;
     kneeJoint.add(kneeRing);
-    // Shin — under-armor shader
-    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.24, 0.12), underMat);
+    // Shin — under-armor, rounded
+    const lower = new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.24, 0.12, 2, 0.02), underMat);
     lower.position.set(0, -0.14, 0);
     kneeJoint.add(lower);
-    // Foot — angular
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.07, 0.24), armorMat);
+    // Foot — rounded
+    const foot = new THREE.Mesh(new RoundedBoxGeometry(0.17, 0.07, 0.24, 2, 0.02), armorMat);
     foot.position.set(0, -0.30, 0.04);
     kneeJoint.add(foot);
     return { legJoint, kneeJoint };
@@ -1168,26 +1220,19 @@ function buildMechRobot(palette) {
 
 function buildRetroRobot(palette) {
   const root = new THREE.Group();
-  // Multi-material: clay body, ember accents, all shader-based
-  const bodyMat = createEditorMaterial('clay');
-  const plateMat = createEditorMaterial('ember');
-  // Replace metalMat (MeshStandard metalness:0.85) with stone shader
-  const metalMat = createEditorMaterial('stone');
-  metalMat.uniforms.uMinBright.value = 0.10;
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xeebb44 }); // toned-down warm yellow
-  const dialMat = new THREE.MeshBasicMaterial({ color: 0xcc6644 }); // muted warm red-orange
-  // Replace grillMat with dark shader
-  const grillMat = createEditorMaterial('stone');
-  grillMat.uniforms.uMinBright.value = 0.05;
-  grillMat.uniforms.uFresnelStr.value = 0.25;
-  // Replace darkRingMat with dark shader
-  const darkRingMat = createEditorMaterial('clay');
-  darkRingMat.uniforms.uMinBright.value = 0.04;
+  // Warm tin/copper retro palette
+  const bodyMat = createRobotMaterial(0xB8ADA0, { rimHex: 0xD0C8B8, rimStr: 0.30, specInt: 0.25, matte: 0.35 });
+  const plateMat = createRobotMaterial(0xC07850, { rimHex: 0xE0A880, rimStr: 0.30, specInt: 0.25, matte: 0.3 });
+  const metalMat = createRobotMaterial(0xA8A8A0, { rimHex: 0xD0D0C8, rimStr: 0.35, specInt: 0.35 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xEECC55 });
+  const dialMat = new THREE.MeshBasicMaterial({ color: 0xCC6644 });
+  const grillMat = createRobotMaterial(0x484038, { rimStr: 0.20, specInt: 0.12 });
+  const darkRingMat = createRobotMaterial(0x3A3228, { rimStr: 0.15, specInt: 0.08, envStr: 0.03 });
   // Toned-down muted button colors (warm family)
   const btnColors = [0x88bb77, 0xcc7755, 0x88aaaa];
 
-  // Body — tin can aesthetic
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.35), bodyMat);
+  // Body — tin can aesthetic, rounded edges
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.6, 0.35, 2, 0.04), bodyMat);
   root.add(body);
   // Belly plate — shader metallic
   const bellyPlate = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.35, 0.04), metalMat);
@@ -1212,7 +1257,7 @@ function buildRetroRobot(palette) {
   const headJoint = new THREE.Group();
   headJoint.position.set(0, 0.38, 0);
   root.add(headJoint);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.3), plateMat);
+  const head = new THREE.Mesh(new RoundedBoxGeometry(0.40, 0.32, 0.32, 2, 0.04), plateMat);
   head.position.set(0, 0.2, 0);
   headJoint.add(head);
 
@@ -1248,8 +1293,8 @@ function buildRetroRobot(palette) {
     headJoint.add(tip);
   });
 
-  const armGeo = new THREE.BoxGeometry(0.12, 0.3, 0.12);
-  const handGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+  const armGeo = new RoundedBoxGeometry(0.12, 0.3, 0.12, 2, 0.02);
+  const handGeo = new RoundedBoxGeometry(0.1, 0.1, 0.1, 2, 0.02);
   function buildArm(sign) {
     const joint = new THREE.Group();
     joint.position.set(sign * 0.36, 0.15, 0);
@@ -1270,8 +1315,8 @@ function buildRetroRobot(palette) {
   hipRing.position.set(0, -0.32, 0);
   root.add(hipRing);
 
-  const legGeo = new THREE.BoxGeometry(0.14, 0.3, 0.14);
-  const footGeo = new THREE.BoxGeometry(0.18, 0.06, 0.24);
+  const legGeo = new RoundedBoxGeometry(0.14, 0.3, 0.14, 2, 0.02);
+  const footGeo = new RoundedBoxGeometry(0.18, 0.06, 0.24, 2, 0.02);
   function buildLeg(sign) {
     const joint = new THREE.Group();
     joint.position.set(sign * 0.14, -0.36, 0);
@@ -1298,20 +1343,14 @@ function buildRetroRobot(palette) {
 
 function buildDroneRobot(palette) {
   const root = new THREE.Group();
-  // Multi-material: porcelain shell, shader legs, hologram accents
-  const shellMat = createEditorMaterial('porcelain');
-  // Replace metallic legMat with shader — dark stone with visible detail
-  const legMat = createEditorMaterial('stone');
-  legMat.uniforms.uMinBright.value = 0.08;
-  legMat.uniforms.uFresnelStr.value = 0.30;
+  // Cool gray shell, gunmetal legs, hologram accent joints
+  const shellMat = createRobotMaterial(0xD0D0D8, { rimHex: 0xE0E0F0, rimStr: 0.40, specInt: 0.30, matte: 0.2 });
+  const legMat = createRobotMaterial(0x5A5A65, { rimHex: 0x8888A0, rimStr: 0.30, specInt: 0.20 });
   const jointMat = createEditorMaterial('hologram');
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.85 });
   const eyeInnerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   const glowMat = new THREE.MeshBasicMaterial({ color: 0x44ffaa });
-  // Replace dark ring MeshStandard with dark shader
-  const darkRingMat = createEditorMaterial('ocean');
-  darkRingMat.uniforms.uMinBright.value = 0.03;
-  darkRingMat.uniforms.uFresnelStr.value = 0.20;
+  const darkRingMat = createRobotMaterial(0x3A3A45, { rimStr: 0.20, specInt: 0.10, envStr: 0.04 });
 
   // Body — main sphere shell
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 24), shellMat);
@@ -1395,23 +1434,16 @@ function buildDroneRobot(palette) {
 
 function buildWalleRobot(palette) {
   const root = new THREE.Group();
-  const bodyMat = createEditorMaterial('clay');
-  const accentMat = createEditorMaterial('ember');
-  // Replace metalMat (was MeshStandard metalness:0.7 — goes dark) with shader
-  const metalMat = createEditorMaterial('stone');
-  metalMat.uniforms.uMinBright.value = 0.10;
-  metalMat.uniforms.uFresnelStr.value = 0.25;
-  // Brighter lens glow
-  const lensMat = new THREE.MeshBasicMaterial({ color: 0xaaddff });
-  // Replace dark ring and iris MeshStandard with shader materials
-  const darkRingMat = createEditorMaterial('clay');
-  darkRingMat.uniforms.uMinBright.value = 0.04;
-  darkRingMat.uniforms.uFresnelStr.value = 0.20;
-  const irisMat = createEditorMaterial('stone');
-  irisMat.uniforms.uMinBright.value = 0.03;
+  // Wall-E: warm construction yellow body, steel gray metal, blue eyes
+  const bodyMat = createRobotMaterial(0xC8A84C, { rimHex: 0xE8D080, rimStr: 0.30, specInt: 0.20, matte: 0.35 });
+  const accentMat = createRobotMaterial(0x9A9080, { rimHex: 0xC0B8A8, rimStr: 0.25, specInt: 0.20, matte: 0.3 });
+  const metalMat = createRobotMaterial(0x8A8A90, { rimHex: 0xC8C8D0, rimStr: 0.35, specInt: 0.30 });
+  const lensMat = new THREE.MeshBasicMaterial({ color: 0xBBDDFF });
+  const darkRingMat = createRobotMaterial(0x3A3228, { rimStr: 0.20, specInt: 0.10, envStr: 0.05 });
+  const irisMat = createRobotMaterial(0x2A2E38, { rimStr: 0.15, specInt: 0.08, envStr: 0.03 });
 
-  // Body — compactor box
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 0.4), bodyMat);
+  // Body — compactor box with rounded edges
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.45, 0.4, 2, 0.04), bodyMat);
   root.add(body);
   // Panel lines on body
   const panelH = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.015, 0.42), darkRingMat);
@@ -1421,31 +1453,28 @@ function buildWalleRobot(palette) {
   panelV.position.set(0.12, 0, 0);
   root.add(panelV);
 
-  // Neck — telescoping segments
+  // Neck — shorter, more compact telescoping
   const neckJoint = new THREE.Group();
   neckJoint.position.set(0, 0.225, 0);
   root.add(neckJoint);
-  const neckSeg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8), metalMat);
-  neckSeg1.position.set(0, 0.06, 0);
+  const neckSeg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.09, 8), metalMat);
+  neckSeg1.position.set(0, 0.045, 0);
   neckJoint.add(neckSeg1);
-  const neckRing1 = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.008, 6, 16), darkRingMat);
-  neckRing1.position.set(0, 0.12, 0);
+  const neckRing1 = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.010, 6, 16), darkRingMat);
+  neckRing1.position.set(0, 0.09, 0);
   neckRing1.rotation.x = PI / 2;
   neckJoint.add(neckRing1);
-  const neckSeg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.10, 8), metalMat);
-  neckSeg2.position.set(0, 0.17, 0);
+  const neckSeg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.07, 8), metalMat);
+  neckSeg2.position.set(0, 0.125, 0);
   neckJoint.add(neckSeg2);
-  const neckRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 6, 16), darkRingMat);
-  neckRing2.position.set(0, 0.22, 0);
+  const neckRing2 = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.010, 6, 16), darkRingMat);
+  neckRing2.position.set(0, 0.16, 0);
   neckRing2.rotation.x = PI / 2;
   neckJoint.add(neckRing2);
-  const neckSeg3 = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.08, 8), metalMat);
-  neckSeg3.position.set(0, 0.26, 0);
-  neckJoint.add(neckSeg3);
 
-  // Eye assembly — binoculars
+  // Eye assembly — binoculars, closer to body
   const headJoint = new THREE.Group();
-  headJoint.position.set(0, 0.30, 0);
+  headJoint.position.set(0, 0.18, 0);
   neckJoint.add(headJoint);
 
   // Eye housing — two cylinders side by side
@@ -1491,36 +1520,36 @@ function buildWalleRobot(palette) {
   rightIris.position.set(0.11, 0.05, 0.09);
   headJoint.add(rightIris);
 
-  // Arms — thin with gripper hands
+  // Arms — visible thickness, proper mechanical feel
   function buildArm(sign) {
     const armJoint = new THREE.Group();
-    armJoint.position.set(sign * 0.28, 0.05, 0);
+    armJoint.position.set(sign * 0.28, -0.02, 0);
     root.add(armJoint);
-    // Shoulder ball joint
-    const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), metalMat);
+    // Shoulder ball joint — visible
+    const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), metalMat);
     armJoint.add(shoulder);
-    // Upper arm
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.25, 6), metalMat);
-    upper.position.set(0, -0.14, 0);
+    // Upper arm — 2x thicker
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.20, 8), metalMat);
+    upper.position.set(0, -0.12, 0);
     armJoint.add(upper);
-    // Elbow
+    // Elbow — visible joint
     const elbowJoint = new THREE.Group();
-    elbowJoint.position.set(0, -0.27, 0);
+    elbowJoint.position.set(0, -0.22, 0);
     armJoint.add(elbowJoint);
-    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), metalMat);
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), metalMat);
     elbowJoint.add(elbow);
-    // Forearm
-    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.2, 6), metalMat);
-    forearm.position.set(0, -0.11, 0);
+    // Forearm — thicker
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 8), metalMat);
+    forearm.position.set(0, -0.10, 0);
     elbowJoint.add(forearm);
-    // Gripper — three tiny boxes fanning out
+    // Gripper — bigger, visible fingers
     const gripJoint = new THREE.Group();
-    gripJoint.position.set(0, -0.22, 0);
+    gripJoint.position.set(0, -0.19, 0);
     elbowJoint.add(gripJoint);
     for (let f = 0; f < 3; f++) {
       const angle = (f - 1) * 0.5;
-      const finger = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.06, 0.012), metalMat);
-      finger.position.set(Math.sin(angle) * 0.02, -0.03, Math.cos(angle) * 0.02);
+      const finger = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.07, 0.018), metalMat);
+      finger.position.set(Math.sin(angle) * 0.03, -0.035, Math.cos(angle) * 0.03);
       finger.rotation.z = angle * 0.3;
       gripJoint.add(finger);
     }
@@ -1529,32 +1558,31 @@ function buildWalleRobot(palette) {
   const leftArm = buildArm(-1);
   const rightArm = buildArm(1);
 
-  // Treads — two track assemblies
+  // Treads — chunkier, more substantial
   function buildTread(sign) {
     const treadGroup = new THREE.Group();
-    treadGroup.position.set(sign * 0.3, -0.28, 0);
+    treadGroup.position.set(sign * 0.30, -0.26, 0);
     root.add(treadGroup);
-    // Front wheel
-    const wheelGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.06, 12);
+    // Bigger wheels
+    const wheelGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.08, 12);
     const frontWheel = new THREE.Mesh(wheelGeo, darkRingMat);
     frontWheel.rotation.z = PI / 2;
     frontWheel.position.set(0, -0.02, 0.14);
     treadGroup.add(frontWheel);
-    // Back wheel
     const backWheel = new THREE.Mesh(wheelGeo, darkRingMat);
     backWheel.rotation.z = PI / 2;
     backWheel.position.set(0, -0.02, -0.14);
     treadGroup.add(backWheel);
-    // Track plates (connecting top and bottom)
-    const trackTop = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.32), darkRingMat);
-    trackTop.position.set(0, 0.06, 0);
+    // Thicker track plates
+    const trackTop = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.32), darkRingMat);
+    trackTop.position.set(0, 0.08, 0);
     treadGroup.add(trackTop);
-    const trackBot = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.32), darkRingMat);
-    trackBot.position.set(0, -0.10, 0);
+    const trackBot = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.32), darkRingMat);
+    trackBot.position.set(0, -0.12, 0);
     treadGroup.add(trackBot);
-    // Side plate
-    const sidePlate = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.12, 0.34), metalMat);
-    sidePlate.position.set(sign * 0.025, -0.02, 0);
+    // Wider side plate
+    const sidePlate = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.15, 0.36), metalMat);
+    sidePlate.position.set(sign * 0.03, -0.02, 0);
     treadGroup.add(sidePlate);
     return treadGroup;
   }
@@ -1967,14 +1995,17 @@ function createMiniScene(el, config) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
 
-  // Lighting
-  scene.add(new THREE.AmbientLight(0x1a1030, 0.5));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  // 4-light setup: ambient + key + fill + rim backlight
+  scene.add(new THREE.AmbientLight(0x1a1030, 0.6));
+  const dir = new THREE.DirectionalLight(0xfff5e6, 0.9);
   dir.position.set(5, 8, 6);
   scene.add(dir);
-  const fill = new THREE.DirectionalLight(0x8888ff, 0.3);
+  const fill = new THREE.DirectionalLight(0xe6eeff, 0.35);
   fill.position.set(-3, 4, -2);
   scene.add(fill);
+  const rimBack = new THREE.DirectionalLight(0xffeedd, 0.45);
+  rimBack.position.set(0, 3, -5);
+  scene.add(rimBack);
 
   const group = new THREE.Group();
   scene.add(group);
@@ -2524,16 +2555,16 @@ function createMiniScene(el, config) {
     camera.position.set(0, 1, 5);
     camera.lookAt(0, 0.5, 0);
 
-    // Monumental base platform
-    const baseMat = createEditorMaterial('stone');
+    // Monumental base platform — warm stone
+    const baseMat = createRobotMaterial(0xD0CCC4, { rimHex: 0xE0DCD4, rimStr: 0.25, specInt: 0.15, matte: 0.5 });
     shaderMats.push(baseMat);
-    const baseGeo = new THREE.BoxGeometry(2.0, 0.15, 2.0, 2, 1, 2);
+    const baseGeo = new RoundedBoxGeometry(2.0, 0.15, 2.0, 2, 0.03);
     const basePlat = new THREE.Mesh(baseGeo, baseMat);
     basePlat.position.y = -0.3;
     group.add(basePlat);
 
-    // Central tower — stacked tapered boxes
-    const towerMat = createEditorMaterial('porcelain');
+    // Central tower — stacked tapered boxes, rounded marble-like
+    const towerMat = createRobotMaterial(0xE8E4E0, { rimHex: 0xC8C0E8, rimStr: 0.35, specInt: 0.25, matte: 0.3 });
     shaderMats.push(towerMat);
     const towerPieces = [];
     const towerLevels = [
@@ -2543,15 +2574,15 @@ function createMiniScene(el, config) {
       { w: 0.25, h: 0.4, d: 0.25, y: 1.55 },
     ];
     towerLevels.forEach(lv => {
-      const geo = new THREE.BoxGeometry(lv.w, lv.h, lv.d, 2, 2, 2);
+      const geo = new RoundedBoxGeometry(lv.w, lv.h, lv.d, 2, 0.04);
       const m = new THREE.Mesh(geo, towerMat);
       m.position.y = lv.y;
       group.add(m);
       towerPieces.push(m);
     });
 
-    // Floating side pylons — smaller angled columns
-    const pylonMat = createEditorMaterial('ocean');
+    // Floating side pylons — cool blue-gray columns
+    const pylonMat = createRobotMaterial(0x7090A0, { rimHex: 0xA0C0D0, rimStr: 0.40, specInt: 0.25 });
     shaderMats.push(pylonMat);
     const pylons = [];
     const pylonData = [
