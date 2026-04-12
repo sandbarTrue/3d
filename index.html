@@ -87,6 +87,11 @@
     color:#fff;transform:translateY(-2px);
     box-shadow:0 0 12px rgba(167,139,250,0.3);
   }
+  .shape-btn.active{
+    background:rgba(167,139,250,0.25);border-color:rgba(167,139,250,0.5);
+    color:#fff;box-shadow:0 0 16px rgba(167,139,250,0.4);
+  }
+  .shape-btn.active svg{opacity:1}
   .shape-btn svg{width:22px;height:22px;opacity:0.6;transition:opacity 0.2s}
   .shape-btn:hover svg{opacity:1}
 
@@ -853,13 +858,16 @@ function duplicateObj(obj){
   }
 }
 
-function clearScene(){
+function clearSceneSilent(){
   deselectObj();
   while(objects.length>0){
     const obj=objects[0];
     scene.remove(obj.mesh); obj.mesh.geometry.dispose(); obj.mesh.material.dispose();
     objects.shift();
   }
+}
+function clearScene(){
+  clearSceneSilent();
   showToast('Scene cleared');
 }
 
@@ -1023,11 +1031,15 @@ SHAPE_KEYS.forEach(key=>{
   btn.innerHTML=`<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${def.icon}</svg><span>${def.name}</span>`;
   btn.addEventListener('click',e=>{
     e.stopPropagation();
-    const camDir=new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    const pos=camera.position.clone().add(camDir.multiplyScalar(5));
-    pos.x+=(Math.random()-.5)*1.5; pos.y+=(Math.random()-.5)*1;
-    addShape(key,pos);
+    // Highlight active button
+    document.querySelectorAll('.shape-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    // Clear scene and showcase this shape alone at center
+    clearSceneSilent();
+    addShape(key, new THREE.Vector3(0,0,0), {scale:1.2});
+    // Smooth camera reset to good viewing angle
+    gsap.to(camera.position,{x:0,y:1.5,z:10,duration:0.6,ease:'power2.out'});
+    gsap.to(orbit.target,{x:0,y:0,z:0,duration:0.6,ease:'power2.out'});
   });
   shapeBar.appendChild(btn);
 });
@@ -1176,11 +1188,14 @@ function startScene(){
   document.getElementById('loader').classList.add('done');
   animate();
 
-  setTimeout(()=>addShape('torusknot', new THREE.Vector3(0,0.2,0), {scale:1.2}), 100);
-  setTimeout(()=>addShape('torus', new THREE.Vector3(2.5,-0.3,-0.5)), 300);
-  setTimeout(()=>addShape('icosahedron', new THREE.Vector3(-2.2,0.8,0.3)), 500);
-  setTimeout(()=>addShape('dodecahedron', new THREE.Vector3(1.5,1.2,-1)), 700);
-  setTimeout(()=>addShape('capsule', new THREE.Vector3(-1.3,-1,0.6)), 900);
+  // Showcase single shape on start — torusknot centered
+  setTimeout(()=>{
+    addShape('torusknot', new THREE.Vector3(0,0,0), {scale:1.2});
+    // Highlight corresponding button
+    const btns=document.querySelectorAll('.shape-btn');
+    const idx=SHAPE_KEYS.indexOf('torusknot');
+    if(idx>=0 && btns[idx]) btns[idx].classList.add('active');
+  }, 100);
 
   gsap.fromTo(bloomPass,{strength:0.5},{strength:0.28,duration:1.5,ease:'power2.out'});
 }
