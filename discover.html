@@ -2131,18 +2131,28 @@ function createMiniScene(el, config) {
   }
 
   else if (sceneType === 'wave') {
-    camera.position.set(0, 2, 5);
+    camera.position.set(0, 2.5, 5);
     camera.lookAt(0, 0, 0);
+
+    // Better lighting for wave
+    scene.children.length = 0;
+    scene.add(group);
+    scene.add(new THREE.AmbientLight(0x0a1830, 0.4));
+    const wvKey = new THREE.DirectionalLight(0x88bbff, 0.8);
+    wvKey.position.set(3, 5, 4);
+    scene.add(wvKey);
+    const wvFill = new THREE.DirectionalLight(0x4466aa, 0.4);
+    wvFill.position.set(-3, 2, -2);
+    scene.add(wvFill);
+
+    const waveMat = createEditorMaterial('ocean');
+    shaderMats.push(waveMat);
     const spheres = [];
-    const sg = new THREE.SphereGeometry(0.15, 16, 16);
-    for (let x = -5; x <= 5; x++) {
-      for (let z = -3; z <= 3; z++) {
-        const mat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color().setHSL(0.55 + x * 0.02, 0.7, 0.5),
-          roughness: 0.3, metalness: 0.2
-        });
-        const s = new THREE.Mesh(sg, mat);
-        s.position.set(x * 0.4, 0, z * 0.4);
+    const sg = new THREE.SphereGeometry(0.18, 24, 24);
+    for (let x = -4; x <= 4; x++) {
+      for (let z = -2; z <= 2; z++) {
+        const s = new THREE.Mesh(sg, waveMat);
+        s.position.set(x * 0.45, 0, z * 0.45);
         s.userData = { ox: x, oz: z };
         group.add(s);
         spheres.push(s);
@@ -2151,9 +2161,9 @@ function createMiniScene(el, config) {
     animFn = (t, hover) => {
       spheres.forEach(s => {
         const { ox, oz } = s.userData;
-        s.position.y = Math.sin(t * (hover ? 2 : 0.8) + ox * 0.5 + oz * 0.3) * 0.3;
+        s.position.y = Math.sin(t * (hover ? 2 : 0.8) + ox * 0.5 + oz * 0.3) * 0.35;
       });
-      group.rotation.y = t * 0.1;
+      group.rotation.y = t * 0.08;
     };
   }
 
@@ -2638,8 +2648,8 @@ function createMiniScene(el, config) {
       // Floating orb bobs
       orb.position.y = 2.0 + Math.sin(t * 1.2) * 0.1;
       orb.rotation.y = t * 1.5;
-      // Ring rotates slowly
-      ring.rotation.z = t * 0.3;
+      // Ring orbits cleanly around Y
+      ring.rotation.y = t * 0.3;
       // Pylons gently float
       pylons.forEach((p, i) => {
         p.position.y = pylonData[i].h * 0.4 + Math.sin(t * 0.8 + i * 1.5) * 0.05;
@@ -2692,7 +2702,8 @@ function createMiniScene(el, config) {
       rockPos.setZ(i, rockPos.getZ(i) + (Math.random() - 0.5) * 0.05);
     }
     rockGeo.computeVertexNormals();
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x1a2030, roughness: 0.9, metalness: 0.05 });
+    const rockMat = createRobotMaterial(0x3A3545, { rimHex: 0x556677, rimStr: 0.25, specInt: 0.15, matte: 0.8 });
+    shaderMats.push(rockMat);
     const rock = new THREE.Mesh(rockGeo, rockMat);
     rock.position.y = -0.35;
     group.add(rock);
@@ -3029,8 +3040,6 @@ function createMiniScene(el, config) {
     // Pure black background - override lights
     scene.children.length = 0;
     scene.add(group);
-    scene.add(new THREE.AmbientLight(0x000000, 0.0));
-
     const holoMat = new THREE.ShaderMaterial({
       side: THREE.DoubleSide,
       uniforms: {
