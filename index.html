@@ -218,6 +218,7 @@
 
 <!-- Top Bar -->
 <div id="top-bar">
+  <a href="discover.html" style="text-decoration:none;color:var(--accent-purple);font-size:12px;font-weight:500;margin-right:8px;opacity:0.6;transition:opacity .2s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">&larr; Discover</a>
   <div class="title"><span>3D</span> Shape Lab</div>
   <div class="bar-actions">
     <div class="bar-btn" id="btn-undo" title="Undo (Ctrl+Z)">
@@ -1236,12 +1237,17 @@ function startScene(){
   document.getElementById('loader').classList.add('done');
   animate();
 
-  // Showcase single shape on start — sphere with Clay natural palette
+  // Check URL params (from discover page click)
+  const params=new URLSearchParams(window.location.search);
+  const urlShape=params.get('shape');
+  const urlPalette=params.get('palette');
+  const startShape=SHAPES[urlShape]?urlShape:'sphere';
+  const startPalette=urlPalette||SHAPES[startShape].palette||'clay';
+
   setTimeout(()=>{
-    addShape('sphere', new THREE.Vector3(0,0,0), {scale:1.2, palette:'clay'});
-    // Highlight corresponding button
+    addShape(startShape, new THREE.Vector3(0,0,0), {scale:1.2, palette:startPalette});
     const btns=document.querySelectorAll('.shape-btn');
-    const idx=SHAPE_KEYS.indexOf('sphere');
+    const idx=SHAPE_KEYS.indexOf(startShape);
     if(idx>=0 && btns[idx]) btns[idx].classList.add('active');
   }, 100);
 

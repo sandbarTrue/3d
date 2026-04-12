@@ -4,29 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Discover — 3D Lab</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Inter',system-ui,sans-serif;background:#f2f2f2;color:#1a1a1a;min-height:100vh}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0f;color:#e8e8f0;min-height:100vh;overflow-x:hidden}
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(167,139,250,0.2);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(167,139,250,0.4)}
 
   /* ─── Nav ─── */
-  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(255,255,255,0.88);backdrop-filter:blur(16px);border-bottom:1px solid #e5e5e5}
-  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px}
-  .nav a{text-decoration:none;color:#888;font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
-  .nav a:hover,.nav a.on{color:#111}
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(10,10,15,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(167,139,250,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px;background:linear-gradient(135deg,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .nav a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
+  .nav a:hover{color:rgba(255,255,255,0.8)}
+  .nav a.on{color:#fff}
   .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
-  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid #ddd;background:white;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
-  .nav-right .btn:hover{border-color:#aaa}
-  .nav-right .btn.primary{background:#111;color:white;border-color:#111}
-  .nav-right .btn.primary:hover{background:#333}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:rgba(255,255,255,0.7)}
+  .nav-right .btn:hover{border-color:rgba(167,139,250,0.3);color:#fff}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;border-color:transparent}
+  .nav-right .btn.primary:hover{box-shadow:0 0 20px rgba(167,139,250,0.4)}
 
   /* ─── Pills ─── */
-  .pills{display:flex;gap:6px;padding:14px 24px;background:white;border-bottom:1px solid #eee;overflow-x:auto}
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(10,10,15,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
   .pills::-webkit-scrollbar{display:none}
-  .pill{padding:7px 16px;border-radius:20px;border:1px solid #e0e0e0;background:white;font-size:12px;font-weight:500;color:#666;cursor:pointer;white-space:nowrap;transition:all .15s}
-  .pill:hover{border-color:#bbb;color:#333}
-  .pill.on{background:#111;color:white;border-color:#111}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .pill:hover{border-color:rgba(167,139,250,0.3);color:rgba(255,255,255,0.7)}
+  .pill.on{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;border-color:transparent}
 
   /* ─── Masonry ─── */
   .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
@@ -35,73 +41,120 @@
   @media(max-width:500px){.grid{column-count:1}}
 
   /* ─── Card ─── */
-  .card{break-inside:avoid;margin-bottom:14px;border-radius:12px;overflow:hidden;background:white;cursor:pointer;transition:transform .3s ease,box-shadow .3s ease;position:relative}
-  .card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,0.1)}
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(20,18,30,0.8);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;position:relative}
+  .card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.2)}
 
   /* 3D canvas container */
   .card .scene{width:100%;position:relative;overflow:hidden}
   .card .scene canvas{width:100%!important;height:100%!important;display:block}
 
-  /* Text overlays */
-  .card .overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none}
+  /* Text overlays — z-index:5 to stay above the fixed WebGL canvas (z-index:1) */
+  .card .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none}
   .card .overlay.center{justify-content:center;align-items:center;text-align:center}
-  .card .overlay.gradient::before{content:'';position:absolute;inset:0;background:linear-gradient(transparent 40%,rgba(0,0,0,.45));pointer-events:none}
+  .card .overlay.gradient::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(transparent 30%,rgba(0,0,0,.55));pointer-events:none}
   .card .overlay *{position:relative;z-index:1}
   .card .overlay h2{color:white;font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-1px}
-  .card .overlay p{color:rgba(255,255,255,.75);font-size:11px;margin-top:4px;font-weight:500}
+  .card .overlay p{color:rgba(255,255,255,.65);font-size:11px;margin-top:4px;font-weight:500}
 
   /* Card types */
   .card-text{padding:24px 20px}
-  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px}
-  .card-text p{font-size:12px;color:#888;line-height:1.5}
-  .card-text .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:#f0f0f0;font-size:10px;font-weight:600;color:#999}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px;color:#e8e8f0}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+  .card-text .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(167,139,250,0.1);font-size:10px;font-weight:600;color:rgba(167,139,250,0.7)}
 
-  .card-pixel{background:#111;color:#0f0;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel{background:rgba(10,10,20,0.9);color:#0f0;padding:24px 20px;font-family:'Space Mono',monospace}
   .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
   .card-pixel .body{font-size:11px;line-height:1.7;text-transform:uppercase;font-weight:700}
   .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
 
-  .card-love{padding:28px 20px;text-align:center;background:linear-gradient(160deg,#fff5f5,#fff0f6)}
+  .card-love{padding:28px 20px;text-align:center;background:linear-gradient(160deg,rgba(40,20,30,0.9),rgba(50,15,40,0.9))}
   .card-love .hearts{font-size:36px;margin-bottom:12px}
-  .card-love h3{font-family:'Playfair Display',serif;font-size:22px;font-style:italic;margin-bottom:6px}
-  .card-love p{font-size:11px;color:#999;line-height:1.5;max-width:220px;margin:0 auto}
+  .card-love h3{font-family:'Playfair Display',serif;font-size:22px;font-style:italic;margin-bottom:6px;color:#f9a8d4}
+  .card-love p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;max-width:220px;margin:0 auto}
 
-  .card-deck{padding:24px 20px;background:#f9fafb}
-  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;font-weight:600;margin-bottom:8px}
-  .card-deck h3{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1}
-  .card-deck .author{font-size:11px;color:#aaa;margin-top:8px}
+  .card-deck{padding:24px 20px;background:rgba(15,14,25,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(167,139,250,0.5);font-weight:600;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#e8e8f0}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px}
 
-  .card-play{padding:28px;background:#fef3c7;display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(40,30,10,0.9),rgba(50,20,15,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
   .card-play h2{font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#f59e0b,#ef4444,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
-  .card-cjk{padding:24px 20px;background:linear-gradient(135deg,#667eea,#764ba2);color:white}
+  .card-cjk{padding:24px 20px;background:linear-gradient(135deg,rgba(60,50,120,0.9),rgba(80,40,100,0.9));color:white}
   .card-cjk h3{font-size:24px;font-weight:900;margin-bottom:6px}
-  .card-cjk p{font-size:11px;opacity:.65}
+  .card-cjk p{font-size:11px;opacity:.55}
 
-  .card-tool{padding:20px;border:2px dashed #ddd;background:#fafafa;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:140px;color:#bbb}
-  .card-tool .icon{width:40px;height:40px;border-radius:10px;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px}
+  .card-tool{padding:20px;border:2px dashed rgba(255,255,255,0.08);background:rgba(15,14,25,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:140px;color:rgba(255,255,255,0.25)}
+  .card-tool .icon{width:40px;height:40px;border-radius:10px;background:rgba(167,139,250,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(167,139,250,0.5)}
   .card-tool p{font-size:12px;font-weight:500}
 
   /* Map card */
   .card-map{position:relative;overflow:hidden}
   .card-map canvas{width:100%!important;height:100%!important;display:block}
-  .card-map .map-label{position:absolute;bottom:10px;left:10px;background:white;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+  .card-map .map-label{position:absolute;bottom:10px;left:10px;background:rgba(10,10,15,0.8);backdrop-filter:blur(8px);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;color:#e8e8f0;border:1px solid rgba(255,255,255,0.1)}
 
   /* Footer */
-  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid #f0f0f0}
-  .card-foot.dark{border-color:#222;background:#111}
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot.dark{border-color:rgba(255,255,255,0.04);background:rgba(10,10,15,0.9)}
   .card-foot .dot{width:20px;height:20px;border-radius:50%}
-  .card-foot .name{font-size:11px;font-weight:500;color:#888}
-  .card-foot .likes{margin-left:auto;font-size:11px;color:#bbb}
-  .card-foot.dark .name{color:#666}
-  .card-foot.dark .likes{color:#444}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.2)}
+
+  /* ─── 3D Card glow on hover ─── */
+  .card .scene::after{
+    content:'';position:absolute;inset:0;z-index:3;
+    background:radial-gradient(circle at 50% 50%, rgba(167,139,250,0.12) 0%, transparent 70%);
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .card:hover .scene::after{opacity:1}
+
+  /* ─── Shimmer badge for 3D cards ─── */
+  .badge-3d{
+    position:absolute;top:10px;right:10px;z-index:5;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(167,139,250,0.15);backdrop-filter:blur(8px);
+    border:1px solid rgba(167,139,250,0.2);
+    font-size:9px;font-weight:700;letter-spacing:1px;
+    color:rgba(167,139,250,0.8);text-transform:uppercase;
+  }
+
+  /* ─── Shape name label ─── */
+  .shape-label{
+    position:absolute;bottom:10px;left:10px;z-index:5;
+    padding:3px 10px;border-radius:6px;
+    background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);
+    font-size:10px;font-weight:600;letter-spacing:0.5px;
+    color:rgba(255,255,255,0.6);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .card:hover .shape-label{opacity:1}
+
+  /* ─── Clickable 3D cards ─── */
+  .card-clickable{cursor:pointer}
+  .card-clickable:hover .badge-3d{
+    background:rgba(167,139,250,0.25);border-color:rgba(167,139,250,0.4);
+    color:rgba(167,139,250,1);
+  }
+
+  /* ─── Entrance animation ─── */
+  @keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .card{opacity:0;animation:cardIn .45s ease forwards}
+  .card:nth-child(1){animation-delay:.04s}
+  .card:nth-child(2){animation-delay:.08s}
+  .card:nth-child(3){animation-delay:.12s}
+  .card:nth-child(4){animation-delay:.16s}
+  .card:nth-child(5){animation-delay:.20s}
+  .card:nth-child(6){animation-delay:.24s}
+  .card:nth-child(7){animation-delay:.28s}
+  .card:nth-child(8){animation-delay:.32s}
+  .card:nth-child(n+9){animation-delay:.36s}
 </style>
 </head>
 <body>
 
 <nav class="nav">
   <div class="nav-logo">3D Lab</div>
-  <a href="#">Explore</a>
+  <a href="index.html">Editor</a>
   <a href="#" class="on">Discover</a>
   <a href="#">Community</a>
   <a href="#">Learn</a>
@@ -125,100 +178,288 @@
 
 <div class="grid" id="grid"></div>
 
-<script>
-// ── Helpers ──
-const PI = Math.PI, TAU = PI * 2;
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
 
-// ── Card definitions ──
+// ═══════════════════════════════════════════════════════════
+// GLSL SNIPPETS (from index.html)
+// ═══════════════════════════════════════════════════════════
+const PALETTE_GLSL = `
+vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d){
+  return a + b * cos(6.283185 * (c * t + d));
+}`;
+
+// ═══════════════════════════════════════════════════════════
+// PALETTES (from index.html)
+// ═══════════════════════════════════════════════════════════
+const PALETTES = {
+  nebula:   { name:'Nebula',     a:[.55,.45,.60], b:[.50,.50,.45], c:[1,.7,.4],  d:[.00,.15,.20], rim1:[.4,.6,1], rim2:[.9,.4,.8],  style:null },
+  coral:    { name:'Coral Reef', a:[.50,.50,.50], b:[.50,.50,.50], c:[1,1,1],    d:[.25,.05,.10], rim1:[1,.5,.4], rim2:[1,.7,.3],    style:null },
+  aurora:   { name:'Aurora',     a:[.50,.50,.50], b:[.50,.50,.50], c:[1,1,.5],   d:[.10,.20,.30], rim1:[.3,1,.7], rim2:[.5,.4,1],    style:null },
+  sunset:   { name:'Sunset',     a:[.50,.50,.30], b:[.50,.50,.30], c:[1,.7,.4],  d:[.00,.05,.20], rim1:[1,.4,.2], rim2:[1,.2,.5],    style:null },
+  mint:     { name:'Mint Ice',   a:[.60,.70,.65], b:[.30,.40,.35], c:[.8,.6,1],  d:[.05,.25,.15], rim1:[.4,.9,.8],rim2:[.6,.7,1],    style:null },
+  ember:    { name:'Ember',      a:[.55,.35,.25], b:[.50,.45,.40], c:[1,.5,.2],  d:[.35,.15,.05], rim1:[1,.3,.1], rim2:[1,.6,.1],    style:null },
+  ocean:    { name:'Deep Ocean', a:[.40,.45,.60], b:[.35,.40,.50], c:[.8,1,1],   d:[.00,.10,.30], rim1:[.1,.5,1], rim2:[.1,.8,.9],   style:null },
+  hologram: { name:'Hologram',   a:[.50,.50,.50], b:[.50,.50,.50], c:[1,1,1],    d:[.00,.33,.67], rim1:[1,.3,.5], rim2:[.3,1,.5],    style:null },
+  clay:     { name:'Clay',       a:[.62,.52,.45], b:[.12,.10,.08], c:[.5,.5,.5],  d:[.10,.05,.00], rim1:[.75,.65,.55], rim2:[.65,.55,.50], style:'natural' },
+  stone:    { name:'Stone',      a:[.50,.50,.52], b:[.10,.10,.12], c:[.6,.6,.7],  d:[.00,.00,.05], rim1:[.60,.60,.65], rim2:[.55,.55,.60], style:'natural' },
+  porcelain:{ name:'Porcelain',  a:[.88,.86,.84], b:[.08,.06,.05], c:[.3,.3,.4],  d:[.00,.02,.05], rim1:[.90,.88,.95], rim2:[.85,.82,.90], style:'natural' },
+  moss:     { name:'Moss',       a:[.35,.42,.32], b:[.12,.15,.10], c:[.6,.4,.5],  d:[.05,.10,.00], rim1:[.45,.55,.40], rim2:[.40,.50,.38], style:'natural' },
+};
+
+// ═══════════════════════════════════════════════════════════
+// MATERIAL FACTORY (from index.html createEditorMaterial)
+// ═══════════════════════════════════════════════════════════
+function createEditorMaterial(paletteKey){
+  const p = PALETTES[paletteKey] || PALETTES.nebula;
+  const isNatural = p.style==='natural';
+  return new THREE.ShaderMaterial({
+    side:THREE.DoubleSide,
+    uniforms:{
+      uTime:{value:0}, uHover:{value:0},
+      uPalA:{value:new THREE.Vector3(...p.a)}, uPalB:{value:new THREE.Vector3(...p.b)},
+      uPalC:{value:new THREE.Vector3(...p.c)}, uPalD:{value:new THREE.Vector3(...p.d)},
+      uRim1:{value:new THREE.Vector3(...p.rim1)}, uRim2:{value:new THREE.Vector3(...p.rim2)},
+      uFresnelStr:{value:isNatural?0.18:0.55}, uFresnelPow:{value:isNatural?2.0:3.0},
+      uSpecInt:{value:isNatural?0.08:0.35}, uSpecSharp:{value:isNatural?16.0:64.0}, uMinBright:{value:isNatural?0.18:0.12},
+      uNatural:{value:isNatural?1.0:0.0},
+    },
+    vertexShader:`
+      varying vec3 vNormal, vViewPos, vPos;
+      void main(){
+        vNormal=normalize(normalMatrix*normal); vPos=position;
+        vec4 mv=modelViewMatrix*vec4(position,1.0);
+        vViewPos=-mv.xyz; gl_Position=projectionMatrix*mv;
+      }`,
+    fragmentShader:`
+      uniform float uTime, uHover, uNatural;
+      uniform vec3 uPalA,uPalB,uPalC,uPalD,uRim1,uRim2;
+      uniform float uFresnelStr,uFresnelPow,uSpecInt,uSpecSharp,uMinBright;
+      ${PALETTE_GLSL}
+      varying vec3 vNormal, vViewPos, vPos;
+
+      float hash_e(vec2 p){ vec3 p3=fract(vec3(p.xyx)*0.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
+      float valNoise(vec3 p){
+        vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        float a=hash_e(i.xy+i.z*137.0), b=hash_e(i.xy+vec2(1,0)+i.z*137.0);
+        float c=hash_e(i.xy+vec2(0,1)+i.z*137.0), d=hash_e(i.xy+vec2(1,1)+i.z*137.0);
+        float e=hash_e(i.xy+(i.z+1.0)*137.0), ff=hash_e(i.xy+vec2(1,0)+(i.z+1.0)*137.0);
+        float g=hash_e(i.xy+vec2(0,1)+(i.z+1.0)*137.0), h=hash_e(i.xy+vec2(1,1)+(i.z+1.0)*137.0);
+        float z0=mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+        float z1=mix(mix(e,ff,f.x),mix(g,h,f.x),f.y);
+        return mix(z0,z1,f.z);
+      }
+
+      vec3 fakeEnv(vec3 reflDir){
+        float ey=reflDir.y*0.5+0.5;
+        vec3 env=mix(vec3(0.15,0.05,0.25),vec3(0.05,0.1,0.2),ey);
+        env+=vec3(0.6,0.3,0.8)*pow(max(dot(reflDir,normalize(vec3(0.5,0.6,0.4))),0.0),8.0)*0.8;
+        env+=vec3(0.2,0.5,0.9)*pow(max(dot(reflDir,normalize(vec3(-0.6,0.3,0.5))),0.0),6.0)*0.6;
+        env+=vec3(0.9,0.3,0.5)*pow(max(dot(reflDir,normalize(vec3(0.0,-0.3,-0.7))),0.0),5.0)*0.5;
+        return env;
+      }
+      vec3 fakeEnvNatural(vec3 reflDir){
+        float ey=reflDir.y*0.5+0.5;
+        vec3 env=mix(vec3(0.18,0.15,0.13),vec3(0.35,0.32,0.30),ey);
+        env+=vec3(0.5,0.45,0.38)*pow(max(dot(reflDir,normalize(vec3(0.4,0.8,0.3))),0.0),4.0)*0.4;
+        env+=vec3(0.25,0.28,0.35)*pow(max(dot(reflDir,normalize(vec3(-0.5,0.2,0.6))),0.0),3.0)*0.3;
+        return env;
+      }
+
+      void main(){
+        vec3 N=normalize(vNormal); vec3 V=normalize(vViewPos);
+        float colorNoise=hash_e(vPos.xy*5.0)*0.08;
+        float gradT=vPos.y*0.5+0.5+N.x*0.2+uTime*0.06*mix(1.0,0.3,uNatural)+colorNoise;
+        vec3 base=cosPalette(gradT,uPalA,uPalB,uPalC,uPalD);
+        vec3 minBright=mix(vec3(0.12,0.06,0.18),vec3(uMinBright,uMinBright*0.9,uMinBright*0.8),uNatural);
+        base=max(base,minBright);
+        float detailScale=mix(8.0,12.0,uNatural);
+        float detailAmt=mix(0.03,0.06,uNatural);
+        float microDetail=valNoise(vPos*detailScale+uTime*0.05)*detailAmt;
+        base*=1.0+microDetail;
+        vec3 L1=normalize(vec3(0.5,0.7,0.6)); vec3 L2=normalize(vec3(-0.5,0.3,0.7));
+        float wrapAmt=mix(0.3,0.45,uNatural);
+        float d1=dot(N,L1)*wrapAmt+(1.0-wrapAmt); float d2=dot(N,L2)*(wrapAmt*0.7)+(1.0-wrapAmt*0.7);
+        base*=max(d1,d2);
+        base=pow(base,vec3(mix(0.85,0.95,uNatural)));
+        float sssAmt=mix(0.15,0.08,uNatural);
+        float sss=pow(max(dot(-V,L1),0.0),2.0)*sssAmt;
+        base+=base*sss;
+        float fres=pow(1.0-max(dot(V,N),0.0),uFresnelPow);
+        vec3 rim=mix(uRim1,uRim2,sin(uTime*0.4)*0.5+0.5);
+        base+=rim*fres*uFresnelStr;
+        vec3 refl=reflect(-V,N);
+        vec3 envC=mix(fakeEnv(refl),fakeEnvNatural(refl),uNatural);
+        float envMix=mix(0.10+fres*0.06, 0.04+fres*0.03, uNatural);
+        base=mix(base,envC,envMix);
+        vec3 H1=normalize(V+L1);
+        float specSharp=pow(max(dot(N,H1),0.0),mix(80.0,uSpecSharp,uNatural))*mix(0.35,uSpecInt,uNatural);
+        float specSoft=pow(max(dot(N,H1),0.0),mix(12.0,6.0,uNatural))*mix(0.12,0.04,uNatural);
+        vec3 specColor=mix(vec3(1.0,0.95,0.9),vec3(0.9,0.88,0.82),uNatural);
+        base+=specColor*(specSharp+specSoft);
+        // Hover glow
+        base+=rim*uHover*mix(0.25,0.12,uNatural);
+        base=max(base,minBright);
+        gl_FragColor=vec4(base,1.0);
+      }`
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// CARD DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+const PI = Math.PI;
 const cards = [
-  // 1: "The next wave" — hero with 3D abstract wave
-  { type: '3d-hero', height: 280, bg: '#0c3547',
+  // 1: "The next wave" hero
+  { type: '3d-hero', height: 280, bg: '#0c1a2e',
     title: 'The next<br>wave', sub: 'Generative 3D — Explore the frontier',
     scene: 'wave', foot: { color: '#60a5fa', name: 'Studio Wave', likes: '2.4k' } },
 
   // 2: Pixel art text card
   { type: 'pixel' },
 
-  // 3: Coral isometric blocks
-  { type: '3d', height: 260, bg: '#f5f0ec',
-    scene: 'blocks-coral',
+  // 3: Coral — TorusKnot with coral palette (REPLACED isometric blocks)
+  { type: '3d-shape', height: 280, bg: '#1a0f0e',
+    shape: 'torusknot', palette: 'coral',
     foot: { color: '#ff7979', name: 'Isometric Co.', likes: '3.1k' } },
 
   // 4: "Diamond" typography with 3D diamond
-  { type: '3d-text', height: 220, bg: '#ffffff',
+  { type: '3d-text', height: 220, bg: '#0e0e14',
     scene: 'diamond',
     foot: { color: '#a8edea', name: 'Diamond Studio', likes: '1.8k' } },
 
   // 5: Castle/nature hero
-  { type: '3d-hero', height: 270, bg: '#2d5016',
+  { type: '3d-hero', height: 270, bg: '#0e1a0a',
     title: 'The ✦ stle', sub: 'Medieval architecture reimagined',
     scene: 'nature', foot: { color: '#4ade80', name: 'Nature Lab', likes: '1.6k' } },
 
   // 6: Brainstorm cards
   { type: 'text', data: { h: 'Brainstorm<br>Cards', p: 'Collaborative ideation toolkit for creative teams', tag: 'Productivity' } },
 
-  // 7: Mint blocks
-  { type: '3d', height: 240, bg: '#eef8f3',
-    scene: 'blocks-mint',
+  // 7: Mint — Sphere with mint palette (REPLACED isometric blocks)
+  { type: '3d-shape', height: 260, bg: '#0a1412',
+    shape: 'sphere', palette: 'mint',
     foot: { color: '#55efc4', name: 'Block Studio', likes: '2.7k' } },
 
-  // 8: Map card with 3D pin
+  // 8: NEW 3D — Trefoil knot with aurora palette
+  { type: '3d-shape', height: 240, bg: '#0a1210',
+    shape: 'trefoil', palette: 'aurora',
+    foot: { color: '#22c55e', name: 'Knot Studio', likes: '1.4k' } },
+
+  // 9: Map card
   { type: '3d-map', height: 220, label: 'San Francisco, CA',
     foot: { color: '#22c55e', name: 'Jesse Smith', likes: '456' } },
 
-  // 9: Pitch Deck
+  // 10: Pitch Deck
   { type: 'deck' },
 
-  // 10: Mix abstract 3D
-  { type: '3d', height: 200, bg: '#f8f8f8',
+  // 11: Mix abstract 3D
+  { type: '3d', height: 200, bg: '#0e0d16',
     scene: 'abstract',
     foot: { color: '#22c55e', name: 'Mix Lab', likes: '1.2k' } },
 
-  // 11: Tool / Get started
+  // 12: Tool / Get started
   { type: 'tool' },
 
-  // 12: Love letter
+  // 13: Love letter
   { type: 'love' },
 
-  // 13: Purple voxel blocks (dark bg)
-  { type: '3d', height: 300, bg: '#2a2a3e',
-    scene: 'blocks-purple',
+  // 14: NEW 3D — Vase with clay palette (natural)
+  { type: '3d-shape', height: 300, bg: '#16120e',
+    shape: 'lathe', palette: 'clay',
+    foot: { color: '#a08070', name: 'Clay Workshop', likes: '1.8k' } },
+
+  // 15: Dodecahedron with hologram palette (REPLACED isometric blocks)
+  { type: '3d-shape', height: 300, bg: '#12101e',
+    shape: 'dodecahedron', palette: 'hologram',
     foot: { color: '#a29bfe', name: 'Voxel Art', likes: '2.1k', dark: true } },
 
-  // 14: CJK typography
+  // 16: CJK typography
   { type: 'cjk' },
 
-  // 15: Play Jam
+  // 17: Play Jam
   { type: 'play' },
 
-  // 16: Sky blue blocks
-  { type: '3d', height: 240, bg: '#eef4ff',
-    scene: 'blocks-sky',
+  // 18: Torus with ocean palette (REPLACED isometric blocks)
+  { type: '3d-shape', height: 260, bg: '#0a0e18',
+    shape: 'torus', palette: 'ocean',
     foot: { color: '#74b9ff', name: 'Blue Studio', likes: '1.5k' } },
 
-  // 17: Cyan/teal 3D
-  { type: '3d', height: 260, bg: '#f0fdf4',
-    scene: 'blocks-teal',
-    foot: { color: '#2dd4bf', name: 'Teal Works', likes: '890' } },
+  // 19: NEW 3D — Capsule with porcelain palette (natural)
+  { type: '3d-shape', height: 220, bg: '#14131a',
+    shape: 'capsule', palette: 'porcelain',
+    foot: { color: '#e8e0d8', name: 'Porcelain Lab', likes: '1.1k' } },
 
-  // 18: Another map
+  // 20: Icosahedron with ember palette (REPLACED isometric blocks)
+  { type: '3d-shape', height: 240, bg: '#1a0e08',
+    shape: 'icosahedron', palette: 'ember',
+    foot: { color: '#fab1a0', name: 'Warm Studio', likes: '987' } },
+
+  // 21: NEW 3D — Cone with sunset palette
+  { type: '3d-shape', height: 260, bg: '#1a120a',
+    shape: 'cone', palette: 'sunset',
+    foot: { color: '#f97316', name: 'Sunset Works', likes: '2.0k' } },
+
+  // 22: Another map
   { type: '3d-map', height: 200, label: 'Tokyo, JP',
     foot: { color: '#f59e0b', name: 'Map Studio', likes: '678' } },
 
-  // 19: Peach blocks
-  { type: '3d', height: 220, bg: '#fef5f0',
-    scene: 'blocks-peach',
-    foot: { color: '#fab1a0', name: 'Warm Studio', likes: '987' } },
-
-  // 20: Dark hero
-  { type: '3d-hero', height: 230, bg: '#1a1a2e',
+  // 23: Dark hero
+  { type: '3d-hero', height: 250, bg: '#0e0a1a',
     title: 'Creative<br>Vision', sub: 'Pushing boundaries in digital art',
     scene: 'glow', foot: { color: '#a78bfa', name: 'Vision Lab', likes: '1.9k' } },
+
+  // 24: NEW 3D — Octahedron with moss palette (natural)
+  { type: '3d-shape', height: 220, bg: '#0e120a',
+    shape: 'octahedron', palette: 'moss',
+    foot: { color: '#4a5e3a', name: 'Moss Studio', likes: '760' } },
 ];
 
-// ── Build DOM ──
+// ═══════════════════════════════════════════════════════════
+// SHAPE GEOMETRY FACTORY (from index.html SHAPES)
+// ═══════════════════════════════════════════════════════════
+function makeLatheProfile(){
+  const pts=[];
+  for(let i=0;i<=20;i++){
+    const t=i/20;
+    const r=0.3+0.4*Math.sin(t*Math.PI)*(1+0.3*Math.sin(t*Math.PI*3));
+    pts.push(new THREE.Vector2(r, t*1.6-0.8));
+  }
+  return pts;
+}
+
+const SHAPE_CREATORS = {
+  sphere:      ()=>new THREE.SphereGeometry(1,64,64),
+  torus:       ()=>new THREE.TorusGeometry(.7,.25,64,128),
+  torusknot:   ()=>new THREE.TorusKnotGeometry(.55,.18,200,32,2,3),
+  icosahedron: ()=>new THREE.IcosahedronGeometry(.8,0),
+  octahedron:  ()=>new THREE.OctahedronGeometry(.8,0),
+  dodecahedron:()=>new THREE.DodecahedronGeometry(.7,0),
+  tetrahedron: ()=>new THREE.TetrahedronGeometry(.8,0),
+  capsule:     ()=>new THREE.CapsuleGeometry(.5,.8,16,32),
+  cylinder:    ()=>new THREE.CylinderGeometry(.6,.6,1.2,64),
+  cone:        ()=>new THREE.ConeGeometry(.7,1.2,64),
+  box:         ()=>new THREE.BoxGeometry(1,1,1,4,4,4),
+  ring:        ()=>new THREE.TorusGeometry(.6,.08,32,96),
+  trefoil:     ()=>new THREE.TorusKnotGeometry(.55,.18,200,32,3,2),
+  lathe:       ()=>new THREE.LatheGeometry(makeLatheProfile(),64),
+};
+
+
+// ═══════════════════════════════════════════════════════════
+// BUILD DOM
+// ═══════════════════════════════════════════════════════════
 const grid = document.getElementById('grid');
-const scenes = []; // track {el, renderer, scene, camera, objects, animFn}
+const scenePending = []; // {el, config}
 
 cards.forEach((c, i) => {
   const card = document.createElement('div');
@@ -228,10 +469,10 @@ cards.forEach((c, i) => {
     card.innerHTML = `
       <div class="card-pixel">
         <div class="label">Pixel System</div>
-        <div class="body">Pixel graphics, or pixel art, is a form of digital art created by meticulous editing of an image at the pixel level. It is characterized by its low resolution, where each colored square (pixel) is clearly visible and placed intentionally to form the complete image.</div>
+        <div class="body">Pixel graphics, or pixel art, is a form of digital art created by meticulous editing of an image at the pixel level.</div>
         <div class="foot">Pixel 01.0.6</div>
       </div>
-      <div class="card-foot dark"><div class="dot" style="background:#0f0"></div><span class="name">Pixel Lab</span><span class="likes">♥ 891</span></div>`;
+      <div class="card-foot dark"><div class="dot" style="background:#0f0"></div><span class="name">Pixel Lab</span><span class="likes">&#9829; 891</span></div>`;
   } else if (c.type === 'text') {
     card.innerHTML = `
       <div class="card-text">
@@ -241,7 +482,7 @@ cards.forEach((c, i) => {
   } else if (c.type === 'love') {
     card.innerHTML = `
       <div class="card-love">
-        <div class="hearts">💗 💖 💕</div>
+        <div class="hearts">&#128151; &#128150; &#128149;</div>
         <h3>Love Letter</h3>
         <p>Love is a canvas furnished by nature and embroidered by imagination.</p>
       </div>`;
@@ -255,20 +496,36 @@ cards.forEach((c, i) => {
   } else if (c.type === 'play') {
     card.innerHTML = `
       <div class="card-play"><h2>play<br>jam!</h2></div>
-      <div class="card-foot" style="background:#fef3c7;border-color:#fde68a"><div class="dot" style="background:#f59e0b"></div><span class="name">Game Jam 2024</span><span class="likes">♥ 934</span></div>`;
+      <div class="card-foot" style="background:rgba(40,30,10,0.9);border-color:rgba(245,158,11,0.15)"><div class="dot" style="background:#f59e0b"></div><span class="name">Game Jam 2024</span><span class="likes">&#9829; 934</span></div>`;
   } else if (c.type === 'cjk') {
     card.innerHTML = `
       <div class="card-cjk"><h3>3D设计趋势</h3><p>Exploring the future of dimensional design</p></div>
-      <div class="card-foot" style="background:#5b21b6;border:none"><div class="dot" style="background:#c4b5fd"></div><span class="name" style="color:#c4b5fd">创意工坊</span><span class="likes" style="color:#8b5cf6">♥ 672</span></div>`;
+      <div class="card-foot" style="background:rgba(40,20,80,0.9);border:none"><div class="dot" style="background:#c4b5fd"></div><span class="name" style="color:#c4b5fd">创意工坊</span><span class="likes" style="color:rgba(139,92,246,0.6)">&#9829; 672</span></div>`;
   } else if (c.type === 'tool') {
     card.innerHTML = `<div class="card-tool"><div class="icon">+</div><p>Get started with a new file.</p></div>`;
-  } else if (c.type === '3d' || c.type === '3d-hero' || c.type === '3d-text' || c.type === '3d-map') {
+  } else if (['3d','3d-hero','3d-text','3d-map','3d-shape'].includes(c.type)) {
     const h = c.height || 240;
     const sceneDiv = document.createElement('div');
     sceneDiv.className = c.type === '3d-map' ? 'scene card-map' : 'scene';
     sceneDiv.style.height = h + 'px';
-    sceneDiv.style.background = c.bg || '#f5f5f5';
+    sceneDiv.style.background = c.bg || '#0e0d16';
     card.appendChild(sceneDiv);
+
+    // "3D" badge + shape name for shader cards
+    if (c.type === '3d-shape') {
+      card.classList.add('card-clickable');
+      const badge = document.createElement('div');
+      badge.className = 'badge-3d';
+      badge.textContent = '3D';
+      sceneDiv.appendChild(badge);
+      // Shape + palette label (visible on hover)
+      const shapeName = (c.shape||'').charAt(0).toUpperCase() + (c.shape||'').slice(1);
+      const palName = (PALETTES[c.palette]||{}).name || c.palette;
+      const label = document.createElement('div');
+      label.className = 'shape-label';
+      label.textContent = `${shapeName} · ${palName}`;
+      sceneDiv.appendChild(label);
+    }
 
     if (c.type === '3d-hero') {
       const ov = document.createElement('div');
@@ -279,7 +536,7 @@ cards.forEach((c, i) => {
     if (c.type === '3d-text') {
       const ov = document.createElement('div');
       ov.className = 'overlay center';
-      ov.innerHTML = `<h2 style="color:#111;font-size:38px;letter-spacing:-2px">Dia<span style="display:inline-block;width:32px;height:32px;background:linear-gradient(135deg,#a8edea,#fed6e3);border-radius:50%;vertical-align:middle;margin:0 4px"></span>ond</h2>`;
+      ov.innerHTML = `<h2 style="color:#e8e8f0;font-size:38px;letter-spacing:-2px">Dia<span style="display:inline-block;width:32px;height:32px;background:linear-gradient(135deg,#a8edea,#fed6e3);border-radius:50%;vertical-align:middle;margin:0 4px"></span>ond</h2>`;
       sceneDiv.appendChild(ov);
     }
     if (c.type === '3d-map' && c.label) {
@@ -289,44 +546,56 @@ cards.forEach((c, i) => {
       sceneDiv.appendChild(lbl);
     }
 
-    // Footer
     if (c.foot) {
       const f = document.createElement('div');
       f.className = 'card-foot' + (c.foot.dark ? ' dark' : '');
-      f.innerHTML = `<div class="dot" style="background:${c.foot.color}"></div><span class="name">${c.foot.name}</span><span class="likes">♥ ${c.foot.likes}</span>`;
+      f.innerHTML = `<div class="dot" style="background:${c.foot.color}"></div><span class="name">${c.foot.name}</span><span class="likes">&#9829; ${c.foot.likes}</span>`;
       card.appendChild(f);
     }
 
-    // Queue 3D scene creation
-    scenes.push({ el: sceneDiv, config: c });
+    scenePending.push({ el: sceneDiv, config: c });
+  }
+
+  // Click 3D shape cards to open editor with that shape+palette
+  if (c.type === '3d-shape' && c.shape && c.palette) {
+    card.addEventListener('click', () => {
+      window.location.href = `index.html?shape=${c.shape}&palette=${c.palette}`;
+    });
   }
 
   grid.appendChild(card);
 });
 
-// ── Three.js scene factory ──
-function createScene(el, config) {
+
+// ═══════════════════════════════════════════════════════════
+// THREE.JS SHARED RENDERER (scissor approach)
+// ═══════════════════════════════════════════════════════════
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.autoClear = false;
+renderer.domElement.style.position = 'fixed';
+renderer.domElement.style.top = '0';
+renderer.domElement.style.left = '0';
+renderer.domElement.style.width = '100%';
+renderer.domElement.style.height = '100%';
+renderer.domElement.style.pointerEvents = 'none';
+renderer.domElement.style.zIndex = '1';
+document.body.appendChild(renderer.domElement);
+
+// Each card still holds its own mini scene and camera
+function createMiniScene(el, config) {
   const w = el.clientWidth, h = el.clientHeight;
   if (w === 0 || h === 0) return null;
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  el.insertBefore(renderer.domElement, el.firstChild);
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
 
   // Lighting
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambient);
+  scene.add(new THREE.AmbientLight(0x1a1030, 0.5));
   const dir = new THREE.DirectionalLight(0xffffff, 0.8);
   dir.position.set(5, 8, 6);
-  dir.castShadow = true;
   scene.add(dir);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  const fill = new THREE.DirectionalLight(0x8888ff, 0.3);
   fill.position.set(-3, 4, -2);
   scene.add(fill);
 
@@ -334,117 +603,74 @@ function createScene(el, config) {
   scene.add(group);
 
   let animFn = null;
+  let shaderMats = []; // track shader materials for uTime/uHover updates
   const sceneType = config.scene || config.type;
 
-  // ── Block builder ──
+  // ── Block builder (for legacy scenes) ──
   function addBlock(x, y, z, color, s = 0.45) {
     const geo = new THREE.BoxGeometry(s, s, s);
     const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.05 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x * s, z * s, y * s);
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
     group.add(mesh);
     return mesh;
   }
 
-  if (sceneType === 'blocks-coral') {
-    camera.position.set(4, 4, 4);
-    camera.lookAt(0, 0.5, 0);
-    const c = 0xff6b6b;
-    // Staircase
-    for (let i = 0; i < 4; i++)
-      for (let j = 0; j < 2; j++)
-        for (let k = 0; k <= i; k++)
-          addBlock(i - 1.5, j - 0.5, k, c);
-    group.rotation.y = 0.3;
-    animFn = (t, hover) => {
-      group.rotation.y = 0.3 + Math.sin(t * 0.5) * 0.08 + (hover ? t * 0.3 : 0);
-    };
-  }
+  // ═══════ NEW: 3D Shape with shader material ═══════
+  if (sceneType === '3d-shape') {
+    camera.position.set(0, 0, 3.5);
+    camera.lookAt(0, 0, 0);
+    const geoFn = SHAPE_CREATORS[config.shape];
+    if (!geoFn) return null;
+    const geo = geoFn();
+    const mat = createEditorMaterial(config.palette || 'nebula');
+    shaderMats.push(mat);
+    const mesh = new THREE.Mesh(geo, mat);
+    group.add(mesh);
 
-  else if (sceneType === 'blocks-mint') {
-    camera.position.set(4, 3.5, 4);
-    camera.lookAt(0, 0.3, 0);
-    const c = 0x00b894;
-    // L-shape
-    for (let x = 0; x < 3; x++) for (let y = 0; y < 2; y++) addBlock(x-1, y-0.5, 0, c);
-    addBlock(-1, -0.5, 1, c); addBlock(0, -0.5, 1, c);
-    addBlock(-1, 0.5, 1, c);
-    for (let x = 0; x < 3; x++) addBlock(x-1, 1.5, 0, c);
-    group.rotation.y = 0.4;
-    animFn = (t, hover) => {
-      group.rotation.y = 0.4 + Math.sin(t * 0.4) * 0.1 + (hover ? t * 0.3 : 0);
-    };
-  }
+    // Particles surrounding the shape — color matched to palette rim
+    const pal = PALETTES[config.palette] || PALETTES.nebula;
+    const particleCount = 60;
+    const pGeo = new THREE.BufferGeometry();
+    const pPositions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.random() * Math.PI;
+      const r = 1.2 + Math.random() * 0.8;
+      pPositions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+      pPositions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+      pPositions[i*3+2] = r * Math.cos(phi);
+    }
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+    const rimCol = new THREE.Color(pal.rim1[0], pal.rim1[1], pal.rim1[2]);
+    const pMat = new THREE.PointsMaterial({
+      color: rimCol, size: 0.02, transparent: true, opacity: 0.4,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const particles = new THREE.Points(pGeo, pMat);
+    group.add(particles);
 
-  else if (sceneType === 'blocks-purple') {
-    camera.position.set(5, 4, 5);
-    camera.lookAt(0, 0.3, 0);
-    const c = 0x6c5ce7;
-    // Tetris T + L
-    for (let x = 0; x < 4; x++) for (let y = 0; y < 2; y++) addBlock(x-1.5, y-0.5, 0, c);
-    addBlock(0.5, -0.5, 1, c); addBlock(0.5, 0.5, 1, c);
-    addBlock(1.5, -0.5, 1, c); addBlock(1.5, 0.5, 1, c);
-    addBlock(1.5, -0.5, 2, c); addBlock(1.5, 0.5, 2, c);
-    addBlock(-1.5, 1.5, 0, c); addBlock(-0.5, 1.5, 0, c);
-    addBlock(2.5, -0.5, 0, c); addBlock(2.5, 0.5, 0, c); addBlock(2.5, -0.5, 1, c);
-    group.rotation.y = -0.3;
+    // Smooth rotation state
+    let rotY = 0, lastT = 0, curScale = 1.0;
     animFn = (t, hover) => {
-      group.rotation.y = -0.3 + Math.sin(t * 0.35) * 0.12 + (hover ? t * 0.25 : 0);
-    };
-  }
-
-  else if (sceneType === 'blocks-sky') {
-    camera.position.set(4, 3.5, 4);
-    camera.lookAt(0, 0.3, 0);
-    const c = 0x0984e3;
-    for (let x = 0; x < 4; x++) for (let y = 0; y < 2; y++) addBlock(x-1.5, y-0.5, 0, c);
-    addBlock(-0.5, -0.5, 1, c); addBlock(0.5, -0.5, 1, c); addBlock(1.5, -0.5, 1, c);
-    addBlock(-0.5, 0.5, 1, c); addBlock(0.5, 0.5, 1, c);
-    addBlock(0.5, -0.5, 2, c); addBlock(0.5, 0.5, 2, c);
-    group.rotation.y = 0.5;
-    animFn = (t, hover) => {
-      group.rotation.y = 0.5 + Math.sin(t * 0.45) * 0.1 + (hover ? t * 0.3 : 0);
-    };
-  }
-
-  else if (sceneType === 'blocks-peach') {
-    camera.position.set(3.5, 3, 3.5);
-    camera.lookAt(0, 0.2, 0);
-    const c = 0xe17055;
-    for (let x = 0; x < 2; x++) for (let y = 0; y < 2; y++) addBlock(x-0.5, y-0.5, 0, c);
-    addBlock(1.5, -0.5, 0, c); addBlock(1.5, 0.5, 0, c); addBlock(1.5, 1.5, 0, c);
-    addBlock(-0.5, -0.5, 1, c); addBlock(0.5, -0.5, 1, c);
-    addBlock(-0.5, 0.5, 1, c);
-    addBlock(-0.5, -0.5, 2, c);
-    addBlock(-0.5, 1.5, 0, c); addBlock(0.5, 1.5, 0, c);
-    group.rotation.y = 0.6;
-    animFn = (t, hover) => {
-      group.rotation.y = 0.6 + Math.sin(t * 0.5) * 0.08 + (hover ? t * 0.3 : 0);
-    };
-  }
-
-  else if (sceneType === 'blocks-teal') {
-    camera.position.set(4, 3.5, 4);
-    camera.lookAt(0, 0.3, 0);
-    const c = 0x2dd4bf;
-    // Cross shape
-    for (let y = 0; y < 3; y++) addBlock(0, y-1, 0, c);
-    for (let x = -1; x <= 1; x++) addBlock(x, 0, 0, c);
-    addBlock(0, 0, 1, c); addBlock(0, -1, 1, c);
-    addBlock(1, 0, 1, c);
-    addBlock(0, 0, 2, c);
-    group.rotation.y = 0.3;
-    animFn = (t, hover) => {
-      group.rotation.y = 0.3 + Math.sin(t * 0.55) * 0.1 + (hover ? t * 0.3 : 0);
+      const dt = Math.min(t - lastT, 0.05); // clamp to avoid jumps
+      lastT = t;
+      const speed = hover ? 0.8 : 0.2;
+      rotY += speed * dt;
+      group.rotation.y = rotY;
+      group.rotation.x = Math.sin(t * 0.3) * 0.15;
+      // Smooth scale interpolation
+      const targetScale = hover ? 1.08 : 1.0;
+      curScale += (targetScale - curScale) * 0.08;
+      mesh.scale.setScalar(curScale);
+      particles.rotation.y = -t * 0.1;
     };
   }
 
   else if (sceneType === 'wave') {
     camera.position.set(0, 2, 5);
     camera.lookAt(0, 0, 0);
-    // Animated wave of spheres
     const spheres = [];
     const sg = new THREE.SphereGeometry(0.15, 16, 16);
     for (let x = -5; x <= 5; x++) {
@@ -474,13 +700,12 @@ function createScene(el, config) {
     camera.lookAt(0, 0, 0);
     const geo = new THREE.OctahedronGeometry(0.8, 0);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xcccccc, roughness: 0.1, metalness: 0.8,
+      color: 0xaaaacc, roughness: 0.1, metalness: 0.8,
       transparent: true, opacity: 0.7
     });
     const diamond = new THREE.Mesh(geo, mat);
     group.add(diamond);
-    // Wireframe
-    const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x999999, wireframe: true }));
+    const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x666688, wireframe: true }));
     group.add(wire);
     animFn = (t, hover) => {
       group.rotation.y = t * (hover ? 1 : 0.3);
@@ -491,26 +716,24 @@ function createScene(el, config) {
   else if (sceneType === 'nature') {
     camera.position.set(0, 1, 4);
     camera.lookAt(0, 0.3, 0);
-    // Simple trees
     const trunk = new THREE.CylinderGeometry(0.05, 0.08, 0.6, 8);
     const leaves = new THREE.SphereGeometry(0.3, 8, 8);
     for (let i = 0; i < 8; i++) {
       const x = (Math.random() - 0.5) * 3;
       const z = (Math.random() - 0.5) * 2;
       const h = 0.3 + Math.random() * 0.3;
-      const t = new THREE.Mesh(trunk, new THREE.MeshStandardMaterial({ color: 0x5d4037 }));
+      const t = new THREE.Mesh(trunk, new THREE.MeshStandardMaterial({ color: 0x3d2917 }));
       t.position.set(x, h / 2, z);
       t.scale.y = h / 0.6;
       group.add(t);
-      const l = new THREE.Mesh(leaves, new THREE.MeshStandardMaterial({ color: 0x2e7d32 }));
+      const l = new THREE.Mesh(leaves, new THREE.MeshStandardMaterial({ color: 0x1e5d22 }));
       l.position.set(x, h + 0.2, z);
       l.scale.set(0.8 + Math.random() * 0.4, 0.6 + Math.random() * 0.3, 0.8 + Math.random() * 0.4);
       group.add(l);
     }
-    // Ground
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(4, 3),
-      new THREE.MeshStandardMaterial({ color: 0x4caf50, roughness: 0.9 })
+      new THREE.MeshStandardMaterial({ color: 0x2c7f30, roughness: 0.9 })
     );
     ground.rotation.x = -PI / 2;
     group.add(ground);
@@ -532,7 +755,6 @@ function createScene(el, config) {
       const m = new THREE.Mesh(geo, mat);
       m.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5));
       m.userData.speed = 0.5 + Math.random();
-      m.userData.axis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize();
       group.add(m);
       shapes.push(m);
     }
@@ -548,7 +770,8 @@ function createScene(el, config) {
     camera.position.set(0, 0, 4);
     camera.lookAt(0, 0, 0);
     const geo = new THREE.TorusKnotGeometry(0.6, 0.2, 100, 16);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, emissive: 0x4c1d95, roughness: 0.2, metalness: 0.5 });
+    const mat = createEditorMaterial('nebula');
+    shaderMats.push(mat);
     const knot = new THREE.Mesh(geo, mat);
     group.add(knot);
     const point = new THREE.PointLight(0xa78bfa, 1, 5);
@@ -563,23 +786,20 @@ function createScene(el, config) {
   else if (sceneType === '3d-map') {
     camera.position.set(0, 3, 3);
     camera.lookAt(0, 0, 0);
-    // Ground plane
     const gnd = new THREE.Mesh(
       new THREE.PlaneGeometry(6, 4),
-      new THREE.MeshStandardMaterial({ color: 0xd4edda, roughness: 0.95 })
+      new THREE.MeshStandardMaterial({ color: 0x1a2a1a, roughness: 0.95 })
     );
     gnd.rotation.x = -PI / 2;
     group.add(gnd);
-    // Roads
-    const roadMat = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.8 });
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.8 });
     [[0, 0.01, 0, 6, 0.02, 0.15], [0, 0.01, 0.5, 0.15, 0.02, 4],
      [-1, 0.01, -0.5, 3, 0.02, 0.1], [1.2, 0.01, 0.8, 0.1, 0.02, 2]].forEach(([x,y,z,w,h,d]) => {
       const r = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), roadMat);
       r.position.set(x,y,z);
       group.add(r);
     });
-    // Buildings
-    const bldgMat = new THREE.MeshStandardMaterial({ color: 0xccddcc, roughness: 0.7 });
+    const bldgMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, roughness: 0.7, metalness: 0.1 });
     for (let i = 0; i < 6; i++) {
       const bh = 0.1 + Math.random() * 0.25;
       const bw = 0.2 + Math.random() * 0.2;
@@ -588,10 +808,9 @@ function createScene(el, config) {
       b.position.set((Math.random()-0.5)*3, bh/2, (Math.random()-0.5)*2);
       group.add(b);
     }
-    // Pin
     const pin = new THREE.Mesh(
       new THREE.SphereGeometry(0.08, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xcc0000, emissiveIntensity: 0.3 })
+      new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xcc0000, emissiveIntensity: 0.5 })
     );
     pin.position.set(0, 0.4, 0);
     group.add(pin);
@@ -607,56 +826,115 @@ function createScene(el, config) {
     };
   }
 
-  return { renderer, scene, camera, group, animFn, el, hover: false };
+  return { scene, camera, group, animFn, shaderMats, el, hover: false, visible: false };
 }
 
-// ── Init scenes with IntersectionObserver ──
+
+// ═══════════════════════════════════════════════════════════
+// INIT SCENES + INTERSECTION OBSERVER
+// ═══════════════════════════════════════════════════════════
 const liveScenes = [];
+
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(e => {
     const s = liveScenes.find(s => s.el === e.target);
     if (s) s.visible = e.isIntersecting;
   });
-}, { rootMargin: '100px' });
+}, { rootMargin: '200px' });
 
-scenes.forEach(({ el, config }) => {
-  const s = createScene(el, config);
+scenePending.forEach(({ el, config }) => {
+  const s = createMiniScene(el, config);
   if (s) {
     s.visible = true;
     liveScenes.push(s);
     observer.observe(el);
 
     // Hover tracking
-    el.closest('.card').addEventListener('mouseenter', () => s.hover = true);
-    el.closest('.card').addEventListener('mouseleave', () => s.hover = false);
+    const card = el.closest('.card');
+    card.addEventListener('mouseenter', () => s.hover = true);
+    card.addEventListener('mouseleave', () => s.hover = false);
   }
 });
 
-// ── Animation loop ──
+
+// ═══════════════════════════════════════════════════════════
+// ANIMATION LOOP — single shared renderer with scissor
+// ═══════════════════════════════════════════════════════════
 const clock = new THREE.Clock();
+const canvas = renderer.domElement;
+
+function updateRendererSize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  if (canvas.width !== w * renderer.getPixelRatio() || canvas.height !== h * renderer.getPixelRatio()) {
+    renderer.setSize(w, h);
+  }
+}
+
 function animate() {
   requestAnimationFrame(animate);
+  updateRendererSize();
+
   const t = clock.getElapsedTime();
+  const canvasRect = canvas.getBoundingClientRect();
+
+  // Clear entire canvas first with transparent
+  renderer.setScissorTest(false);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear();
+  renderer.setScissorTest(true);
+
+  let anyRendered = false;
+
   liveScenes.forEach(s => {
     if (!s.visible) return;
+
+    // Get the element's bounding rect relative to canvas
+    const rect = s.el.getBoundingClientRect();
+
+    // Check if rect is within viewport
+    if (rect.bottom < canvasRect.top || rect.top > canvasRect.bottom ||
+        rect.right < canvasRect.left || rect.left > canvasRect.right) {
+      return;
+    }
+
+    const width  = rect.right - rect.left;
+    const height = rect.bottom - rect.top;
+    if (width <= 0 || height <= 0) return;
+
+    // Convert to canvas pixel coordinates (bottom-left origin for WebGL)
+    const left   = rect.left - canvasRect.left;
+    const bottom = canvasRect.bottom - rect.bottom;
+
+    // Update camera aspect
+    s.camera.aspect = width / height;
+    s.camera.updateProjectionMatrix();
+
+    // Update shader uniforms
+    s.shaderMats.forEach(mat => {
+      mat.uniforms.uTime.value = t;
+      mat.uniforms.uHover.value += ((s.hover ? 1 : 0) - mat.uniforms.uHover.value) * 0.08;
+    });
+
+    // Run animation function
     if (s.animFn) s.animFn(t, s.hover);
-    s.renderer.render(s.scene, s.camera);
+
+    // Set viewport & scissor
+    renderer.setViewport(left, bottom, width, height);
+    renderer.setScissor(left, bottom, width, height);
+
+    renderer.render(s.scene, s.camera);
+    anyRendered = true;
   });
+
+  renderer.setScissorTest(false);
 }
 animate();
 
-// ── Resize ──
-window.addEventListener('resize', () => {
-  liveScenes.forEach(s => {
-    const w = s.el.clientWidth, h = s.el.clientHeight;
-    if (w === 0 || h === 0) return;
-    s.camera.aspect = w / h;
-    s.camera.updateProjectionMatrix();
-    s.renderer.setSize(w, h);
-  });
-});
 
-// ── Pills ──
+// ═══════════════════════════════════════════════════════════
+// PILLS
+// ═══════════════════════════════════════════════════════════
 document.querySelectorAll('.pill').forEach(p => {
   p.addEventListener('click', () => {
     document.querySelectorAll('.pill').forEach(q => q.classList.remove('on'));
