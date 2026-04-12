@@ -3,21 +3,154 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Lab V6</title>
+<title>3D Shape Editor</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{overflow:hidden;background:#08070f;font-family:system-ui,sans-serif;color:#fff}
-  canvas{display:block;width:100vw;height:100vh;touch-action:pan-y}
+  body{overflow:hidden;background:#08070f;font-family:'Inter',system-ui,-apple-system,sans-serif;color:#fff;user-select:none}
+  canvas{display:block;width:100vw;height:100vh;touch-action:none}
   #loader{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#08070f;transition:opacity 1.2s ease}
   #loader.done{opacity:0;pointer-events:none}
   .dot{width:6px;height:6px;background:#a78bfa;border-radius:50%;margin:0 4px;animation:bounce .6s ease infinite}
   .dot:nth-child(2){animation-delay:.1s}.dot:nth-child(3){animation-delay:.2s}
   @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+  /* ── Glassmorphism base ── */
+  .glass{
+    background:rgba(15,10,30,0.55);
+    backdrop-filter:blur(20px) saturate(1.4);
+    -webkit-backdrop-filter:blur(20px) saturate(1.4);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px;
+  }
+
+  /* ── Shape Picker Bar (bottom) ── */
+  #shape-bar{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    z-index:50;display:flex;gap:6px;padding:8px 12px;
+    overflow-x:auto;max-width:calc(100vw - 40px);
+    scrollbar-width:none;
+    transition:opacity 0.3s,transform 0.3s;
+  }
+  #shape-bar::-webkit-scrollbar{display:none}
+  .shape-btn{
+    flex:0 0 auto;width:56px;height:56px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
+    border-radius:12px;cursor:pointer;transition:all 0.2s;
+    color:rgba(255,255,255,0.5);font-size:9px;letter-spacing:0.3px;
+  }
+  .shape-btn:hover{
+    background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.3);
+    color:#fff;transform:translateY(-2px);
+  }
+  .shape-btn svg{width:24px;height:24px;opacity:0.6;transition:opacity 0.2s}
+  .shape-btn:hover svg{opacity:1}
+
+  /* ── Properties Panel (right) ── */
+  #props-panel{
+    position:fixed;top:50%;right:20px;transform:translateY(-50%);
+    z-index:50;width:220px;padding:16px;
+    opacity:0;pointer-events:none;
+    transition:opacity 0.3s,transform 0.3s;
+  }
+  #props-panel.visible{opacity:1;pointer-events:auto}
+  #props-panel h3{
+    font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+    color:rgba(255,255,255,0.4);margin-bottom:12px;font-weight:500;
+  }
+  .prop-group{margin-bottom:14px}
+  .prop-label{font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:0.5px;margin-bottom:4px;text-transform:uppercase}
+  .prop-value{font-size:13px;color:rgba(255,255,255,0.8);margin-bottom:8px}
+
+  /* palette swatches */
+  .palette-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+  .palette-swatch{
+    width:28px;height:28px;border-radius:8px;cursor:pointer;
+    border:2px solid transparent;transition:all 0.2s;
+    position:relative;overflow:hidden;
+  }
+  .palette-swatch:hover{transform:scale(1.1)}
+  .palette-swatch.active{border-color:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,0.4)}
+
+  /* slider */
+  .prop-slider{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;
+    background:rgba(255,255,255,0.1);border-radius:2px;outline:none;
+    margin:6px 0;
+  }
+  .prop-slider::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:#a78bfa;cursor:pointer;border:2px solid rgba(255,255,255,0.2);
+  }
+
+  /* delete button */
+  .delete-btn{
+    width:100%;padding:8px;margin-top:8px;
+    background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.2);
+    border-radius:10px;color:#f87171;font-size:11px;cursor:pointer;
+    letter-spacing:0.5px;transition:all 0.2s;
+  }
+  .delete-btn:hover{background:rgba(239,68,68,0.3);border-color:rgba(239,68,68,0.4)}
+
+  /* ── Top-left hint ── */
+  #hint{
+    position:fixed;top:20px;left:20px;z-index:50;
+    padding:10px 16px;font-size:11px;
+    color:rgba(255,255,255,0.4);letter-spacing:0.5px;
+    line-height:1.6;
+    transition:opacity 0.5s;
+  }
+  #hint span{color:rgba(167,139,250,0.7);font-weight:500}
+
+  /* ── Selection outline glow (CSS overlay on canvas) ── */
+  .selected-indicator{
+    position:fixed;top:16px;left:50%;transform:translateX(-50%);
+    z-index:50;padding:6px 14px;font-size:10px;letter-spacing:1px;
+    color:rgba(167,139,250,0.8);text-transform:uppercase;
+    opacity:0;transition:opacity 0.3s;pointer-events:none;
+  }
+  .selected-indicator.visible{opacity:1}
 </style>
 </head>
 <body>
 <div id="loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
 <canvas id="c"></canvas>
+
+<!-- Hint -->
+<div id="hint" class="glass">
+  <span>Click shape below</span> to add to scene<br>
+  <span>Click object</span> to select &middot; <span>Drag</span> to move<br>
+  <span>Scroll</span> on object to resize &middot; <span>Right-drag</span> to orbit
+</div>
+
+<!-- Selection indicator -->
+<div id="sel-indicator" class="selected-indicator glass"></div>
+
+<!-- Shape Picker Bar -->
+<div id="shape-bar" class="glass">
+</div>
+
+<!-- Properties Panel -->
+<div id="props-panel" class="glass">
+  <h3>Properties</h3>
+  <div class="prop-group">
+    <div class="prop-label">Shape</div>
+    <div class="prop-value" id="prop-shape">—</div>
+  </div>
+  <div class="prop-group">
+    <div class="prop-label">Palette</div>
+    <div class="palette-row" id="palette-row"></div>
+  </div>
+  <div class="prop-group">
+    <div class="prop-label">Scale</div>
+    <input type="range" class="prop-slider" id="scale-slider" min="0.3" max="3" step="0.05" value="1">
+  </div>
+  <div class="prop-group">
+    <div class="prop-label">Spin Speed</div>
+    <input type="range" class="prop-slider" id="spin-slider" min="0" max="2" step="0.05" value="0.5">
+  </div>
+  <button class="delete-btn" id="delete-btn">Delete Shape</button>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
@@ -26,6 +159,7 @@
 </script>
 <script type="module">
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -45,7 +179,22 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
-camera.position.set(0, 0, 7.5);
+camera.position.set(0, 1.5, 10);
+
+// ═══════════════════════════════════════════════════════════
+// ORBIT CONTROLS
+// ═══════════════════════════════════════════════════════════
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = true;
+controls.panSpeed = 0.8;
+controls.rotateSpeed = 0.6;
+controls.zoomSpeed = 0.8;
+controls.minDistance = 3;
+controls.maxDistance = 30;
+controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+controls.target.set(0, 0, 0);
 
 // ═══════════════════════════════════════════════════════════
 // SHARED GLSL: Simplex Noise + IQ Cosine Palette
@@ -104,6 +253,149 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
 `;
 
 // ═══════════════════════════════════════════════════════════
+// PALETTE PRESETS
+// ═══════════════════════════════════════════════════════════
+const PALETTES = {
+  aurora: {
+    name: 'Aurora',
+    phase: [0.00, 0.15, 0.20],
+    rim1: [0.4, 0.6, 1.0],
+    rim2: [0.9, 0.4, 0.8],
+    css: 'linear-gradient(135deg, #7c3aed, #3b82f6, #06b6d4, #ec4899)',
+  },
+  sunset: {
+    name: 'Sunset',
+    phase: [0.25, 0.05, 0.10],
+    rim1: [1.0, 0.5, 0.3],
+    rim2: [1.0, 0.7, 0.4],
+    css: 'linear-gradient(135deg, #f97316, #eab308, #f43f5e)',
+  },
+  ocean: {
+    name: 'Ocean',
+    phase: [0.10, 0.20, 0.35],
+    rim1: [0.2, 0.5, 1.0],
+    rim2: [0.1, 0.8, 0.9],
+    css: 'linear-gradient(135deg, #4338ca, #2563eb, #06b6d4)',
+  },
+  holographic: {
+    name: 'Holo',
+    phase: [0.00, 0.33, 0.67],
+    rim1: [1.0, 0.3, 0.5],
+    rim2: [0.3, 1.0, 0.5],
+    css: 'linear-gradient(135deg, #f43f5e, #eab308, #22c55e, #3b82f6, #a855f7)',
+  },
+  mint: {
+    name: 'Mint',
+    phase: [0.05, 0.25, 0.18],
+    rim1: [0.3, 1.0, 0.7],
+    rim2: [0.2, 0.8, 0.9],
+    css: 'linear-gradient(135deg, #10b981, #14b8a6, #06b6d4)',
+  },
+  flame: {
+    name: 'Flame',
+    phase: [0.35, 0.10, 0.00],
+    rim1: [1.0, 0.3, 0.1],
+    rim2: [1.0, 0.6, 0.1],
+    css: 'linear-gradient(135deg, #dc2626, #f97316, #eab308)',
+  },
+  lavender: {
+    name: 'Lavender',
+    phase: [0.15, 0.05, 0.25],
+    rim1: [0.7, 0.4, 1.0],
+    rim2: [0.9, 0.5, 0.8],
+    css: 'linear-gradient(135deg, #8b5cf6, #a78bfa, #e879f9)',
+  },
+  arctic: {
+    name: 'Arctic',
+    phase: [0.08, 0.22, 0.30],
+    rim1: [0.6, 0.85, 1.0],
+    rim2: [0.9, 0.95, 1.0],
+    css: 'linear-gradient(135deg, #bfdbfe, #7dd3fc, #e0f2fe)',
+  },
+};
+const PALETTE_KEYS = Object.keys(PALETTES);
+
+// ═══════════════════════════════════════════════════════════
+// SHAPE DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+const SHAPES = {
+  sphere: {
+    name: 'Sphere',
+    icon: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.SphereGeometry(0.8, 64, 64),
+    defaultPalette: 'aurora',
+  },
+  torus: {
+    name: 'Torus',
+    icon: '<ellipse cx="12" cy="12" rx="9" ry="5" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.TorusGeometry(0.6, 0.22, 48, 96),
+    defaultPalette: 'sunset',
+  },
+  torusknot: {
+    name: 'Knot',
+    icon: '<path d="M6 8c3-4 9-4 12 0s-3 8-6 8-9-4-6-8z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.TorusKnotGeometry(0.5, 0.17, 128, 32, 2, 3),
+    defaultPalette: 'holographic',
+  },
+  icosahedron: {
+    name: 'Icosa',
+    icon: '<polygon points="12,2 22,8 22,16 12,22 2,16 2,8" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.IcosahedronGeometry(0.8, 1),
+    defaultPalette: 'ocean',
+  },
+  octahedron: {
+    name: 'Octa',
+    icon: '<polygon points="12,2 22,12 12,22 2,12" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.OctahedronGeometry(0.8, 0),
+    defaultPalette: 'mint',
+  },
+  dodecahedron: {
+    name: 'Dodeca',
+    icon: '<polygon points="12,2 20,6 22,15 16,22 8,22 2,15 4,6" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.DodecahedronGeometry(0.8, 0),
+    defaultPalette: 'lavender',
+  },
+  tetrahedron: {
+    name: 'Tetra',
+    icon: '<polygon points="12,3 22,20 2,20" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.TetrahedronGeometry(0.9, 0),
+    defaultPalette: 'flame',
+  },
+  cube: {
+    name: 'Cube',
+    icon: '<rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.BoxGeometry(1.1, 1.1, 1.1, 4, 4, 4),
+    defaultPalette: 'arctic',
+  },
+  cylinder: {
+    name: 'Cylinder',
+    icon: '<ellipse cx="12" cy="6" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="6" x2="4" y2="18" stroke="currentColor" stroke-width="1.5"/><line x1="20" y1="6" x2="20" y2="18" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="18" rx="8" ry="3" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.CylinderGeometry(0.6, 0.6, 1.2, 48, 8),
+    defaultPalette: 'ocean',
+  },
+  cone: {
+    name: 'Cone',
+    icon: '<polygon points="12,3 22,20 2,20" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="20" rx="10" ry="2.5" fill="none" stroke="currentColor" stroke-width="1"/>',
+    create: () => new THREE.ConeGeometry(0.7, 1.4, 48, 8),
+    defaultPalette: 'flame',
+  },
+  capsule: {
+    name: 'Capsule',
+    icon: '<rect x="6" y="4" width="12" height="16" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    create: () => new THREE.CapsuleGeometry(0.5, 0.8, 16, 32),
+    defaultPalette: 'mint',
+  },
+  twisted: {
+    name: 'Twisted',
+    icon: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 2"/>',
+    create: () => new THREE.SphereGeometry(0.8, 96, 96),
+    defaultPalette: 'aurora',
+    displaced: true,
+  },
+};
+const SHAPE_KEYS = Object.keys(SHAPES);
+
+// ═══════════════════════════════════════════════════════════
 // ANIMATED BACKGROUND (subtle nebula)
 // ═══════════════════════════════════════════════════════════
 const bgMat = new THREE.ShaderMaterial({
@@ -153,171 +445,65 @@ bg.frustumCulled = false;
 bg.renderOrder = -1;
 scene.add(bg);
 
-// ════════════════════════════════════��══════════════════════
-// MINIMAL SCENE LIGHTS (shaders handle color, these are for ambient only)
+// ═══════════════════════════════════════════════════════════
+// MINIMAL SCENE LIGHTS
 // ═══════════════════════════════════════════════════════════
 scene.add(new THREE.AmbientLight(0x0a0818, 0.3));
 
 // ═══════════════════════════════════════════════════════════
-// HERO: Custom ShaderMaterial
-// Cosine palette gradient + Fresnel rim + fake env + specular
-// Smooth pebble shape: single-octave noise + twist deformation
+// GROUND GRID (subtle reference)
 // ═══════════════════════════════════════════════════════════
-const heroGeo = new THREE.SphereGeometry(1.35, 128, 128);
-
-const heroUniforms = {
-  uTime: { value: 0 },
-  uMouse: { value: new THREE.Vector2(0, 0) },
-  uHover: { value: 0 },
-};
-
-const heroMat = new THREE.ShaderMaterial({
-  side: THREE.DoubleSide,
-  uniforms: heroUniforms,
+const gridGeo = new THREE.PlaneGeometry(40, 40);
+const gridMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: { uTime: { value: 0 } },
   vertexShader: `
-    uniform float uTime;
-    uniform vec2 uMouse;
-    ${NOISE_GLSL}
-
-    varying vec3 vNormal;
-    varying vec3 vViewPosition;
-    varying vec3 vWorldPosition;
-    varying float vDisplacement;
-
-    void main() {
-      vec3 pos = position;
-
-      // Gentle twist along Y axis -- creates designed shape
-      float twistAngle = sin(pos.y * 1.8 + uTime * 0.25) * 0.22;
-      float cosA = cos(twistAngle);
-      float sinA = sin(twistAngle);
-      pos.xz = mat2(cosA, -sinA, sinA, cosA) * pos.xz;
-
-      // Single-octave low-frequency displacement -- smooth pebble, NOT noise potato
-      float n = snoise(pos * 0.7 + uTime * 0.12) * 0.22;
-
-      // Gentle breathing
-      float breathe = sin(uTime * 0.4) * 0.04;
-      float disp = n + breathe;
-
-      // Subtle mouse-reactive bulge
-      vec3 mouseDir = normalize(vec3(uMouse * 0.5, 0.4));
-      float mouseDot = max(dot(normalize(pos), mouseDir), 0.0);
-      disp += mouseDot * mouseDot * 0.08;
-
-      vDisplacement = disp;
-
-      vec3 displaced = pos + normal * disp;
-
-      // Recompute normals for displaced surface
-      float eps = 0.02;
-      vec3 tang = normalize(cross(normal, vec3(0.0, 1.0, 0.01)));
-      vec3 bitang = normalize(cross(normal, tang));
-      vec3 pT = pos + tang * eps;
-      vec3 pB = pos + bitang * eps;
-      float dT = snoise(pT * 0.7 + uTime * 0.12) * 0.22;
-      float dB = snoise(pB * 0.7 + uTime * 0.12) * 0.22;
-      vec3 displacedT = pT + normal * dT;
-      vec3 displacedB = pB + normal * dB;
-      vec3 newNormal = normalize(cross(displacedT - displaced, displacedB - displaced));
-
-      vNormal = normalize(normalMatrix * newNormal);
-      vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
-      vViewPosition = -mvPosition.xyz;
-      vWorldPosition = (modelMatrix * vec4(displaced, 1.0)).xyz;
-
-      gl_Position = projectionMatrix * mvPosition;
+    varying vec2 vUv;
+    varying vec3 vWorldPos;
+    void main(){
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vWorldPos = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
     }
   `,
   fragmentShader: `
+    varying vec2 vUv;
+    varying vec3 vWorldPos;
     uniform float uTime;
-    uniform float uHover;
-    ${PALETTE_GLSL}
-
-    varying vec3 vNormal;
-    varying vec3 vViewPosition;
-    varying vec3 vWorldPosition;
-    varying float vDisplacement;
-
-    void main() {
-      vec3 N = normalize(vNormal);
-      vec3 V = normalize(vViewPosition);
-
-      // === Layer 1: IQ Cosine Palette gradient ===
-      float gradT = vDisplacement * 1.8 + 0.5 + N.y * 0.25 + uTime * 0.04;
-      vec3 baseColor = cosPalette(
-        gradT,
-        vec3(0.55, 0.45, 0.60),
-        vec3(0.50, 0.50, 0.45),
-        vec3(1.0, 0.7, 0.4),
-        vec3(0.00, 0.15, 0.20)
-      );
-
-      // Ensure minimum brightness — prevent black areas
-      baseColor = max(baseColor, vec3(0.12, 0.06, 0.18));
-
-      // Soft half-Lambert diffuse to shape the form without harsh shadows
-      vec3 mainLight = normalize(vec3(0.5, 0.8, 0.6));
-      vec3 fillLight = normalize(vec3(-0.6, 0.3, 0.8));
-      float diff1 = dot(N, mainLight) * 0.35 + 0.65; // wraps from 0.3 to 1.0
-      float diff2 = dot(N, fillLight) * 0.2 + 0.8;   // wraps from 0.6 to 1.0
-      baseColor *= max(diff1, diff2);
-
-      // Boost saturation
-      baseColor = pow(baseColor, vec3(0.85));
-
-      // === Layer 2: Fresnel rim glow ===
-      float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.5);
-      vec3 rimColor = mix(
-        vec3(0.3, 0.7, 1.0),
-        vec3(0.9, 0.4, 0.8),
-        sin(uTime * 0.3) * 0.5 + 0.5
-      );
-      baseColor += rimColor * fresnel * 0.65;
-
-      // === Layer 3: Fake environment reflection ===
-      vec3 reflectDir = reflect(-V, N);
-      float envGradient = reflectDir.y * 0.5 + 0.5;
-      vec3 envColor = cosPalette(
-        envGradient + uTime * 0.02,
-        vec3(0.5, 0.4, 0.6),
-        vec3(0.3, 0.3, 0.3),
-        vec3(1.0, 1.0, 0.5),
-        vec3(0.1, 0.2, 0.3)
-      );
-      baseColor = mix(baseColor, envColor, 0.12 + fresnel * 0.08);
-
-      // === Layer 4: Specular highlights (two lights) ===
-      vec3 H1 = normalize(V + mainLight);
-      vec3 H2 = normalize(V + fillLight);
-      float spec1 = pow(max(dot(N, H1), 0.0), 80.0);
-      float spec2 = pow(max(dot(N, H2), 0.0), 60.0);
-      baseColor += vec3(1.0, 0.95, 0.9) * spec1 * 0.45;
-      baseColor += vec3(0.8, 0.7, 1.0) * spec2 * 0.25;
-
-      // === Layer 5: Hover glow ===
-      baseColor += rimColor * uHover * 0.3;
-
-      gl_FragColor = vec4(baseColor, 1.0);
+    void main(){
+      vec2 grid = abs(fract(vWorldPos.xz - 0.5) - 0.5) / fwidth(vWorldPos.xz);
+      float line = min(grid.x, grid.y);
+      float alpha = 1.0 - min(line, 1.0);
+      float dist = length(vWorldPos.xz);
+      alpha *= smoothstep(20.0, 4.0, dist) * 0.08;
+      gl_FragColor = vec4(vec3(0.4, 0.3, 0.6), alpha);
     }
   `
 });
-
-const hero = new THREE.Mesh(heroGeo, heroMat);
-hero.scale.set(0, 0, 0);
-scene.add(hero);
+const gridMesh = new THREE.Mesh(gridGeo, gridMat);
+gridMesh.rotation.x = -Math.PI / 2;
+gridMesh.position.y = -2;
+gridMesh.renderOrder = -0.5;
+scene.add(gridMesh);
 
 // ═══════════════════════════════════════════════════════════
-// COMPANION SHADER FACTORY
+// COMPANION SHADER FACTORY (extended for uniform-based palettes)
 // Same visual approach: cosine palette + Fresnel + fake env + specular
-// Each companion gets unique palette phase and rim colors
+// half-Lambert diffuse + minimum brightness floor
 // ═══════════════════════════════════════════════════════════
-function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
+function createCompanionMaterial(palette) {
+  const p = PALETTES[palette] || PALETTES.aurora;
   return new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
     uniforms: {
       uTime: { value: 0 },
       uHover: { value: 0 },
+      uSelected: { value: 0 },
+      uPalettePhase: { value: new THREE.Vector3(...p.phase) },
+      uRimHue1: { value: new THREE.Vector3(...p.rim1) },
+      uRimHue2: { value: new THREE.Vector3(...p.rim2) },
     },
     vertexShader: `
       varying vec3 vNormal;
@@ -335,6 +521,10 @@ function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
     fragmentShader: `
       uniform float uTime;
       uniform float uHover;
+      uniform float uSelected;
+      uniform vec3 uPalettePhase;
+      uniform vec3 uRimHue1;
+      uniform vec3 uRimHue2;
       ${PALETTE_GLSL}
 
       varying vec3 vNormal;
@@ -352,10 +542,10 @@ function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
           vec3(0.55, 0.5, 0.55),
           vec3(0.50, 0.45, 0.50),
           vec3(1.0, 0.7, 0.4),
-          ${palettePhase}
+          uPalettePhase
         );
 
-        // Ensure minimum brightness — no black areas
+        // Ensure minimum brightness -- no black areas
         baseColor = max(baseColor, vec3(0.12, 0.06, 0.18));
 
         // Soft half-Lambert diffuse
@@ -369,7 +559,7 @@ function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
 
         // Fresnel rim
         float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.0);
-        vec3 rimColor = mix(${rimHue1}, ${rimHue2}, sin(uTime * 0.4) * 0.5 + 0.5);
+        vec3 rimColor = mix(uRimHue1, uRimHue2, sin(uTime * 0.4) * 0.5 + 0.5);
         baseColor += rimColor * fresnel * 0.55;
 
         // Fake env reflection
@@ -386,91 +576,158 @@ function createCompanionMaterial(palettePhase, rimHue1, rimHue2) {
         // Hover glow
         baseColor += rimColor * uHover * 0.25;
 
+        // Selection outline glow
+        float selEdge = pow(1.0 - max(dot(V, N), 0.0), 4.0);
+        baseColor += vec3(0.65, 0.55, 1.0) * selEdge * uSelected * 0.8;
+
         gl_FragColor = vec4(baseColor, 1.0);
       }
     `
   });
 }
 
-// ══════════════════════════════════════════════════���════════
-// COMPANIONS
-// ═════════════════════════════════════════════��═════════════
+// ═══════════════════════════════════════════════════════════
+// DISPLACED (TWISTED) SHADER MATERIAL
+// Same pipeline but with vertex noise displacement
+// ═══════════════════════════════════════════════════════════
+function createDisplacedMaterial(palette) {
+  const p = PALETTES[palette] || PALETTES.aurora;
+  return new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: {
+      uTime: { value: 0 },
+      uHover: { value: 0 },
+      uSelected: { value: 0 },
+      uPalettePhase: { value: new THREE.Vector3(...p.phase) },
+      uRimHue1: { value: new THREE.Vector3(...p.rim1) },
+      uRimHue2: { value: new THREE.Vector3(...p.rim2) },
+    },
+    vertexShader: `
+      uniform float uTime;
+      ${NOISE_GLSL}
 
-// 1. Torus Knot -- purple-blue phase
-const tkGeo = new THREE.TorusKnotGeometry(0.50, 0.17, 200, 32, 2, 3);
-const tkMat = createCompanionMaterial(
-  'vec3(0.00, 0.15, 0.20)',
-  'vec3(0.4, 0.6, 1.0)', 'vec3(0.7, 0.3, 1.0)'
-);
-const torusKnot = new THREE.Mesh(tkGeo, tkMat);
-torusKnot.position.set(-2.6, 5, -0.8);
-scene.add(torusKnot);
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      varying vec3 vPosition;
+      varying float vDisplacement;
 
-// 2. Torus -- pink-coral phase
-const torGeo = new THREE.TorusGeometry(0.60, 0.20, 64, 128);
-const torMat = createCompanionMaterial(
-  'vec3(0.25, 0.05, 0.10)',
-  'vec3(1.0, 0.4, 0.6)', 'vec3(1.0, 0.7, 0.3)'
-);
-const torus = new THREE.Mesh(torGeo, torMat);
-torus.position.set(2.4, -5, -0.5);
-torus.rotation.set(0.6, 0.3, 0.2);
-scene.add(torus);
+      void main() {
+        vec3 pos = position;
 
-// 3-7. Small floating gems
-const smalls = [];
-const smallConfigs = [
-  {
-    geo: new THREE.IcosahedronGeometry(0.22, 1),
-    pos: [-1.2, -1.5, 0.3],
-    phase: 'vec3(0.10, 0.20, 0.30)',
-    rim1: 'vec3(0.5, 0.8, 1.0)', rim2: 'vec3(0.3, 0.5, 1.0)'
-  },
-  {
-    geo: new THREE.OctahedronGeometry(0.19, 0),
-    pos: [1.5, 1.5, -1],
-    phase: 'vec3(0.30, 0.10, 0.00)',
-    rim1: 'vec3(0.2, 1.0, 0.7)', rim2: 'vec3(0.4, 0.9, 0.5)'
-  },
-  {
-    geo: new THREE.OctahedronGeometry(0.17, 1),
-    pos: [-0.6, 1.8, -1.5],
-    phase: 'vec3(0.15, 0.00, 0.10)',
-    rim1: 'vec3(1.0, 0.5, 0.8)', rim2: 'vec3(0.9, 0.3, 0.6)'
-  },
-  {
-    geo: new THREE.DodecahedronGeometry(0.16, 0),
-    pos: [0.8, -1.7, 0.5],
-    phase: 'vec3(0.05, 0.25, 0.15)',
-    rim1: 'vec3(0.6, 0.5, 1.0)', rim2: 'vec3(0.8, 0.6, 1.0)'
-  },
-  {
-    geo: new THREE.SphereGeometry(0.13, 32, 32),
-    pos: [2.5, 1.2, -1.8],
-    phase: 'vec3(0.35, 0.15, 0.05)',
-    rim1: 'vec3(1.0, 0.85, 0.3)', rim2: 'vec3(1.0, 0.6, 0.2)'
-  },
-];
-smallConfigs.forEach(cfg => {
-  const mat = createCompanionMaterial(cfg.phase, cfg.rim1, cfg.rim2);
-  const mesh = new THREE.Mesh(cfg.geo, mat);
-  mesh.position.set(...cfg.pos);
-  mesh.scale.set(0, 0, 0);
-  scene.add(mesh);
-  smalls.push(mesh);
-});
+        // Gentle twist along Y axis
+        float twistAngle = sin(pos.y * 1.8 + uTime * 0.25) * 0.22;
+        float cosA = cos(twistAngle);
+        float sinA = sin(twistAngle);
+        pos.xz = mat2(cosA, -sinA, sinA, cosA) * pos.xz;
 
-const allCompanionMats = [tkMat, torMat, ...smalls.map(s => s.material)];
+        // Single-octave low-frequency displacement
+        float n = snoise(pos * 0.7 + uTime * 0.12) * 0.22;
+        float breathe = sin(uTime * 0.4) * 0.04;
+        float disp = n + breathe;
+        vDisplacement = disp;
+
+        vec3 displaced = pos + normal * disp;
+
+        // Recompute normals
+        float eps = 0.02;
+        vec3 tang = normalize(cross(normal, vec3(0.0, 1.0, 0.01)));
+        vec3 bitang = normalize(cross(normal, tang));
+        vec3 pT = pos + tang * eps;
+        vec3 pB = pos + bitang * eps;
+        float dT = snoise(pT * 0.7 + uTime * 0.12) * 0.22;
+        float dB = snoise(pB * 0.7 + uTime * 0.12) * 0.22;
+        vec3 displacedT = pT + normal * dT;
+        vec3 displacedB = pB + normal * dB;
+        vec3 newNormal = normalize(cross(displacedT - displaced, displacedB - displaced));
+
+        vNormal = normalize(normalMatrix * newNormal);
+        vPosition = displaced;
+        vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
+        vViewPosition = -mvPosition.xyz;
+
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uHover;
+      uniform float uSelected;
+      uniform vec3 uPalettePhase;
+      uniform vec3 uRimHue1;
+      uniform vec3 uRimHue2;
+      ${PALETTE_GLSL}
+
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      varying vec3 vPosition;
+      varying float vDisplacement;
+
+      void main() {
+        vec3 N = normalize(vNormal);
+        vec3 V = normalize(vViewPosition);
+
+        float gradT = vDisplacement * 1.8 + 0.5 + N.y * 0.25 + uTime * 0.04;
+        vec3 baseColor = cosPalette(
+          gradT,
+          vec3(0.55, 0.45, 0.60),
+          vec3(0.50, 0.50, 0.45),
+          vec3(1.0, 0.7, 0.4),
+          uPalettePhase
+        );
+
+        baseColor = max(baseColor, vec3(0.12, 0.06, 0.18));
+
+        vec3 mainLight = normalize(vec3(0.5, 0.8, 0.6));
+        vec3 fillLight = normalize(vec3(-0.6, 0.3, 0.8));
+        float diff1 = dot(N, mainLight) * 0.35 + 0.65;
+        float diff2 = dot(N, fillLight) * 0.2 + 0.8;
+        baseColor *= max(diff1, diff2);
+
+        baseColor = pow(baseColor, vec3(0.85));
+
+        float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.5);
+        vec3 rimColor = mix(uRimHue1, uRimHue2, sin(uTime * 0.3) * 0.5 + 0.5);
+        baseColor += rimColor * fresnel * 0.65;
+
+        vec3 reflectDir = reflect(-V, N);
+        float envGradient = reflectDir.y * 0.5 + 0.5;
+        vec3 envColor = cosPalette(
+          envGradient + uTime * 0.02,
+          vec3(0.5, 0.4, 0.6),
+          vec3(0.3, 0.3, 0.3),
+          vec3(1.0, 1.0, 0.5),
+          vec3(0.1, 0.2, 0.3)
+        );
+        baseColor = mix(baseColor, envColor, 0.12 + fresnel * 0.08);
+
+        vec3 H1 = normalize(V + mainLight);
+        vec3 H2 = normalize(V + fillLight);
+        float spec1 = pow(max(dot(N, H1), 0.0), 80.0);
+        float spec2 = pow(max(dot(N, H2), 0.0), 60.0);
+        baseColor += vec3(1.0, 0.95, 0.9) * spec1 * 0.45;
+        baseColor += vec3(0.8, 0.7, 1.0) * spec2 * 0.25;
+
+        baseColor += rimColor * uHover * 0.3;
+
+        // Selection outline glow
+        float selEdge = pow(1.0 - max(dot(V, N), 0.0), 4.0);
+        baseColor += vec3(0.65, 0.55, 1.0) * selEdge * uSelected * 0.8;
+
+        gl_FragColor = vec4(baseColor, 1.0);
+      }
+    `
+  });
+}
 
 // ═══════════════════════════════════════════════════════════
 // PARTICLES
-// ═══════════════════════════════════════════��═══════════════
-const PC = 350;
+// ═══════════════════════════════════════════════════════════
+const PC = 300;
 const pGeo = new THREE.BufferGeometry();
 const pp = new Float32Array(PC * 3), ps = new Float32Array(PC), pc = new Float32Array(PC * 3);
 const pal = [new THREE.Color('#c4b5fd'), new THREE.Color('#93c5fd'), new THREE.Color('#6ee7b7'), new THREE.Color('#f9a8d4'), new THREE.Color('#fde68a')];
 for (let i = 0; i < PC; i++) {
-  const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), r = 2.5 + Math.random() * 10;
+  const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), r = 3 + Math.random() * 12;
   pp[i * 3] = r * Math.sin(ph) * Math.cos(th);
   pp[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
   pp[i * 3 + 2] = r * Math.cos(ph);
@@ -514,7 +771,7 @@ const pMat = new THREE.ShaderMaterial({
 });
 scene.add(new THREE.Points(pGeo, pMat));
 
-// ════════════════════════��══════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // POST-PROCESSING: Subtle Bloom + Cinematic + Output
 // ═══════════════════════════════════════════════════════════
 const composer = new EffectComposer(renderer);
@@ -595,49 +852,271 @@ composer.addPass(cinematicPass);
 composer.addPass(new OutputPass());
 
 // ═══════════════════════════════════════════════════════════
-// MOUSE TRACKING
+// EDITOR STATE
 // ═══════════════════════════════════════════════════════════
-const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
-addEventListener('mousemove', e => {
-  mouse.tx = (e.clientX / innerWidth) * 2 - 1;
-  mouse.ty = -(e.clientY / innerHeight) * 2 + 1;
-});
-addEventListener('touchmove', e => {
-  if (e.touches.length === 1) {
-    mouse.tx = (e.touches[0].clientX / innerWidth) * 2 - 1;
-    mouse.ty = -(e.touches[0].clientY / innerHeight) * 2 + 1;
-  }
-}, { passive: true });
-
-// ═══════════════════════════════════════════════════════════
-// HOVER INTERACTION
-// ══════════════════════════════════════���════════════════════
+const editorObjects = []; // { mesh, shapeType, palette, spinSpeed, baseScale }
+let selectedObject = null;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 let hoverTarget = null;
 let lastHoverCheck = 0;
-const interactables = [];
 
-addEventListener('mousemove', e => {
+// Drag state
+let isDragging = false;
+let dragObject = null;
+const dragPlane = new THREE.Plane();
+const dragOffset = new THREE.Vector3();
+const dragIntersect = new THREE.Vector3();
+let mouseDownTime = 0;
+let mouseDownPos = new THREE.Vector2();
+
+// ═══════════════════════════════════════════════════════════
+// ADD SHAPE TO SCENE
+// ═══════════════════════════════════════════════════════════
+function addShape(shapeType, position) {
+  const def = SHAPES[shapeType];
+  if (!def) return;
+
+  const palette = def.defaultPalette;
+  const geo = def.create();
+  const mat = def.displaced ? createDisplacedMaterial(palette) : createCompanionMaterial(palette);
+  const mesh = new THREE.Mesh(geo, mat);
+
+  mesh.position.copy(position || new THREE.Vector3(
+    (Math.random() - 0.5) * 4,
+    (Math.random() - 0.5) * 2,
+    (Math.random() - 0.5) * 2
+  ));
+
+  // Entrance animation
+  mesh.scale.set(0, 0, 0);
+  scene.add(mesh);
+
+  const obj = { mesh, shapeType, palette, spinSpeed: 0.5, baseScale: 1.0 };
+  editorObjects.push(obj);
+
+  gsap.to(mesh.scale, {
+    x: 1, y: 1, z: 1, duration: 0.8,
+    ease: 'elastic.out(1, 0.5)',
+    onComplete: () => selectObject(obj)
+  });
+
+  // Bloom flash
+  gsap.to(bloomPass, {
+    strength: 0.7, duration: 0.15,
+    onComplete: () => gsap.to(bloomPass, { strength: 0.35, duration: 0.5 })
+  });
+
+  return obj;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECTION
+// ═══════════════════════════════════════════════════════════
+function selectObject(obj) {
+  // Deselect previous
+  if (selectedObject && selectedObject !== obj) {
+    const prev = selectedObject;
+    gsap.to(prev.mesh.material.uniforms.uSelected, { value: 0, duration: 0.3 });
+  }
+
+  selectedObject = obj;
+
+  if (obj) {
+    gsap.to(obj.mesh.material.uniforms.uSelected, { value: 1, duration: 0.3 });
+    updatePropsPanel(obj);
+    document.getElementById('props-panel').classList.add('visible');
+    document.getElementById('sel-indicator').classList.add('visible');
+    document.getElementById('sel-indicator').textContent = SHAPES[obj.shapeType].name + ' selected';
+  } else {
+    document.getElementById('props-panel').classList.remove('visible');
+    document.getElementById('sel-indicator').classList.remove('visible');
+  }
+}
+
+function deleteSelected() {
+  if (!selectedObject) return;
+  const obj = selectedObject;
+
+  gsap.to(obj.mesh.scale, {
+    x: 0, y: 0, z: 0, duration: 0.4, ease: 'back.in(2)',
+    onComplete: () => {
+      scene.remove(obj.mesh);
+      obj.mesh.geometry.dispose();
+      obj.mesh.material.dispose();
+      const idx = editorObjects.indexOf(obj);
+      if (idx > -1) editorObjects.splice(idx, 1);
+    }
+  });
+
+  selectObject(null);
+}
+
+// ═══════════════════════════════════════════════════════════
+// UPDATE PROPERTIES PANEL
+// ═══════════════════════════════════════════════════════════
+function updatePropsPanel(obj) {
+  document.getElementById('prop-shape').textContent = SHAPES[obj.shapeType].name;
+  document.getElementById('scale-slider').value = obj.baseScale;
+  document.getElementById('spin-slider').value = obj.spinSpeed;
+
+  // Palette swatches
+  const row = document.getElementById('palette-row');
+  row.innerHTML = '';
+  PALETTE_KEYS.forEach(key => {
+    const p = PALETTES[key];
+    const swatch = document.createElement('div');
+    swatch.className = 'palette-swatch' + (key === obj.palette ? ' active' : '');
+    swatch.style.background = p.css;
+    swatch.title = p.name;
+    swatch.onclick = (e) => {
+      e.stopPropagation();
+      changePalette(obj, key);
+      updatePropsPanel(obj);
+    };
+    row.appendChild(swatch);
+  });
+}
+
+function changePalette(obj, paletteKey) {
+  const p = PALETTES[paletteKey];
+  if (!p) return;
+  obj.palette = paletteKey;
+  const u = obj.mesh.material.uniforms;
+  gsap.to(u.uPalettePhase.value, { x: p.phase[0], y: p.phase[1], z: p.phase[2], duration: 0.6 });
+  gsap.to(u.uRimHue1.value, { x: p.rim1[0], y: p.rim1[1], z: p.rim1[2], duration: 0.6 });
+  gsap.to(u.uRimHue2.value, { x: p.rim2[0], y: p.rim2[1], z: p.rim2[2], duration: 0.6 });
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOUSE / POINTER EVENTS
+// ═══════════════════════════════════════════════════════════
+function updatePointer(e) {
   pointer.x = (e.clientX / innerWidth) * 2 - 1;
   pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+}
+
+canvas.addEventListener('mousemove', e => {
+  updatePointer(e);
+
+  if (isDragging && dragObject) {
+    raycaster.setFromCamera(pointer, camera);
+    if (raycaster.ray.intersectPlane(dragPlane, dragIntersect)) {
+      dragObject.mesh.position.copy(dragIntersect.sub(dragOffset));
+    }
+    return;
+  }
 });
 
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return; // Only left click
+  updatePointer(e);
+  mouseDownTime = performance.now();
+  mouseDownPos.set(e.clientX, e.clientY);
+
+  raycaster.setFromCamera(pointer, camera);
+  const meshes = editorObjects.map(o => o.mesh);
+  const hits = raycaster.intersectObjects(meshes);
+
+  if (hits.length > 0) {
+    const hitMesh = hits[0].object;
+    const obj = editorObjects.find(o => o.mesh === hitMesh);
+    if (obj) {
+      isDragging = true;
+      dragObject = obj;
+      controls.enabled = false;
+
+      // Set up drag plane perpendicular to camera
+      const camDir = new THREE.Vector3();
+      camera.getWorldDirection(camDir);
+      dragPlane.setFromNormalAndCoplanarPoint(camDir, hitMesh.position);
+
+      raycaster.ray.intersectPlane(dragPlane, dragIntersect);
+      dragOffset.copy(dragIntersect).sub(hitMesh.position);
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (e.button !== 0) return;
+  const elapsed = performance.now() - mouseDownTime;
+  const dist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
+
+  if (isDragging && dragObject) {
+    // If it was a short click (not a real drag), treat as selection
+    if (elapsed < 250 && dist < 5) {
+      selectObject(dragObject);
+    }
+    isDragging = false;
+    dragObject = null;
+    controls.enabled = true;
+    return;
+  }
+
+  // Click on empty space: deselect
+  if (elapsed < 250 && dist < 5) {
+    updatePointer(e);
+    raycaster.setFromCamera(pointer, camera);
+    const meshes = editorObjects.map(o => o.mesh);
+    const hits = raycaster.intersectObjects(meshes);
+    if (hits.length === 0) {
+      selectObject(null);
+    }
+  }
+
+  isDragging = false;
+  dragObject = null;
+  controls.enabled = true;
+});
+
+// Scroll to resize selected object
+canvas.addEventListener('wheel', e => {
+  updatePointer(e);
+  raycaster.setFromCamera(pointer, camera);
+  const meshes = editorObjects.map(o => o.mesh);
+  const hits = raycaster.intersectObjects(meshes);
+
+  if (hits.length > 0) {
+    const hitMesh = hits[0].object;
+    const obj = editorObjects.find(o => o.mesh === hitMesh);
+    if (obj) {
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY > 0 ? -0.06 : 0.06;
+      obj.baseScale = Math.max(0.3, Math.min(3, obj.baseScale + delta));
+      const s = obj.baseScale;
+      gsap.to(obj.mesh.scale, { x: s, y: s, z: s, duration: 0.2, ease: 'power2.out' });
+
+      if (selectedObject === obj) {
+        document.getElementById('scale-slider').value = obj.baseScale;
+      }
+    }
+  }
+}, { passive: false });
+
+// Hover check
 function checkHover(t) {
   if (t - lastHoverCheck < 0.066) return;
   lastHoverCheck = t;
+  if (isDragging) return;
+
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(interactables);
+  const meshes = editorObjects.map(o => o.mesh);
+  const hits = raycaster.intersectObjects(meshes);
   const newTarget = hits.length > 0 ? hits[0].object : null;
 
   if (newTarget !== hoverTarget) {
     if (hoverTarget) {
-      gsap.to(hoverTarget.scale, { x: 1, y: 1, z: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
-      gsap.to(hoverTarget.material.uniforms.uHover, { value: 0, duration: 0.4 });
+      const obj = editorObjects.find(o => o.mesh === hoverTarget);
+      if (obj) {
+        gsap.to(hoverTarget.material.uniforms.uHover, { value: 0, duration: 0.4 });
+      }
     }
     if (newTarget) {
-      gsap.to(newTarget.scale, { x: 1.08, y: 1.08, z: 1.08, duration: 0.4, ease: 'back.out(2)' });
       gsap.to(newTarget.material.uniforms.uHover, { value: 1, duration: 0.3 });
+      canvas.style.cursor = 'grab';
+    } else {
+      canvas.style.cursor = 'default';
     }
     hoverTarget = newTarget;
   }
@@ -649,8 +1128,8 @@ function checkHover(t) {
 const bursts = [];
 const _tempColor = new THREE.Color();
 
-function createBurstAt(pos) {
-  const count = 50;
+function createBurstAt(pos, paletteKey) {
+  const count = 40;
   const geo = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const velocities = [];
@@ -675,27 +1154,65 @@ function createBurstAt(pos) {
   });
   const pts = new THREE.Points(geo, mat);
   scene.add(pts);
-
-  const burst = { pts, velocities, positions, life: 1.2, age: 0 };
-  bursts.push(burst);
-
-  gsap.to(bloomPass, { strength: 0.8, duration: 0.15, onComplete: () => gsap.to(bloomPass, { strength: 0.35, duration: 0.6 }) });
+  bursts.push({ pts, velocities, positions, life: 1.0, age: 0 });
 }
 
-addEventListener('click', e => {
-  const p = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  raycaster.setFromCamera(p, camera);
-  const hits = raycaster.intersectObjects(interactables);
-  if (hits.length > 0) createBurstAt(hits[0].point);
+// ═══════════════════════════════════════════════════════════
+// BUILD UI: Shape Picker Bar
+// ═══════════════════════════════════════════════════════════
+const shapeBar = document.getElementById('shape-bar');
+SHAPE_KEYS.forEach(key => {
+  const def = SHAPES[key];
+  const btn = document.createElement('div');
+  btn.className = 'shape-btn';
+  btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${def.icon}</svg><span>${def.name}</span>`;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Place shape at a good default position in front of camera
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    const pos = camera.position.clone().add(camDir.multiplyScalar(5));
+    pos.x += (Math.random() - 0.5) * 2;
+    pos.y += (Math.random() - 0.5) * 1;
+
+    const obj = addShape(key, pos);
+    if (obj) createBurstAt(obj.mesh.position);
+  });
+  shapeBar.appendChild(btn);
 });
 
-addEventListener('touchend', e => {
-  if (e.changedTouches.length === 1) {
-    const touch = e.changedTouches[0];
-    const p = new THREE.Vector2((touch.clientX / innerWidth) * 2 - 1, -(touch.clientY / innerHeight) * 2 + 1);
-    raycaster.setFromCamera(p, camera);
-    const hits = raycaster.intersectObjects(interactables);
-    if (hits.length > 0) createBurstAt(hits[0].point);
+// ═══════════════════════════════════════════════════════════
+// PROPS PANEL EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════
+document.getElementById('scale-slider').addEventListener('input', e => {
+  if (!selectedObject) return;
+  const s = parseFloat(e.target.value);
+  selectedObject.baseScale = s;
+  gsap.to(selectedObject.mesh.scale, { x: s, y: s, z: s, duration: 0.15 });
+});
+
+document.getElementById('spin-slider').addEventListener('input', e => {
+  if (!selectedObject) return;
+  selectedObject.spinSpeed = parseFloat(e.target.value);
+});
+
+document.getElementById('delete-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  deleteSelected();
+});
+
+// Prevent panel clicks from deselecting
+document.getElementById('props-panel').addEventListener('mousedown', e => e.stopPropagation());
+document.getElementById('shape-bar').addEventListener('mousedown', e => e.stopPropagation());
+document.getElementById('hint').addEventListener('mousedown', e => e.stopPropagation());
+
+// Keyboard shortcuts
+addEventListener('keydown', e => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedObject) deleteSelected();
+  }
+  if (e.key === 'Escape') {
+    selectObject(null);
   }
 });
 
@@ -714,7 +1231,7 @@ addEventListener('resize', () => {
   }, 100);
 });
 
-// ════════════════════════���══════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // RESOURCE CLEANUP
 // ═══════════════════════════════════════════════════════════
 addEventListener('beforeunload', () => {
@@ -728,54 +1245,36 @@ addEventListener('beforeunload', () => {
   renderer.dispose();
 });
 
-// ═════════════════════════════════════════════��═════════════
+// ═══════════════════════════════════════════════════════════
 // ANIMATE
-// ═══════════════════════════════════════════���═══════════════
+// ═══════════════════════════════════════════════════════════
 const clock = new THREE.Clock();
-interactables.push(hero, torusKnot, torus);
 
 function animate() {
   requestAnimationFrame(animate);
   const t = clock.getElapsedTime();
+  const dt = clock.getDelta();
 
-  mouse.x += (mouse.tx - mouse.x) * 0.06;
-  mouse.y += (mouse.ty - mouse.y) * 0.06;
-
-  camera.position.x = mouse.x * 0.8;
-  camera.position.y = mouse.y * 0.5;
-  camera.lookAt(0, 0, 0);
+  controls.update();
 
   bgMat.uniforms.uTime.value = t;
+  gridMat.uniforms.uTime.value = t;
 
-  // Hero
-  hero.rotation.y = t * 0.07;
-  hero.rotation.x = Math.sin(t * 0.18) * 0.05;
-  hero.rotation.z = mouse.x * 0.1;
-  hero.position.y = Math.sin(t * 0.35) * 0.07;
-  heroUniforms.uTime.value = t;
-  heroUniforms.uMouse.value.set(mouse.x, mouse.y);
+  // Update all editor objects
+  editorObjects.forEach(obj => {
+    obj.mesh.material.uniforms.uTime.value = t;
 
-  // Companions
-  torusKnot.rotation.x = t * 0.14;
-  torusKnot.rotation.y = t * 0.11;
-  torusKnot.position.x = -2.6 - mouse.x * 0.12;
+    // Gentle spin
+    obj.mesh.rotation.y += obj.spinSpeed * 0.01;
+    obj.mesh.rotation.x += obj.spinSpeed * 0.004;
 
-  torus.rotation.x = 0.6 + t * 0.11;
-  torus.rotation.z = 0.2 + t * 0.07;
-  torus.position.x = 2.4 + mouse.x * 0.12;
-
-  const tkBreath = 1.0 + Math.sin(t * 0.3) * 0.015;
-  torusKnot.scale.set(tkBreath, tkBreath, tkBreath);
-  const torBreath = 1.0 + Math.sin(t * 0.35 + 1) * 0.015;
-  torus.scale.set(torBreath, torBreath, torBreath);
-
-  smalls.forEach((s, i) => {
-    s.rotation.x = t * (0.18 + i * 0.05);
-    s.rotation.y = t * (0.13 + i * 0.07);
-    s.position.y += Math.sin(t * (0.25 + i * 0.05) + i * 1.5) * 0.0005;
+    // Subtle breathing
+    const breathe = 1.0 + Math.sin(t * 0.35) * 0.008;
+    const s = obj.baseScale * breathe;
+    if (!gsap.isTweening(obj.mesh.scale)) {
+      obj.mesh.scale.setScalar(s);
+    }
   });
-
-  allCompanionMats.forEach(m => { m.uniforms.uTime.value = t; });
 
   pMat.uniforms.uTime.value = t;
 
@@ -810,23 +1309,24 @@ function animate() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// GSAP ENTRANCE ANIMATION
-// ═════════════════════════════════════════���═════════════════
+// STARTUP: Add a few default shapes
+// ═══════════════════════════════════════════════════════════
 function startScene() {
   document.getElementById('loader').classList.add('done');
   animate();
 
-  const tl = gsap.timeline({ defaults: { ease: 'elastic.out(1, 0.5)' } });
+  // Add hero twisted sphere at center
+  const hero = addShape('twisted', new THREE.Vector3(0, 0, 0));
+  if (hero) hero.baseScale = 1.3;
 
-  tl.to(hero.scale, { x: 1, y: 1, z: 1, duration: 1.8 }, 0);
-  tl.to(torusKnot.position, { y: 0.5, duration: 1.4 }, 0.3);
-  tl.to(torus.position, { y: -0.6, duration: 1.4 }, 0.5);
+  // Add some companions with staggered timing
+  setTimeout(() => addShape('torusknot', new THREE.Vector3(-2.5, 0.5, -0.5)), 200);
+  setTimeout(() => addShape('torus', new THREE.Vector3(2.3, -0.4, -0.3)), 400);
+  setTimeout(() => addShape('icosahedron', new THREE.Vector3(-1.0, -1.2, 0.5)), 600);
+  setTimeout(() => addShape('octahedron', new THREE.Vector3(1.3, 1.3, -0.8)), 800);
 
-  smalls.forEach((s, i) => {
-    tl.to(s.scale, { x: 1, y: 1, z: 1, duration: 1.0 }, 0.4 + i * 0.1);
-  });
-
-  tl.fromTo(bloomPass, { strength: 1.0 }, { strength: 0.35, duration: 2, ease: 'power2.out' }, 0);
+  // Initial bloom flash
+  gsap.fromTo(bloomPass, { strength: 1.0 }, { strength: 0.35, duration: 2, ease: 'power2.out' });
 }
 
 setTimeout(startScene, 400);
