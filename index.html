@@ -410,6 +410,11 @@ const PALETTES = {
   ember:    { name:'Ember',      a:[.55,.35,.25], b:[.50,.45,.40], c:[1,.5,.2],  d:[.35,.15,.05], rim1:[1,.3,.1], rim2:[1,.6,.1],    css:'linear-gradient(135deg,#dc2626,#f97316,#eab308)' },
   ocean:    { name:'Deep Ocean', a:[.40,.45,.60], b:[.35,.40,.50], c:[.8,1,1],   d:[.00,.10,.30], rim1:[.1,.5,1], rim2:[.1,.8,.9],   css:'linear-gradient(135deg,#1e3a5f,#2563eb,#06b6d4)' },
   hologram: { name:'Hologram',   a:[.50,.50,.50], b:[.50,.50,.50], c:[1,1,1],    d:[.00,.33,.67], rim1:[1,.3,.5], rim2:[.3,1,.5],    css:'linear-gradient(135deg,#f43f5e,#eab308,#22c55e,#3b82f6,#a855f7)' },
+  // ── Natural / Muted styles ──
+  clay:     { name:'Clay',       a:[.62,.52,.45], b:[.12,.10,.08], c:[.5,.5,.5],  d:[.10,.05,.00], rim1:[.75,.65,.55], rim2:[.65,.55,.50], css:'linear-gradient(135deg,#a08070,#c4a882,#8b7355)', style:'natural' },
+  stone:    { name:'Stone',      a:[.50,.50,.52], b:[.10,.10,.12], c:[.6,.6,.7],  d:[.00,.00,.05], rim1:[.60,.60,.65], rim2:[.55,.55,.60], css:'linear-gradient(135deg,#787882,#9a9a9f,#5c5c66)', style:'natural' },
+  porcelain:{ name:'Porcelain',  a:[.88,.86,.84], b:[.08,.06,.05], c:[.3,.3,.4],  d:[.00,.02,.05], rim1:[.90,.88,.95], rim2:[.85,.82,.90], css:'linear-gradient(135deg,#e8e0d8,#f5f0eb,#d8d0c8)', style:'natural' },
+  moss:     { name:'Moss',       a:[.35,.42,.32], b:[.12,.15,.10], c:[.6,.4,.5],  d:[.05,.10,.00], rim1:[.45,.55,.40], rim2:[.40,.50,.38], css:'linear-gradient(135deg,#4a5e3a,#6b7f58,#3a4e2a)', style:'natural' },
 };
 const PALETTE_KEYS = Object.keys(PALETTES);
 
@@ -487,6 +492,7 @@ gridMesh.rotation.x=-Math.PI/2; gridMesh.position.y=-2; gridMesh.renderOrder=-0.
 // ═══════════════════════════════════════════════════════════
 function createEditorMaterial(paletteKey){
   const p = PALETTES[paletteKey] || PALETTES.nebula;
+  const isNatural = p.style==='natural';
   return new THREE.ShaderMaterial({
     side:THREE.DoubleSide,
     uniforms:{
@@ -494,8 +500,9 @@ function createEditorMaterial(paletteKey){
       uPalA:{value:new THREE.Vector3(...p.a)}, uPalB:{value:new THREE.Vector3(...p.b)},
       uPalC:{value:new THREE.Vector3(...p.c)}, uPalD:{value:new THREE.Vector3(...p.d)},
       uRim1:{value:new THREE.Vector3(...p.rim1)}, uRim2:{value:new THREE.Vector3(...p.rim2)},
-      uFresnelStr:{value:0.55}, uFresnelPow:{value:3.0},
-      uSpecInt:{value:0.35}, uSpecSharp:{value:64.0}, uMinBright:{value:0.12},
+      uFresnelStr:{value:isNatural?0.18:0.55}, uFresnelPow:{value:isNatural?2.0:3.0},
+      uSpecInt:{value:isNatural?0.08:0.35}, uSpecSharp:{value:isNatural?16.0:64.0}, uMinBright:{value:isNatural?0.18:0.12},
+      uNatural:{value:isNatural?1.0:0.0},
     },
     vertexShader:`
       varying vec3 vNormal, vViewPos, vPos;
@@ -505,7 +512,7 @@ function createEditorMaterial(paletteKey){
         vViewPos=-mv.xyz; gl_Position=projectionMatrix*mv;
       }`,
     fragmentShader:`
-      uniform float uTime, uHover, uSelected;
+      uniform float uTime, uHover, uSelected, uNatural;
       uniform vec3 uPalA,uPalB,uPalC,uPalD,uRim1,uRim2;
       uniform float uFresnelStr,uFresnelPow,uSpecInt,uSpecSharp,uMinBright;
       ${PALETTE_GLSL}
@@ -532,43 +539,74 @@ function createEditorMaterial(paletteKey){
         return env;
       }
 
+      // Warm neutral environment for natural materials
+      vec3 fakeEnvNatural(vec3 reflDir){
+        float ey=reflDir.y*0.5+0.5;
+        vec3 env=mix(vec3(0.18,0.15,0.13),vec3(0.35,0.32,0.30),ey);
+        // Soft warm key light reflection
+        env+=vec3(0.5,0.45,0.38)*pow(max(dot(reflDir,normalize(vec3(0.4,0.8,0.3))),0.0),4.0)*0.4;
+        // Cool fill from opposite side
+        env+=vec3(0.25,0.28,0.35)*pow(max(dot(reflDir,normalize(vec3(-0.5,0.2,0.6))),0.0),3.0)*0.3;
+        return env;
+      }
+
       void main(){
         vec3 N=normalize(vNormal); vec3 V=normalize(vViewPos);
         // Noise-based color variation
         float colorNoise=hash_e(vPos.xy*5.0)*0.08;
-        float gradT=vPos.y*0.5+0.5+N.x*0.2+uTime*0.06+colorNoise;
+        float gradT=vPos.y*0.5+0.5+N.x*0.2+uTime*0.06*mix(1.0,0.3,uNatural)+colorNoise;
         vec3 base=cosPalette(gradT,uPalA,uPalB,uPalC,uPalD);
-        // Minimum brightness floor
-        base=max(base,vec3(0.12,0.06,0.18));
-        // Surface micro-detail
-        float microDetail=valNoise(vPos*8.0+uTime*0.1)*0.03;
+
+        // Natural style: warmer min brightness, less purple
+        vec3 minBright=mix(vec3(0.12,0.06,0.18),vec3(uMinBright,uMinBright*0.9,uMinBright*0.8),uNatural);
+        base=max(base,minBright);
+
+        // Surface micro-detail — more visible on natural materials
+        float detailScale=mix(8.0,12.0,uNatural);
+        float detailAmt=mix(0.03,0.06,uNatural);
+        float microDetail=valNoise(vPos*detailScale+uTime*0.05)*detailAmt;
         base*=1.0+microDetail;
-        // Half-Lambert diffuse
+
+        // Diffuse lighting — stronger for natural, softer falloff
         vec3 L1=normalize(vec3(0.5,0.7,0.6)); vec3 L2=normalize(vec3(-0.5,0.3,0.7));
-        float d1=dot(N,L1)*0.3+0.7; float d2=dot(N,L2)*0.2+0.8;
-        base*=max(d1,d2); base=pow(base,vec3(0.85));
-        // Subsurface scattering approximation
-        float sss=pow(max(dot(-V,L1),0.0),2.0)*0.15;
+        float wrapAmt=mix(0.3,0.45,uNatural);
+        float d1=dot(N,L1)*wrapAmt+(1.0-wrapAmt); float d2=dot(N,L2)*(wrapAmt*0.7)+(1.0-wrapAmt*0.7);
+        base*=max(d1,d2);
+        // Gamma — natural uses less contrast boost
+        base=pow(base,vec3(mix(0.85,0.95,uNatural)));
+
+        // Subsurface scattering — subtle for natural (like wax/clay)
+        float sssAmt=mix(0.15,0.08,uNatural);
+        float sss=pow(max(dot(-V,L1),0.0),2.0)*sssAmt;
         base+=base*sss;
-        // Fresnel
+
+        // Fresnel — gentle for natural materials
         float fres=pow(1.0-max(dot(V,N),0.0),uFresnelPow);
         vec3 rim=mix(uRim1,uRim2,sin(uTime*0.4)*0.5+0.5);
         base+=rim*fres*uFresnelStr;
-        // Rich fake environment reflection
+
+        // Environment reflection — warm neutral for natural, psychedelic for vivid
         vec3 refl=reflect(-V,N);
-        vec3 envC=fakeEnv(refl);
-        base=mix(base,envC,0.10+fres*0.06);
-        // Dual-lobe specular
+        vec3 envC=mix(fakeEnv(refl),fakeEnvNatural(refl),uNatural);
+        float envMix=mix(0.10+fres*0.06, 0.04+fres*0.03, uNatural);
+        base=mix(base,envC,envMix);
+
+        // Specular — matte/diffuse for natural
         vec3 H1=normalize(V+L1);
-        float specSharp=pow(max(dot(N,H1),0.0),80.0)*0.35;
-        float specSoft=pow(max(dot(N,H1),0.0),12.0)*0.12;
-        base+=vec3(1.0,0.95,0.9)*(specSharp+specSoft);
-        // Hover & selection glow
-        base+=rim*uHover*0.25;
+        float specSharp=pow(max(dot(N,H1),0.0),mix(80.0,uSpecSharp,uNatural))*mix(0.35,uSpecInt,uNatural);
+        float specSoft=pow(max(dot(N,H1),0.0),mix(12.0,6.0,uNatural))*mix(0.12,0.04,uNatural);
+        vec3 specColor=mix(vec3(1.0,0.95,0.9),vec3(0.9,0.88,0.82),uNatural);
+        base+=specColor*(specSharp+specSoft);
+
+        // Hover & selection glow — subtler for natural
+        float hoverAmt=mix(0.25,0.12,uNatural);
+        base+=rim*uHover*hoverAmt;
         float selEdge=pow(1.0-max(dot(V,N),0.0),4.0);
-        base+=vec3(0.65,0.55,1.0)*selEdge*uSelected*0.8;
+        vec3 selColor=mix(vec3(0.65,0.55,1.0),vec3(0.7,0.65,0.55),uNatural);
+        base+=selColor*selEdge*uSelected*mix(0.8,0.4,uNatural);
+
         // Final brightness floor
-        base=max(base,vec3(0.12,0.06,0.18));
+        base=max(base,minBright);
         gl_FragColor=vec4(base,1.0);
       }`
   });
@@ -577,6 +615,7 @@ function createEditorMaterial(paletteKey){
 // Displaced (twisted) material for the twisted sphere shape
 function createDisplacedMaterial(paletteKey){
   const p = PALETTES[paletteKey] || PALETTES.nebula;
+  const isNatural = p.style==='natural';
   return new THREE.ShaderMaterial({
     side:THREE.DoubleSide,
     uniforms:{
@@ -584,8 +623,9 @@ function createDisplacedMaterial(paletteKey){
       uPalA:{value:new THREE.Vector3(...p.a)}, uPalB:{value:new THREE.Vector3(...p.b)},
       uPalC:{value:new THREE.Vector3(...p.c)}, uPalD:{value:new THREE.Vector3(...p.d)},
       uRim1:{value:new THREE.Vector3(...p.rim1)}, uRim2:{value:new THREE.Vector3(...p.rim2)},
-      uFresnelStr:{value:0.65}, uFresnelPow:{value:3.5},
-      uSpecInt:{value:0.45}, uSpecSharp:{value:80.0}, uMinBright:{value:0.12},
+      uFresnelStr:{value:isNatural?0.18:0.65}, uFresnelPow:{value:isNatural?2.0:3.5},
+      uSpecInt:{value:isNatural?0.08:0.45}, uSpecSharp:{value:isNatural?16.0:80.0}, uMinBright:{value:isNatural?0.18:0.12},
+      uNatural:{value:isNatural?1.0:0.0},
     },
     vertexShader:`
       uniform float uTime;
@@ -911,12 +951,20 @@ function changePalette(obj,key){
   const p=PALETTES[key]; if(!p) return;
   obj.palette=key;
   const u=obj.mesh.material.uniforms;
+  const isNat=p.style==='natural'?1.0:0.0;
   gsap.to(u.uPalA.value,{x:p.a[0],y:p.a[1],z:p.a[2],duration:0.5});
   gsap.to(u.uPalB.value,{x:p.b[0],y:p.b[1],z:p.b[2],duration:0.5});
   gsap.to(u.uPalC.value,{x:p.c[0],y:p.c[1],z:p.c[2],duration:0.5});
   gsap.to(u.uPalD.value,{x:p.d[0],y:p.d[1],z:p.d[2],duration:0.5});
   gsap.to(u.uRim1.value,{x:p.rim1[0],y:p.rim1[1],z:p.rim1[2],duration:0.5});
   gsap.to(u.uRim2.value,{x:p.rim2[0],y:p.rim2[1],z:p.rim2[2],duration:0.5});
+  // Transition material style (natural vs vivid)
+  gsap.to(u.uNatural,{value:isNat,duration:0.6,ease:'power2.inOut'});
+  gsap.to(u.uFresnelStr,{value:isNat?0.18:0.55,duration:0.5});
+  gsap.to(u.uFresnelPow,{value:isNat?2.0:3.0,duration:0.5});
+  gsap.to(u.uSpecInt,{value:isNat?0.08:0.35,duration:0.5});
+  gsap.to(u.uSpecSharp,{value:isNat?16.0:64.0,duration:0.5});
+  gsap.to(u.uMinBright,{value:isNat?0.18:0.12,duration:0.5});
   updatePanel(obj);
 }
 
@@ -1188,12 +1236,12 @@ function startScene(){
   document.getElementById('loader').classList.add('done');
   animate();
 
-  // Showcase single shape on start — torusknot centered
+  // Showcase single shape on start — sphere with Clay natural palette
   setTimeout(()=>{
-    addShape('torusknot', new THREE.Vector3(0,0,0), {scale:1.2});
+    addShape('sphere', new THREE.Vector3(0,0,0), {scale:1.2, palette:'clay'});
     // Highlight corresponding button
     const btns=document.querySelectorAll('.shape-btn');
-    const idx=SHAPE_KEYS.indexOf('torusknot');
+    const idx=SHAPE_KEYS.indexOf('sphere');
     if(idx>=0 && btns[idx]) btns[idx].classList.add('active');
   }, 100);
 
