@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover · CloudAI-X — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0f;color:#e8e8f0;min-height:100vh;overflow-x:hidden}
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(167,139,250,0.2);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(167,139,250,0.4)}
+
+  /* ─── Nav ─── */
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(10,10,15,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(167,139,250,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px;background:linear-gradient(135deg,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .nav a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
+  .nav a:hover{color:rgba(255,255,255,0.8)}
+  .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:rgba(255,255,255,0.7);text-decoration:none;display:inline-flex;align-items:center}
+  .nav-right .btn:hover{border-color:rgba(167,139,250,0.3);color:#fff}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;border-color:transparent}
+  .nav-right .btn.primary:hover{box-shadow:0 0 20px rgba(167,139,250,0.4)}
+
+  /* ─── Pills ─── */
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(10,10,15,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pills::-webkit-scrollbar{display:none}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .pill:hover{border-color:rgba(167,139,250,0.3);color:rgba(255,255,255,0.7)}
+  .pill.on{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:white;border-color:transparent}
+
+  /* ─── Masonry ─── */
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}
+  @media(max-width:800px){.grid{column-count:2;padding:12px}}
+  @media(max-width:500px){.grid{column-count:1}}
+
+  /* ─── Card ─── */
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(20,18,30,0.8);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;position:relative}
+  .card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.2)}
+
+  /* 3D canvas container */
+  .card .scene{width:100%;position:relative;overflow:hidden}
+  .card .scene canvas{width:100%!important;height:100%!important;display:block}
+
+  /* Text overlays */
+  .card .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none}
+  .card .overlay.center{justify-content:center;align-items:center;text-align:center}
+  .card .overlay.gradient::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(transparent 30%,rgba(0,0,0,.55));pointer-events:none}
+  .card .overlay *{position:relative;z-index:1}
+  .card .overlay h2{color:white;font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-1px}
+  .card .overlay p{color:rgba(255,255,255,.65);font-size:11px;margin-top:4px;font-weight:500}
+
+  /* Card types */
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px;color:#e8e8f0}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+  .card-text .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(167,139,250,0.1);font-size:10px;font-weight:600;color:rgba(167,139,250,0.7)}
+
+  .card-pixel{background:rgba(10,10,20,0.9);color:#0f0;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;text-transform:uppercase;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+
+  .card-love{padding:28px 20px;text-align:center;background:linear-gradient(160deg,rgba(40,20,30,0.9),rgba(50,15,40,0.9))}
+  .card-love .hearts{font-size:36px;margin-bottom:12px}
+  .card-love h3{font-family:'Playfair Display',serif;font-size:22px;font-style:italic;margin-bottom:6px;color:#f9a8d4}
+  .card-love p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;max-width:220px;margin:0 auto}
+
+  .card-deck{padding:24px 20px;background:rgba(15,14,25,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(167,139,250,0.5);font-weight:600;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#e8e8f0}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px}
+
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(40,30,10,0.9),rgba(50,20,15,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#f59e0b,#ef4444,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+  .card-cjk{padding:24px 20px;background:linear-gradient(135deg,rgba(60,50,120,0.9),rgba(80,40,100,0.9));color:white}
+  .card-cjk h3{font-size:24px;font-weight:900;margin-bottom:6px}
+  .card-cjk p{font-size:11px;opacity:.55}
+
+  .card-tool{padding:20px;border:2px dashed rgba(255,255,255,0.08);background:rgba(15,14,25,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:140px;color:rgba(255,255,255,0.25)}
+  .card-tool .icon{width:40px;height:40px;border-radius:10px;background:rgba(167,139,250,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(167,139,250,0.5)}
+  .card-tool p{font-size:12px;font-weight:500}
+
+  /* Footer */
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot.dark{border-color:rgba(255,255,255,0.04);background:rgba(10,10,15,0.9)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.2)}
+
+  /* ─── 3D Card glow on hover ─── */
+  .card .scene::after{
+    content:'';position:absolute;inset:0;z-index:3;
+    background:radial-gradient(circle at 50% 50%, rgba(167,139,250,0.12) 0%, transparent 70%);
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .card:hover .scene::after{opacity:1}
+
+  /* ─── Shimmer badge for 3D cards ─── */
+  .badge-3d{
+    position:absolute;top:10px;right:10px;z-index:5;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(167,139,250,0.15);backdrop-filter:blur(8px);
+    border:1px solid rgba(167,139,250,0.2);
+    font-size:9px;font-weight:700;letter-spacing:1px;
+    color:rgba(167,139,250,0.8);text-transform:uppercase;
+  }
+
+  /* ─── Shape name label ─── */
+  .shape-label{
+    position:absolute;bottom:10px;left:10px;z-index:5;
+    padding:3px 10px;border-radius:6px;
+    background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);
+    font-size:10px;font-weight:600;letter-spacing:0.5px;
+    color:rgba(255,255,255,0.6);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .card:hover .shape-label{opacity:1}
+
+  /* ─── Clickable 3D cards ─── */
+  .card-clickable:hover .badge-3d{
+    background:rgba(167,139,250,0.25);border-color:rgba(167,139,250,0.4);
+    color:rgba(167,139,250,1);
+  }
+
+  /* ─── Happy Robot Button Card ─── */
+  .card-happy-robot{
+    padding:0;background:#d5d0e6;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+  }
+  .card-happy-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-happy-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#fff 0%,#f0eef5 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    box-shadow:0 8px 30px rgba(0,0,0,0.08),inset 0 -4px 8px rgba(0,0,0,0.03);
+    z-index:2;
+  }
+  .card-happy-robot .robot-face{
+    width:80px;height:48px;background:#1a1a2e;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-happy-robot .robot-eye{
+    width:16px;height:16px;position:relative;
+  }
+  .card-happy-robot .robot-eye::before,.card-happy-robot .robot-eye::after{
+    content:'';position:absolute;width:10px;height:3px;background:#4a9eff;border-radius:2px;
+  }
+  .card-happy-robot .robot-eye::before{transform:rotate(-45deg);top:6px;left:0}
+  .card-happy-robot .robot-eye::after{transform:rotate(45deg);top:6px;left:6px}
+  .card-happy-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#555 0%,#333 100%);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-happy-robot .robot-ear.left{left:8px}
+  .card-happy-robot .robot-ear.right{right:8px}
+  .card-happy-robot .robot-neck{
+    width:20px;height:12px;background:#e8e4f0;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  .card-happy-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fff,#e0dce8);
+    border-radius:50%;position:absolute;z-index:1;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    animation:robotFloat 3s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-sphere.s1{bottom:5px;left:18px;animation-delay:0s;width:22px;height:22px}
+  .card-happy-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:1s;width:14px;height:14px}
+  @keyframes robotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .card-happy-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;
+    padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#ff6b6b,#f59e0b);
+    color:white;font-size:13px;font-weight:600;letter-spacing:0.3px;
+    box-shadow:0 4px 16px rgba(255,107,107,0.3);
+    transition:transform .2s ease,box-shadow .2s ease;
+  }
+  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,107,0.4)}
+  .card-happy-robot .robot-title{font-size:18px;font-weight:700;color:#2a2a3e;margin-top:0}
+
+  /* ─── Happy Robot Animations ─── */
+  @keyframes robotBlink{0%,92%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(0.1)}}
+  .card-happy-robot .robot-eye{animation:robotBlink 3.5s ease-in-out infinite}
+  .card-happy-robot .robot-eye:nth-child(2){animation-delay:0.1s}
+  @keyframes robotBreathe{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.02)}}
+  .card-happy-robot .robot-body{animation:robotBreathe 3s ease-in-out infinite}
+  @keyframes earWiggleL{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+  @keyframes earWiggleR{0%,100%{transform:rotate(0deg)}25%{transform:rotate(4deg)}75%{transform:rotate(-4deg)}}
+  .card-happy-robot .robot-ear.left{animation:earWiggleL 2.5s ease-in-out infinite}
+  .card-happy-robot .robot-ear.right{animation:earWiggleR 2.5s ease-in-out infinite 0.3s}
+
+  /* Antenna */
+  .card-happy-robot .robot-antenna{
+    width:4px;height:20px;background:linear-gradient(180deg,#888,#555);
+    border-radius:2px;position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
+  }
+  .card-happy-robot .robot-antenna-tip{
+    width:10px;height:10px;background:radial-gradient(circle,#ff6b6b,#e74c3c);
+    border-radius:50%;position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    box-shadow:0 0 8px rgba(255,107,107,0.6);
+  }
+  @keyframes antennaBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+  .card-happy-robot .robot-antenna{animation:antennaBob 2s ease-in-out infinite}
+  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(255,107,107,0.5)}50%{box-shadow:0 0 14px rgba(255,107,107,0.9)}}
+  .card-happy-robot .robot-antenna-tip{animation:antennaTipGlow 1.5s ease-in-out infinite}
+
+  /* Button glow pulse */
+  .card-happy-robot .robot-btn{position:relative;z-index:1}
+  .card-happy-robot .robot-btn::before{
+    content:'';position:absolute;inset:-4px;border-radius:28px;z-index:-1;
+    background:linear-gradient(135deg,rgba(255,107,107,0.4),rgba(245,158,11,0.4));
+    filter:blur(8px);opacity:0.5;
+    animation:btnGlowPulse 2s ease-in-out infinite;
+  }
+  @keyframes btnGlowPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.08)}}
+
+  /* Sparkle particles */
+  .card-happy-robot .sparkle{
+    position:absolute;width:5px;height:5px;border-radius:50%;z-index:1;
+    background:radial-gradient(circle,rgba(167,139,250,0.8),transparent);
+    pointer-events:none;
+  }
+  @keyframes sparkleDrift1{0%{transform:translate(0,0);opacity:0.7}25%{opacity:1}50%{transform:translate(12px,-18px);opacity:0.5}100%{transform:translate(-8px,-30px);opacity:0}}
+  @keyframes sparkleDrift2{0%{transform:translate(0,0);opacity:0.5}30%{opacity:0.9}60%{transform:translate(-14px,-12px);opacity:0.6}100%{transform:translate(6px,-26px);opacity:0}}
+  @keyframes sparkleDrift3{0%{transform:translate(0,0);opacity:0.6}40%{opacity:1}70%{transform:translate(10px,-20px);opacity:0.4}100%{transform:translate(-5px,-35px);opacity:0}}
+  @keyframes sparkleDrift4{0%{transform:translate(0,0);opacity:0.4}35%{opacity:0.8}65%{transform:translate(-10px,-15px);opacity:0.5}100%{transform:translate(8px,-28px);opacity:0}}
+  .card-happy-robot .sparkle:nth-child(1){left:20%;top:60%;animation:sparkleDrift1 3.5s ease-in-out infinite}
+  .card-happy-robot .sparkle:nth-child(2){right:18%;top:50%;animation:sparkleDrift2 4s ease-in-out infinite 0.8s}
+  .card-happy-robot .sparkle:nth-child(3){left:30%;bottom:35%;animation:sparkleDrift3 3s ease-in-out infinite 1.5s}
+  .card-happy-robot .sparkle:nth-child(4){right:25%;bottom:40%;animation:sparkleDrift4 3.8s ease-in-out infinite 0.4s}
+
+  /* ─── Entrance animation ─── */
+  @keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .card{opacity:0;animation:cardIn .45s ease forwards}
+  .card:nth-child(1){animation-delay:.04s}
+  .card:nth-child(2){animation-delay:.08s}
+  .card:nth-child(3){animation-delay:.12s}
+  .card:nth-child(4){animation-delay:.16s}
+  .card:nth-child(5){animation-delay:.20s}
+  .card:nth-child(6){animation-delay:.24s}
+  .card:nth-child(7){animation-delay:.28s}
+  .card:nth-child(8){animation-delay:.32s}
+  .card:nth-child(9){animation-delay:.36s}
+  .card:nth-child(10){animation-delay:.40s}
+  .card:nth-child(n+11){animation-delay:.44s}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">3D Lab</div>
+  <a href="discover-cloudai.html" class="on">CloudAI</a>
+  <a href="discover-nicewolf.html">NiceWolf</a>
+  <a href="discover-openaec.html">OpenAEC</a>
+  <a href="discover-webgpu.html">WebGPU</a>
+  <div class="nav-right">
+    <a href="showcase-2d.html" class="btn">Index</a>
+    <a href="discover.html" class="btn primary">Legacy discover</a>
+  </div>
+</nav>
+
+<div class="pills">
+  <button class="pill on" data-filter="all">All</button>
+  <button class="pill" data-filter="shader">Shaders</button>
+  <button class="pill" data-filter="geometry">Geometry</button>
+  <button class="pill" data-filter="material">Materials</button>
+  <button class="pill" data-filter="animation">Animation</button>
+  <button class="pill" data-filter="interaction">Interaction</button>
+  <button class="pill" data-filter="postfx">Post FX</button>
+  <button class="pill" data-filter="fundamentals">Fundamentals</button>
+</div>
+
+<div class="grid" id="grid">
+
+  <!-- 1. Hero: Shader wave -->
+  <div class="card card-clickable" data-cat="shader">
+    <div class="scene" id="scene-hero-wave" style="height:280px"></div>
+    <div class="overlay gradient">
+      <h2>The next<br>shader</h2>
+      <p>CloudAI-X &middot; 10 deterministic skill files</p>
+    </div>
+    <div class="card-foot dark">
+      <div class="dot" style="background:#a78bfa"></div>
+      <span class="name">CloudAI-X</span>
+      <span class="likes">&hearts; 4.2k</span>
+    </div>
+  </div>
+
+  <!-- 2. Pixel card -->
+  <div class="card" data-cat="all">
+    <div class="card-pixel">
+      <div class="label">Terminal</div>
+      <div class="body">$ claude skill load<br>/ threejs-shaders<br>/ threejs-geometry<br>/ ok. 10 files, 52kb.</div>
+      <div class="foot">&gt; ready_</div>
+    </div>
+  </div>
+
+  <!-- 3. Raycaster pick -->
+  <div class="card card-clickable" data-cat="interaction">
+    <div class="scene" id="scene-raycaster" style="height:260px">
+      <span class="badge-3d">interaction</span>
+      <span class="shape-label">Raycaster pick</span>
+    </div>
+    <div class="card-foot">
+      <div class="dot" style="background:#60a5fa"></div>
+      <span class="name">Raycaster Lab</span>
+      <span class="likes">&hearts; 3.1k</span>
+    </div>
+  </div>
+
+  <!-- 4. Text card: Brainstorm Cards -->
+  <div class="card" data-cat="all">
+    <div class="card-text">
+      <h3>Brainstorm Cards</h3>
+      <p>Collaborative ideation toolkit for creative teams</p>
+      <span class="tag">Productivity</span>
+    </div>
+  </div>
+
+  <!-- 5. InstancedMesh -->
+  <div class="card card-clickable" data-cat="geometry">
+    <div class="scene" id="scene-instanced" style="height:240px">
+      <span class="badge-3d">geometry</span>
+      <span class="shape-label">InstancedMesh</span>
+    </div>
+    <div class="card-foot">
+      <div class="dot" style="background:#4ade80"></div>
+      <span class="name">Instance Works</span>
+      <span class="likes">&hearts; 2.7k</span>
+    </div>
+  </div>
+
+  <!-- 6. Deck card -->
+  <div class="card" data-cat="all">
+    <div class="card-deck">
+      <div class="lbl">Pitch Deck</div>
+      <h3>Sub-skills<br>compose.</h3>
+      <div class="author">CloudAI-X &middot; 2026</div>
+    </div>
+  </div>
+
+  <!-- 7. Elastic tween -->
+  <div class="card card-clickable" data-cat="animation">
+    <div class="scene" id="scene-elastic" style="height:220px">
+      <span class="badge-3d">animation</span>
+      <span class="shape-label">Elastic tween</span>
+    </div>
+    <div class="card-foot">
+      <div class="dot" style="background:#f59e0b"></div>
+      <span class="name">Tween Studio</span>
+      <span class="likes">&hearts; 1.8k</span>
+    </div>
+  </div>
+
+  <!-- 8. Love card -->
+  <div class="card" data-cat="all">
+    <div class="card-love">
+      <div class="hearts">&hearts;&hearts;&hearts;</div>
+      <h3>Made with love</h3>
+      <p>Every shader tells a story. Every polygon carries intent.</p>
+    </div>
+  </div>
+
+  <!-- 9. Procedural gradient -->
+  <div class="card card-clickable" data-cat="shader">
+    <div class="scene" id="scene-gradient" style="height:280px">
+      <span class="badge-3d">shader</span>
+      <span class="shape-label">Procedural gradient</span>
+    </div>
+    <div class="card-foot">
+      <div class="dot" style="background:#c084fc"></div>
+      <span class="name">Shader Lab</span>
+      <span class="likes">&hearts; 3.5k</span>
+    </div>
+  </div>
+
+  <!-- 10. CJK card -->
+  <div class="card" data-cat="all">
+    <div class="card-cjk">
+      <h3>3D&#x8BBE;&#x8BA1;&#x8D8B;&#x52BF;</h3>
+      <p>Exploring the future of dimensional design</p>
+    </div>
+  </div>
+
+  <!-- 11. Physical glass ball -->
+  <div class="card card-clickable" data-cat="material">
+    <div class="scene" id="scene-glass" style="height:260px">
+      <span class="badge-3d">material</span>
+      <span class="shape-label">Physical glass</span>
+    </div>
+    <div class="card-foot">
+      <div class="dot" style="background:#67e8f9"></div>
+      <span class="name">Glass Studio</span>
+      <span class="likes">&hearts; 2.9k</span>
+    </div>
+  </div>
+
+  <!-- 12. Play card -->
+  <div class="card" data-cat="all">
+    <div class="card-play">
+      <h2>quick<br>start</h2>
+    </div>
+  </div>
+
+  <!-- 13. Hero: Instancing grid -->
+  <div class="card card-clickable" data-cat="geometry">
+    <div class="scene" id="scene-hero-instancing" style="height:260px"></div>
+    <div class="overlay gradient">
+      <h2>1000<br>boxes</h2>
+      <p>One geometry. One draw call.</p>
+    </div>
+    <div class="card-foot dark">
+      <div class="dot" style="background:#4ade80"></div>
+      <span class="name">Instancing Lab</span>
+      <span class="likes">&hearts; 5.1k</span>
+    </div>
+  </div>
+
+  <!-- 14. Robot card (CSS-only) -->
+  <div class="card" data-cat="all">
+    <div class="card-happy-robot">
+      <div class="sparkle"></div>
+      <div class="sparkle"></div>
+      <div class="sparkle"></div>
+      <div class="sparkle"></div>
+      <div class="robot-container">
+        <div class="robot-antenna">
+          <div class="robot-antenna-tip"></div>
+        </div>
+        <div class="robot-ear left"></div>
+        <div class="robot-ear right"></div>
+        <div class="robot-body">
+          <div class="robot-face">
+            <div class="robot-eye"></div>
+            <div class="robot-eye"></div>
+          </div>
+        </div>
+        <div class="robot-neck"></div>
+        <div class="robot-sphere s1"></div>
+        <div class="robot-sphere s2"></div>
+      </div>
+      <div class="robot-title">Happy Bot</div>
+      <button class="robot-btn">Get in touch</button>
+    </div>
+  </div>
+
+  <!-- 15. Tool card -->
+  <div class="card" data-cat="all">
+    <div class="card-tool">
+      <div class="icon">+</div>
+      <p>Get started</p>
+    </div>
+  </div>
+
+  <!-- 16. Text card: One file per sub-skill -->
+  <div class="card" data-cat="all">
+    <div class="card-text">
+      <h3>One file per sub-skill</h3>
+      <p>CloudAI-X ships ten deterministic skill files. Each is self-contained, testable, and composable without shared state or a bundler.</p>
+      <span class="tag">10 skills</span>
+    </div>
+  </div>
+
+  <!-- 17. Lit sphere -->
+  <div class="card card-clickable" data-cat="fundamentals">
+    <div class="scene" id="scene-lit-sphere" style="height:200px">
+      <span class="badge-3d">fundamentals</span>
+      <span class="shape-label">Lit sphere</span>
+    </div>
+    <div class="card-foot">
+      <div class="dot" style="background:#f472b6"></div>
+      <span class="name">Basics Lab</span>
+      <span class="likes">&hearts; 1.2k</span>
+    </div>
+  </div>
+
+  <!-- 18. Pixel card 2 -->
+  <div class="card" data-cat="all">
+    <div class="card-pixel">
+      <div class="label">Source</div>
+      <div class="body">const mat = new<br>ShaderMaterial({<br>&nbsp;&nbsp;vertexShader,<br>&nbsp;&nbsp;fragmentShader,<br>&nbsp;&nbsp;uniforms: { uTime }<br>});</div>
+      <div class="foot">// zero dependencies</div>
+    </div>
+  </div>
+
+  <!-- 19. Text card 3 -->
+  <div class="card" data-cat="all">
+    <div class="card-text">
+      <h3>Deterministic Output</h3>
+      <p>No randomness, no temperature. The same prompt produces the same scene every time.</p>
+      <span class="tag">Reliability</span>
+    </div>
+  </div>
+
+  <!-- 20. Deck card 2 -->
+  <div class="card" data-cat="all">
+    <div class="card-deck">
+      <div class="lbl">Architecture</div>
+      <h3>One draw call.<br>1000 boxes.</h3>
+      <div class="author">InstancedMesh &middot; three.js r164</div>
+    </div>
+  </div>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ─────────────────────────────────────────────
+   UTILITY: create renderer bound to a container
+   ───────────────────────────────────────────── */
+function makeRenderer(container) {
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  r.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(r.domElement);
+  return r;
+}
+
+function observeResize(container, renderer, camera) {
+  const ro = new ResizeObserver(() => {
+    const w = container.clientWidth, h = container.clientHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  });
+  ro.observe(container);
+}
+
+/* ─────────────────────────────────────────────
+   GLSL: IQ cosine palette
+   ───────────────────────────────────────────── */
+const PALETTE_GLSL = `
+vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
+  return a + b * cos(6.283185 * (c * t + d));
+}`;
+
+/* ═════════════════════════════════════════════
+   SCENE 1: Hero Shader Wave (full-bleed)
+   ═════════════════════════════════════════════ */
+(function buildHeroWave() {
+  const el = document.getElementById('scene-hero-wave');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uRes: { value: new THREE.Vector2(el.clientWidth, el.clientHeight) } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform float uTime;
+      uniform vec2 uRes;
+      varying vec2 vUv;
+      ${PALETTE_GLSL}
+      void main() {
+        vec2 uv = vUv;
+        float t = uv.x * 0.6 + uv.y * 0.4 + uTime * 0.08;
+        t += sin(uv.x * 8.0 + uTime * 0.5) * 0.06;
+        t += sin(uv.y * 6.0 - uTime * 0.3) * 0.04;
+        vec3 col = cosPalette(t,
+          vec3(0.55, 0.45, 0.60),
+          vec3(0.50, 0.50, 0.45),
+          vec3(1.0, 0.7, 0.4),
+          vec3(0.00, 0.15, 0.20)
+        );
+        col += 0.03 * sin(uv.x * 40.0 + uTime) * sin(uv.y * 40.0 - uTime * 0.7);
+        gl_FragColor = vec4(col, 1.0);
+      }`
+  });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+  scene.add(quad);
+  const ro = new ResizeObserver(() => {
+    const w = el.clientWidth, h = el.clientHeight;
+    renderer.setSize(w, h);
+    mat.uniforms.uRes.value.set(w, h);
+  });
+  ro.observe(el);
+  (function tick() {
+    mat.uniforms.uTime.value = performance.now() * 0.001;
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 2: Raycaster Pick (5x5 grid of boxes)
+   ═════════════════════════════════════════════ */
+(function buildRaycaster() {
+  const el = document.getElementById('scene-raycaster');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0c0c1a);
+  const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 100);
+  camera.position.set(0, 4, 7);
+  camera.lookAt(0, 0, 0);
+  observeResize(el, renderer, camera);
+
+  scene.add(new THREE.AmbientLight(0x404060, 0.6));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+  dl.position.set(3, 5, 4);
+  scene.add(dl);
+
+  const boxes = [];
+  const locked = new Set();
+  const geo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+  for (let x = -2; x <= 2; x++) {
+    for (let z = -2; z <= 2; z++) {
+      const mat = new THREE.MeshStandardMaterial({ color: 0x334466, metalness: 0.3, roughness: 0.6 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x * 1.0, 0, z * 1.0);
+      m.userData.origColor = 0x334466;
+      scene.add(m);
+      boxes.push(m);
+    }
+  }
+
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2(-999, -999);
+  let hoveredObj = null;
+
+  el.addEventListener('pointermove', e => {
+    const rect = el.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  });
+  el.addEventListener('pointerleave', () => { pointer.set(-999, -999); });
+  el.addEventListener('click', () => {
+    if (hoveredObj && !locked.has(hoveredObj)) {
+      locked.add(hoveredObj);
+      hoveredObj.material.color.set(0xf59e0b);
+      hoveredObj.material.emissive.set(0x332200);
+    }
+  });
+
+  (function tick() {
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(boxes);
+    // Reset non-locked
+    boxes.forEach(b => {
+      if (!locked.has(b)) {
+        b.material.color.set(b.userData.origColor);
+        b.material.emissive.set(0x000000);
+      }
+    });
+    hoveredObj = null;
+    if (hits.length > 0) {
+      const obj = hits[0].object;
+      if (!locked.has(obj)) {
+        obj.material.emissive.set(0x221144);
+        hoveredObj = obj;
+      }
+    }
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 3: InstancedMesh (1000 boxes, wave)
+   ═════════════════════════════════════════════ */
+(function buildInstanced() {
+  const el = document.getElementById('scene-instanced');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0a14);
+  const camera = new THREE.PerspectiveCamera(50, el.clientWidth / el.clientHeight, 0.1, 200);
+  camera.position.set(12, 10, 12);
+  camera.lookAt(0, 0, 0);
+  observeResize(el, renderer, camera);
+
+  scene.add(new THREE.AmbientLight(0x606080, 0.5));
+  const dl = new THREE.DirectionalLight(0xeeeeff, 0.7);
+  dl.position.set(5, 8, 4);
+  scene.add(dl);
+
+  const COUNT = 1000;
+  const SIDE = Math.ceil(Math.sqrt(COUNT));
+  const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x7c3aed, metalness: 0.4, roughness: 0.5 });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  const dummy = new THREE.Object3D();
+  const offset = (SIDE - 1) * 0.6 / 2;
+
+  (function tick() {
+    const t = performance.now() * 0.001;
+    let idx = 0;
+    for (let ix = 0; ix < SIDE && idx < COUNT; ix++) {
+      for (let iz = 0; iz < SIDE && idx < COUNT; iz++) {
+        const x = ix * 0.6 - offset;
+        const z = iz * 0.6 - offset;
+        const y = Math.sin(x * 0.5 + t) * Math.cos(z * 0.5 + t * 0.7) * 1.5;
+        dummy.position.set(x, y, z);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+        idx++;
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 4: Elastic Tween (ring of 12 cubes)
+   ═════════════════════════════════════════════ */
+(function buildElastic() {
+  const el = document.getElementById('scene-elastic');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e18);
+  const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 100);
+  camera.position.set(0, 3, 6);
+  camera.lookAt(0, 0, 0);
+  observeResize(el, renderer, camera);
+
+  scene.add(new THREE.AmbientLight(0x404060, 0.5));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+  dl.position.set(3, 5, 4);
+  scene.add(dl);
+
+  function easeOutElastic(x) {
+    const c4 = (2 * Math.PI) / 3;
+    if (x === 0 || x === 1) return x;
+    return Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * c4) + 1;
+  }
+
+  const cubes = [];
+  const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2;
+    const hue = i / 12;
+    const color = new THREE.Color().setHSL(hue, 0.6, 0.5);
+    const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.3, roughness: 0.5 });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(Math.cos(angle) * 2, 0, Math.sin(angle) * 2);
+    m.userData.angle = angle;
+    m.userData.phase = i * 0.15;
+    scene.add(m);
+    cubes.push(m);
+  }
+
+  (function tick() {
+    const t = performance.now() * 0.001;
+    cubes.forEach(c => {
+      const cycle = ((t * 0.4 + c.userData.phase) % 2.0);
+      const progress = Math.min(cycle, 1.0);
+      const s = 0.3 + easeOutElastic(progress) * 0.7;
+      c.scale.setScalar(s);
+      c.rotation.y = t * 0.3 + c.userData.angle;
+    });
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 5: Procedural Gradient (fragment-only)
+   ═════════════════════════════════════════════ */
+(function buildGradient() {
+  const el = document.getElementById('scene-gradient');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      ${PALETTE_GLSL}
+      void main() {
+        vec2 uv = vUv;
+        float d = length(uv - 0.5);
+        float t = d * 2.0 + uTime * 0.12;
+        t += sin(uv.x * 12.0 + uTime * 0.6) * 0.08;
+        t += cos(uv.y * 10.0 - uTime * 0.4) * 0.06;
+        vec3 col = cosPalette(t,
+          vec3(0.50, 0.50, 0.50),
+          vec3(0.50, 0.50, 0.50),
+          vec3(1.0, 1.0, 0.5),
+          vec3(0.10, 0.20, 0.30)
+        );
+        // Vignette
+        float vig = 1.0 - smoothstep(0.3, 0.9, d);
+        col *= 0.5 + vig * 0.5;
+        gl_FragColor = vec4(col, 1.0);
+      }`
+  });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
+  scene.add(quad);
+  const ro = new ResizeObserver(() => {
+    renderer.setSize(el.clientWidth, el.clientHeight);
+  });
+  ro.observe(el);
+  (function tick() {
+    mat.uniforms.uTime.value = performance.now() * 0.001;
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 6: Physical Glass Ball
+   ═════════════════════════════════════════════ */
+(function buildGlass() {
+  const el = document.getElementById('scene-glass');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0e18);
+  const camera = new THREE.PerspectiveCamera(40, el.clientWidth / el.clientHeight, 0.1, 100);
+  camera.position.set(0, 0.5, 4);
+  camera.lookAt(0, 0, 0);
+  observeResize(el, renderer, camera);
+
+  scene.add(new THREE.AmbientLight(0x404080, 0.4));
+  const dl1 = new THREE.DirectionalLight(0xffffff, 1.0);
+  dl1.position.set(3, 4, 5);
+  scene.add(dl1);
+  const dl2 = new THREE.DirectionalLight(0xa78bfa, 0.5);
+  dl2.position.set(-3, 2, -2);
+  scene.add(dl2);
+  const pl = new THREE.PointLight(0xf472b6, 0.6, 10);
+  pl.position.set(2, -1, 3);
+  scene.add(pl);
+
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    transmission: 1,
+    opacity: 1,
+    transparent: true,
+    ior: 1.5,
+    thickness: 1.2,
+    roughness: 0.0,
+    metalness: 0.0,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.0,
+    envMapIntensity: 1.0,
+  });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), glassMat);
+  scene.add(ball);
+
+  // Background objects visible through glass
+  const bgGeo = new THREE.IcosahedronGeometry(0.2, 0);
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const hue = i / 8;
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(hue, 0.8, 0.5),
+      metalness: 0.3, roughness: 0.5
+    });
+    const m = new THREE.Mesh(bgGeo, mat);
+    m.position.set(Math.cos(angle) * 2.5, Math.sin(angle * 2) * 0.5, Math.sin(angle) * 2.5 - 2);
+    scene.add(m);
+  }
+
+  (function tick() {
+    const t = performance.now() * 0.001;
+    ball.rotation.y = t * 0.2;
+    scene.children.forEach(c => {
+      if (c !== ball && c.isMesh) {
+        c.rotation.x = t * 0.5;
+        c.rotation.z = t * 0.3;
+      }
+    });
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 7: Hero Instancing Grid (wide wave)
+   ═════════════════════════════════════════════ */
+(function buildHeroInstancing() {
+  const el = document.getElementById('scene-hero-instancing');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x08080f);
+  const camera = new THREE.PerspectiveCamera(55, el.clientWidth / el.clientHeight, 0.1, 200);
+  camera.position.set(10, 8, 10);
+  camera.lookAt(0, 0, 0);
+  observeResize(el, renderer, camera);
+
+  scene.add(new THREE.AmbientLight(0x404060, 0.4));
+  const dl = new THREE.DirectionalLight(0xeeeeff, 0.8);
+  dl.position.set(6, 10, 5);
+  scene.add(dl);
+  const pl = new THREE.PointLight(0xa78bfa, 0.5, 30);
+  pl.position.set(0, 4, 0);
+  scene.add(pl);
+
+  const COUNT = 1000;
+  const SIDE = Math.ceil(Math.sqrt(COUNT));
+  const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, metalness: 0.5, roughness: 0.4 });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  const color = new THREE.Color();
+  const dummy = new THREE.Object3D();
+  const offset = (SIDE - 1) * 0.55 / 2;
+
+  (function tick() {
+    const t = performance.now() * 0.001;
+    let idx = 0;
+    for (let ix = 0; ix < SIDE && idx < COUNT; ix++) {
+      for (let iz = 0; iz < SIDE && idx < COUNT; iz++) {
+        const x = ix * 0.55 - offset;
+        const z = iz * 0.55 - offset;
+        const dist = Math.sqrt(x * x + z * z);
+        const y = Math.sin(dist * 0.4 - t * 1.2) * 1.8;
+        dummy.position.set(x, y, z);
+        const s = 0.6 + Math.sin(dist * 0.3 + t) * 0.3;
+        dummy.scale.setScalar(s);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+
+        const hue = (dist * 0.03 + t * 0.05) % 1.0;
+        color.setHSL(hue, 0.5, 0.4);
+        mesh.setColorAt(idx, color);
+        idx++;
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   SCENE 8: Lit Sphere (fundamentals)
+   ═════════════════════════════════════════════ */
+(function buildLitSphere() {
+  const el = document.getElementById('scene-lit-sphere');
+  if (!el) return;
+  const renderer = makeRenderer(el);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e1a);
+  const camera = new THREE.PerspectiveCamera(40, el.clientWidth / el.clientHeight, 0.1, 100);
+  camera.position.set(0, 0.5, 3.5);
+  camera.lookAt(0, 0, 0);
+  observeResize(el, renderer, camera);
+
+  const ambient = new THREE.AmbientLight(0x303050, 0.4);
+  scene.add(ambient);
+  const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+  dir.position.set(3, 4, 5);
+  scene.add(dir);
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xa78bfa,
+    metalness: 0.3,
+    roughness: 0.4,
+  });
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), mat);
+  scene.add(sphere);
+
+  // Ground plane
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(6, 6),
+    new THREE.MeshStandardMaterial({ color: 0x18182a, roughness: 0.9 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -1.05;
+  scene.add(ground);
+
+  (function tick() {
+    const t = performance.now() * 0.001;
+    sphere.rotation.y = t * 0.3;
+    renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ═════════════════════════════════════════════
+   PILLS FILTER
+   ═════════════════════════════════════════════ */
+document.querySelectorAll('.pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
+    pill.classList.add('on');
+    const filter = pill.dataset.filter;
+    document.querySelectorAll('.card').forEach(card => {
+      if (filter === 'all') {
+        card.style.display = '';
+      } else {
+        const cat = card.dataset.cat;
+        card.style.display = (cat === filter || cat === 'all') ? '' : 'none';
+      }
+    });
+  });
+});
+
+</script>
+</body>
+</html>

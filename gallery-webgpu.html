@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<!--
+  gallery-webgpu.html
+  复刻老 discover 风格, 每张 scene-card 是 WebGPURenderer + TSL 驱动.
+  规范依据: dgreenheck/webgpu-claude-skill/skills/webgpu-threejs-tsl/
+    · SKILL.md                      — node material pattern
+    · examples/basic-setup.js       — setAnimationLoop + colorNode oscSine
+    · examples/custom-material.js   — Fn(), fresnel, uniform(), pattern
+  关键约束: 必须 await renderer.init() · 先注册 WebGPU 自检 · 不支持时不静默失败.
+  版本: three@0.170.0 (webgpu entrypoint requires it).
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery · WebGPU TSL — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Space Grotesk',system-ui,sans-serif;background:#120a0a;color:#f0e8e5;min-height:100vh;overflow-x:hidden}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(244,114,182,0.25);border-radius:3px}
+  a{color:inherit;text-decoration:none}
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(18,10,10,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(244,114,182,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;margin-right:32px;background:linear-gradient(135deg,#f472b6,#fb923c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+  .nav a{font-size:13px;font-weight:500;margin-right:20px;color:rgba(255,255,255,0.4)}
+  .nav a:hover{color:rgba(255,255,255,0.8)} .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;color:rgba(255,255,255,0.7)}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#f472b6,#fb923c);color:white;border:none}
+  .nav-right .gpu-chip{padding:4px 10px;border-radius:6px;font-family:'Space Mono',monospace;font-size:11px;border:1px solid rgba(244,114,182,0.35);color:rgba(244,114,182,0.9)}
+  .nav-right .gpu-chip.err{border-color:rgba(239,68,68,0.5);color:rgba(252,165,165,0.9)}
+
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(18,10,10,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;white-space:nowrap}
+  .pill.on{background:linear-gradient(135deg,#f472b6,#fb923c);color:white;border-color:transparent}
+
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}@media(max-width:800px){.grid{column-count:2;padding:12px}}@media(max-width:500px){.grid{column-count:1}}
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(32,18,18,0.8);border:1px solid rgba(255,255,255,0.05);position:relative;transition:transform .3s ease}
+  .card:hover{transform:translateY(-4px);border-color:rgba(244,114,182,0.25)}
+  .card .scene{width:100%;position:relative;overflow:hidden;background:#180808}
+  .card .scene canvas{display:block;width:100%!important;height:100%!important}
+  .card .scene .missing{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;color:rgba(252,165,165,0.7);text-align:center;padding:16px}
+  .badge-3d{position:absolute;top:10px;right:10px;z-index:5;padding:3px 8px;border-radius:6px;background:rgba(244,114,182,0.15);backdrop-filter:blur(8px);border:1px solid rgba(244,114,182,0.25);font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(244,114,182,0.9);text-transform:uppercase}
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5}
+  .card-pixel{background:rgba(20,8,8,0.95);color:#f472b6;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+  .card-deck{padding:24px 20px;background:rgba(26,14,14,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(244,114,182,0.85);font-weight:700;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px}
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(80,30,40,0.9),rgba(60,20,20,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:48px;font-weight:800;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#f472b6,#fb923c,#fcd34d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;font-family:'Space Mono',monospace}
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.5)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.25)}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo">3D Lab / WebGPU TSL</div>
+  <a href="gallery-cloudai.html">CloudAI</a>
+  <a href="gallery-nicewolf.html">NiceWolf</a>
+  <a href="gallery-openaec.html">OpenAEC</a>
+  <a href="gallery-webgpu.html" class="on">WebGPU</a>
+  <div class="nav-right">
+    <span class="gpu-chip" id="gpu-chip">checking…</span>
+    <a href="showcase-2d.html" class="btn">Index</a>
+    <a href="discover.html" class="btn primary">Legacy</a>
+  </div>
+</nav>
+<div class="pills">
+  <button class="pill on">All</button>
+  <button class="pill">colorNode</button>
+  <button class="pill">positionNode</button>
+  <button class="pill">fresnel</button>
+  <button class="pill">pattern</button>
+  <button class="pill">Fn()</button>
+</div>
+<main class="grid" id="grid"></main>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":        "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/webgpu": "https://unpkg.com/three@0.170.0/build/three.webgpu.js",
+    "three/tsl":    "https://unpkg.com/three@0.170.0/build/three.webgpu.js",
+    "three/addons/":"https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+const gpuChip = document.getElementById('gpu-chip');
+
+/* Catalog first, DOM built always so the masonry layout shows even without GPU */
+const cards = [
+  { kind: 'scene', build: 'colorOsc',    h: 260, badge: 'colorNode',    title: 'Animated palette', text: 'colorNode = mix(a, b, uv.x + sin(time)); entirely nodes, no string shader', author: 'dgreenheck · basic-setup.js', dot: '#f472b6', likes: '1.8k' },
+  { kind: 'pixel' },
+  { kind: 'scene', build: 'displace',    h: 260, badge: 'positionNode', title: 'Position displace', text: 'positionLocal + normalWorld * sin(time+pos.y) — method chains, not GLSL', author: 'dgreenheck · custom-material.js', dot: '#fb923c', likes: '1.2k' },
+  { kind: 'deck' },
+  { kind: 'scene', build: 'fresnel',     h: 240, badge: 'fresnel',      title: 'Fresnel rim', text: 'emissiveNode = rim * pow(1 - nDotV, 3); Fn() block inlined', author: 'dgreenheck · §custom', dot: '#fcd34d', likes: '910' },
+  { kind: 'play' },
+  { kind: 'scene', build: 'pattern',     h: 220, badge: 'pattern',      title: 'UV wave pattern', text: 'Multiplied sine waves on UV, sampled as base color', author: 'dgreenheck · §animated-pattern', dot: '#60a5fa', likes: '520' },
+  { kind: 'text', title: 'Shaders as JS', text: 'TSL lets you write shaders as JavaScript method chains. Same compiles to WGSL on WebGPU and to GLSL fallback elsewhere.', tag: 'three/tsl' },
+];
+
+const grid = document.getElementById('grid');
+const sceneHolders = {};
+
+cards.forEach(c => {
+  const card = document.createElement('div'); card.className = 'card';
+  if (c.kind === 'scene') {
+    card.innerHTML = `<span class="badge-3d">${c.badge}</span><div class="scene" style="height:${c.h}px" data-build="${c.build}"></div><div class="card-text"><h3>${c.title}</h3><p>${c.text}</p></div><div class="card-foot"><span class="dot" style="background:${c.dot}"></span><span class="name">${c.author}</span><span class="likes">♥ ${c.likes}</span></div>`;
+    sceneHolders[c.build] = card.querySelector('.scene');
+  } else if (c.kind === 'pixel') {
+    card.innerHTML = `<div class="card-pixel"><div class="label">TSL · method chain</div><div class="body">mat.colorNode =<br>&nbsp;&nbsp;mix(color(0xd4542e),<br>&nbsp;&nbsp;&nbsp;&nbsp;color(0xfcd34d),<br>&nbsp;&nbsp;&nbsp;&nbsp;uv().x.add(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sin(time.mul(0.6))<br>&nbsp;&nbsp;&nbsp;&nbsp;));</div><div class="foot">no GLSL strings</div></div><div class="card-foot" style="background:rgba(20,8,8,0.95)"><span class="dot" style="background:#f472b6"></span><span class="name">three/tsl</span><span class="likes">♥ 1.5k</span></div>`;
+  } else if (c.kind === 'deck') {
+    card.innerHTML = `<div class="card-deck"><div class="lbl">Pitch deck</div><h3>WGSL, but<br>as JS.</h3><div class="author">Three.js r160+ · experimental</div></div><div class="card-foot"><span class="dot" style="background:#f472b6"></span><span class="name">three/tsl</span><span class="likes">♥ 712</span></div>`;
+  } else if (c.kind === 'play') {
+    card.innerHTML = `<div class="card-play"><h2>TSL<br>node</h2></div><div class="card-foot" style="background:rgba(80,30,40,0.9);border-color:rgba(244,114,182,0.15)"><span class="dot" style="background:#f472b6"></span><span class="name">MeshStandardNodeMaterial</span><span class="likes">♥ 1.1k</span></div>`;
+  } else if (c.kind === 'text') {
+    card.innerHTML = `<div class="card-text"><h3>${c.title}</h3><p>${c.text}</p><span class="tag" style="display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(244,114,182,0.12);font-size:10px;font-weight:700;color:rgba(244,114,182,0.9)">${c.tag}</span></div>`;
+  }
+  grid.appendChild(card);
+});
+
+/* ---- WebGPU boot (all scenes share one renderer for perf) ---- */
+async function boot() {
+  if (!('gpu' in navigator)) { gpuChip.textContent = 'no navigator.gpu'; gpuChip.classList.add('err'); markMissing('navigator.gpu unavailable'); return; }
+  let adapter = null; try { adapter = await navigator.gpu.requestAdapter(); } catch {}
+  if (!adapter) { gpuChip.textContent = 'no adapter'; gpuChip.classList.add('err'); markMissing('no GPU adapter'); return; }
+
+  const THREE = await import('three/webgpu');
+  const TSL = await import('three/tsl');
+  const { color, mix, uv, time, sin, cos, positionLocal, positionWorld, normalWorld, cameraPosition, uniform, Fn, float, vec3 } = TSL;
+
+  gpuChip.textContent = 'WebGPU · TSL';
+
+  // one renderer per card (WebGPURenderer is lightweight and each card has its own scene)
+  for (const [id, el] of Object.entries(sceneHolders)) {
+    try { await buildCard(id, el, THREE, TSL); }
+    catch (e) { el.innerHTML = `<div class="missing">TSL build failed: ${e?.message || e}</div>`; console.error(id, e); }
+  }
+}
+function markMissing(msg) {
+  Object.values(sceneHolders).forEach(el => { el.innerHTML = `<div class="missing">${msg}<br>Needs Chrome/Edge 113+ or Safari 17.4+.</div>`; });
+}
+
+async function buildCard(id, el, THREE, TSL) {
+  const { color, mix, uv, time, sin, cos, positionLocal, positionWorld, normalWorld, cameraPosition, uniform, Fn, float, vec3 } = TSL;
+  const renderer = new THREE.WebGPURenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(el.clientWidth, el.clientHeight);
+  await renderer.init();
+  el.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x180808);
+  const cam = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 50); cam.position.z = 3;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+  const kk = new THREE.DirectionalLight(0xffe8c0, 1.6); kk.position.set(3, 4, 5); scene.add(kk);
+  const rr = new THREE.DirectionalLight(0xff6b44, 0.7); rr.position.set(-4, -2, -3); scene.add(rr);
+
+  const mat = new THREE.MeshStandardNodeMaterial();
+  mat.roughness = 0.35; mat.metalness = 0.15;
+  let geom;
+
+  if (id === 'colorOsc') {
+    mat.colorNode = mix(color(0xd4542e), color(0xfcd34d), uv().x.add(sin(time.mul(0.7)).mul(0.3)));
+    geom = new THREE.IcosahedronGeometry(1, 3);
+  } else if (id === 'displace') {
+    const amp = uniform(0.18);
+    mat.colorNode = mix(color(0xf472b6), color(0xfb923c), uv().y);
+    const wave = sin(time.mul(0.8).add(positionLocal.y.mul(2.5)));
+    mat.positionNode = positionLocal.add(normalWorld.mul(wave.mul(amp)));
+    geom = new THREE.BoxGeometry(1.4, 1.4, 1.4, 32, 32, 32);
+  } else if (id === 'fresnel') {
+    const rimC = uniform(new THREE.Color(0xfcd34d));
+    const fres = Fn(() => {
+      const viewDir = cameraPosition.sub(positionWorld).normalize();
+      const nDotV = normalWorld.dot(viewDir).saturate();
+      return float(1.0).sub(nDotV).pow(3.0);
+    });
+    mat.colorNode = color(0x2a0a14);
+    mat.emissiveNode = rimC.mul(fres());
+    mat.roughness = 0.4;
+    geom = new THREE.IcosahedronGeometry(1, 3);
+  } else if (id === 'pattern') {
+    const scaleU = uniform(4.0);
+    const pat = Fn(() => {
+      const u = uv().mul(scaleU);
+      const t = time.mul(0.4);
+      const w1 = sin(u.x.mul(6.0).add(t)).mul(0.5).add(0.5);
+      const w2 = sin(u.y.mul(6.0).sub(t.mul(1.3))).mul(0.5).add(0.5);
+      return w1.mul(w2);
+    });
+    mat.colorNode = mix(color(0x18101a), color(0xf472b6), pat());
+    geom = new THREE.IcosahedronGeometry(1, 3);
+  } else {
+    geom = new THREE.SphereGeometry(1, 32, 32);
+  }
+
+  const mesh = new THREE.Mesh(geom, mat); scene.add(mesh);
+
+  new ResizeObserver(() => {
+    renderer.setSize(el.clientWidth, el.clientHeight);
+    cam.aspect = el.clientWidth / el.clientHeight;
+    cam.updateProjectionMatrix();
+  }).observe(el);
+
+  renderer.setAnimationLoop(() => {
+    mesh.rotation.y += 0.005; mesh.rotation.x += 0.002;
+    renderer.render(scene, cam);
+  });
+}
+
+boot();
+</script>
+</body>
+</html>

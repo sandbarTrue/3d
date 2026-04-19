@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<!--
+  showcase-2d.html
+  规范依据: claude-design-prompt SKILL.md (Anthropic Design Mode)
+    § 2.1 反 AI slop: 无 emoji / 无左侧竖条圆角卡片 / 字体非 Inter|Roboto|Arial|Fraunces|system-ui
+    § 2 色彩: 全部用 oklch, 无攻击性多色渐变
+    § 4.2 样式命名空间: 所有 CSS 自定义属性用 --lab- 前缀
+    § 4.5 单文件 ≤ 1000 行 · 点击区 ≥ 44px · 无 scrollIntoView
+    § 6   Tweaks 协议: 先注册 message listener 再 post __edit_mode_available; EDITMODE-BEGIN/END 包裹 JSON
+  注意: 完全不动 index.html / discover.html。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Shape Lab — Showcase Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* oklch 色板, 同色相微调, 避免攻击性多色渐变 */
+    --lab-bg:              oklch(14% 0.03 270);
+    --lab-bg-elevated:     oklch(18% 0.035 275);
+    --lab-surface:         oklch(21% 0.04 278);
+    --lab-border:          oklch(32% 0.035 280);
+    --lab-border-strong:   oklch(48% 0.05 285);
+    --lab-text:            oklch(94% 0.01 270);
+    --lab-text-muted:      oklch(68% 0.02 275);
+    --lab-text-dim:        oklch(52% 0.02 278);
+    --lab-accent:          oklch(75% 0.13 305);
+    --lab-accent-warm:     oklch(82% 0.10 85);
+    --lab-accent-cool:     oklch(78% 0.11 230);
+
+    --lab-radius-sm: 3px;
+    --lab-radius-md: 6px;
+    --lab-space-1: 8px;
+    --lab-space-2: 16px;
+    --lab-space-3: 24px;
+    --lab-space-4: 40px;
+    --lab-space-5: 64px;
+
+    --lab-font-body: 'Space Grotesk', 'Helvetica Neue', sans-serif;
+    --lab-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--lab-bg);color:var(--lab-text);font-family:var(--lab-font-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;text-wrap:pretty}
+  body{min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  code{font-family:var(--lab-font-mono);font-size:0.88em;color:var(--lab-text-muted)}
+
+  /* ─────────── Nav ─────────── */
+  .lab-nav{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;gap:var(--lab-space-3);
+    height:56px;padding:0 var(--lab-space-3);
+    background:color-mix(in oklch, var(--lab-bg) 88%, transparent);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--lab-border);
+  }
+  .lab-nav-mark{
+    font-family:var(--lab-font-mono);font-weight:600;font-size:13px;letter-spacing:0.04em;
+    color:var(--lab-accent);
+  }
+  .lab-nav-title{font-size:14px;font-weight:500;color:var(--lab-text)}
+  .lab-nav-links{margin-left:auto;display:flex;gap:var(--lab-space-2)}
+  .lab-nav-links a{
+    font-size:13px;color:var(--lab-text-muted);
+    padding:10px var(--lab-space-2);min-height:44px;display:inline-flex;align-items:center;
+    border-radius:var(--lab-radius-sm);
+    transition:color 160ms ease, background 160ms ease;
+  }
+  .lab-nav-links a:hover{color:var(--lab-text);background:var(--lab-bg-elevated)}
+
+  /* ─────────── Hero ─────────── */
+  .lab-hero{
+    max-width:960px;margin:0 auto;padding:var(--lab-space-5) var(--lab-space-3) var(--lab-space-4);
+  }
+  .lab-hero-label{
+    display:inline-block;font-family:var(--lab-font-mono);font-size:11px;letter-spacing:0.12em;
+    color:var(--lab-accent);text-transform:uppercase;margin-bottom:var(--lab-space-2);
+  }
+  .lab-hero h1{
+    font-size:clamp(36px, 5.5vw, 64px);font-weight:500;letter-spacing:-0.02em;line-height:1.05;
+    margin-bottom:var(--lab-space-3);
+  }
+  .lab-hero h1 em{
+    font-style:italic;font-weight:400;color:var(--lab-accent);
+  }
+  .lab-hero-lead{font-size:17px;color:var(--lab-text-muted);max-width:600px;margin-bottom:var(--lab-space-3)}
+  .lab-hero-meta{
+    display:flex;gap:var(--lab-space-3);font-family:var(--lab-font-mono);font-size:12px;color:var(--lab-text-dim);
+    padding-top:var(--lab-space-2);border-top:1px solid var(--lab-border);max-width:600px;
+  }
+  .lab-hero-meta span{display:inline-flex;gap:6px}
+  .lab-hero-meta span b{color:var(--lab-text);font-weight:500}
+
+  /* ─────────── Showcase grid ─────────── */
+  .lab-section{max-width:1120px;margin:0 auto;padding:0 var(--lab-space-3) var(--lab-space-5)}
+  .lab-section-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding-bottom:var(--lab-space-2);margin-bottom:var(--lab-space-3);
+    border-bottom:1px solid var(--lab-border);
+  }
+  .lab-section-head h2{font-size:18px;font-weight:500;letter-spacing:-0.005em}
+  .lab-section-head .hint{font-family:var(--lab-font-mono);font-size:11px;color:var(--lab-text-dim)}
+
+  .lab-grid{
+    display:grid;gap:var(--lab-space-2);
+    grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .lab-card{
+    position:relative;display:flex;flex-direction:column;
+    min-height:320px;padding:var(--lab-space-3);
+    background:var(--lab-bg-elevated);
+    border:1px solid var(--lab-border);
+    border-radius:var(--lab-radius-md);
+    transition:border-color 200ms ease, transform 200ms ease;
+    overflow:hidden;
+  }
+  .lab-card:hover{border-color:var(--lab-border-strong);transform:translateY(-2px)}
+  .lab-card-tag{
+    font-family:var(--lab-font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--lab-accent);margin-bottom:var(--lab-space-2);
+  }
+  .lab-card-title{font-size:22px;font-weight:500;letter-spacing:-0.01em;margin-bottom:var(--lab-space-1)}
+  .lab-card-desc{color:var(--lab-text-muted);font-size:14px;margin-bottom:var(--lab-space-3);flex:1}
+  .lab-card-stack{
+    font-family:var(--lab-font-mono);font-size:11px;color:var(--lab-text-dim);
+    padding-top:var(--lab-space-2);border-top:1px dashed var(--lab-border);margin-bottom:var(--lab-space-2);
+  }
+  .lab-card-stack b{color:var(--lab-text-muted);font-weight:600}
+  .lab-card-cta{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:13px;color:var(--lab-accent);min-height:44px;
+  }
+  .lab-card-cta::after{content:'→';transition:transform 200ms ease}
+  .lab-card:hover .lab-card-cta::after{transform:translateX(3px)}
+
+  /* Token strip (placeholder stand-in instead of SVG) */
+  .lab-card-tokens{
+    display:flex;gap:6px;margin-top:auto;padding-top:var(--lab-space-2);
+  }
+  .lab-card-tokens span{
+    width:24px;height:24px;border-radius:3px;border:1px solid var(--lab-border);
+  }
+
+  /* ─────────── Principles ─────────── */
+  .lab-principles{
+    display:grid;gap:var(--lab-space-2);
+    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+  }
+  .lab-principle{
+    padding:var(--lab-space-3);background:var(--lab-surface);
+    border-radius:var(--lab-radius-md);border:1px solid var(--lab-border);
+  }
+  .lab-principle-num{font-family:var(--lab-font-mono);font-size:11px;color:var(--lab-text-dim);margin-bottom:var(--lab-space-1)}
+  .lab-principle-title{font-size:15px;font-weight:500;margin-bottom:6px}
+  .lab-principle-body{font-size:13px;color:var(--lab-text-muted);line-height:1.55}
+
+  /* ─────────── Footer ─────────── */
+  .lab-footer{
+    max-width:1120px;margin:0 auto;padding:var(--lab-space-3);
+    border-top:1px solid var(--lab-border);
+    display:flex;justify-content:space-between;gap:var(--lab-space-2);
+    font-family:var(--lab-font-mono);font-size:11px;color:var(--lab-text-dim);
+  }
+
+  /* ─────────── Tweaks panel (hidden until host activates) ─────────── */
+  .lab-tweaks{
+    position:fixed;right:var(--lab-space-3);bottom:var(--lab-space-3);z-index:40;
+    width:240px;padding:var(--lab-space-2);
+    background:var(--lab-surface);border:1px solid var(--lab-border-strong);
+    border-radius:var(--lab-radius-md);
+    display:none;font-size:12px;
+  }
+  .lab-tweaks.is-open{display:block}
+  .lab-tweaks h4{font-size:11px;font-family:var(--lab-font-mono);letter-spacing:0.08em;color:var(--lab-text-dim);margin-bottom:var(--lab-space-2);text-transform:uppercase}
+  .lab-tweaks-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--lab-space-1)}
+  .lab-tweaks-row label{color:var(--lab-text-muted)}
+  .lab-tweaks-row input{
+    width:96px;height:4px;accent-color:var(--lab-accent);
+  }
+
+  @media (max-width:640px){
+    .lab-nav-title{display:none}
+    .lab-hero{padding:var(--lab-space-4) var(--lab-space-3)}
+    .lab-hero-meta{flex-direction:column;gap:var(--lab-space-1)}
+  }
+</style>
+</head>
+<body>
+
+<!-- EDITMODE defaults — single root-level block, JSON only, for Tweaks host to round-trip -->
+<script>
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "accentHue": 305,
+    "baseFontSize": 15,
+    "cardMinHeight": 320
+  }/*EDITMODE-END*/;
+</script>
+
+<nav class="lab-nav">
+  <span class="lab-nav-mark">3DLAB/01</span>
+  <span class="lab-nav-title">Shape Lab — Showcase Index</span>
+  <div class="lab-nav-links">
+    <a href="index.html">Editor (legacy)</a>
+    <a href="discover.html">Discover (legacy)</a>
+  </div>
+</nav>
+
+<section class="lab-hero">
+  <span class="lab-hero-label">Showcase Index · v0.2</span>
+  <h1>A small atlas of <em>web 3D techniques</em>,<br>paired with their 2D shell.</h1>
+  <p class="lab-hero-lead">
+    Each tile below is a single HTML file. The 3D experiments follow the
+    <code>threejs-skills</code> reference (fundamentals · materials · shaders · post-processing).
+    This index itself follows the <code>claude-design-prompt</code> rules —
+    no Inter, no aggressive gradients, namespaced tokens, Tweaks protocol ready.
+  </p>
+  <div class="lab-hero-meta">
+    <span>Files <b>5</b></span>
+    <span>Pages <b>2 legacy · 3 new</b></span>
+    <span>Stack <b>three@0.164.1 · no build</b></span>
+  </div>
+</section>
+
+<section class="lab-section">
+  <div class="lab-section-head">
+    <h2>New showcases</h2>
+    <span class="hint">regulated by threejs-skills</span>
+  </div>
+  <div class="lab-grid">
+
+    <a class="lab-card" href="showcase-glass.html">
+      <span class="lab-card-tag">Showcase · Glass</span>
+      <div class="lab-card-title">Glass Blob Morphing</div>
+      <div class="lab-card-desc">
+        MeshPhysicalMaterial with transmission and clearcoat, vertices displaced by
+        simplex noise injected via <code>onBeforeCompile</code>. Bloom composer on top.
+      </div>
+      <div class="lab-card-stack">
+        <b>stack</b> · IcosahedronGeometry(64) · PMREM env · UnrealBloomPass
+      </div>
+      <div class="lab-card-tokens" aria-hidden="true">
+        <span style="background:oklch(72% 0.14 305)"></span>
+        <span style="background:oklch(82% 0.10 85)"></span>
+        <span style="background:oklch(28% 0.04 280)"></span>
+      </div>
+      <span class="lab-card-cta">Open</span>
+    </a>
+
+    <a class="lab-card" href="showcase-particles.html">
+      <span class="lab-card-tag">Showcase · Particles</span>
+      <div class="lab-card-title">Stardust Field</div>
+      <div class="lab-card-desc">
+        12 000 points drawn through a ShaderMaterial. Circular alpha is computed in the
+        fragment, additive blending and heavy bloom produce the halo.
+      </div>
+      <div class="lab-card-stack">
+        <b>stack</b> · BufferGeometry · gl_PointSize · AdditiveBlending
+      </div>
+      <div class="lab-card-tokens" aria-hidden="true">
+        <span style="background:oklch(78% 0.11 230)"></span>
+        <span style="background:oklch(65% 0.14 270)"></span>
+        <span style="background:oklch(22% 0.03 275)"></span>
+      </div>
+      <span class="lab-card-cta">Open</span>
+    </a>
+
+    <a class="lab-card" href="showcase-2d.html" aria-current="page" style="pointer-events:none;opacity:0.72">
+      <span class="lab-card-tag">Showcase · 2D shell</span>
+      <div class="lab-card-title">This index page</div>
+      <div class="lab-card-desc">
+        A pure 2D landing built under the Anthropic design prompt rules: oklch color,
+        non-banned typography, namespaced tokens, and a Tweaks protocol stub.
+      </div>
+      <div class="lab-card-stack">
+        <b>stack</b> · plain HTML / CSS · no three.js · Space Grotesk + IBM Plex Mono
+      </div>
+      <div class="lab-card-tokens" aria-hidden="true">
+        <span style="background:oklch(14% 0.03 270)"></span>
+        <span style="background:oklch(75% 0.13 305)"></span>
+        <span style="background:oklch(94% 0.01 270)"></span>
+      </div>
+      <span class="lab-card-cta">You are here</span>
+    </a>
+  </div>
+</section>
+
+<section class="lab-section">
+  <div class="lab-section-head">
+    <h2>Legacy entries</h2>
+    <span class="hint">kept as-is, nothing touched</span>
+  </div>
+  <div class="lab-grid">
+    <a class="lab-card" href="index.html">
+      <span class="lab-card-tag">Legacy · Editor</span>
+      <div class="lab-card-title">Shape Lab Editor</div>
+      <div class="lab-card-desc">
+        The original palette-driven lab page. Preserved verbatim; any future
+        redesign goes into new files so the previous version stays referenceable.
+      </div>
+      <div class="lab-card-stack"><b>stack</b> · 1260 lines · gsap · multiple palettes</div>
+      <span class="lab-card-cta">Open</span>
+    </a>
+    <a class="lab-card" href="discover.html">
+      <span class="lab-card-tag">Legacy · Discover</span>
+      <div class="lab-card-title">Discover Gallery</div>
+      <div class="lab-card-desc">
+        The browse-oriented companion view. Listed here for completeness;
+        no edits applied in this iteration.
+      </div>
+      <div class="lab-card-stack"><b>stack</b> · 4517 lines · feed grid · css illustrations</div>
+      <span class="lab-card-cta">Open</span>
+    </a>
+  </div>
+</section>
+
+<section class="lab-section">
+  <div class="lab-section-head">
+    <h2>Design principles honoured on this page</h2>
+    <span class="hint">claude-design-prompt · speed check</span>
+  </div>
+  <div class="lab-principles">
+    <div class="lab-principle">
+      <div class="lab-principle-num">01</div>
+      <div class="lab-principle-title">Typography off the block-list</div>
+      <div class="lab-principle-body">Space Grotesk for prose, IBM Plex Mono for labels. No Inter, no Roboto, no Arial, no system-ui.</div>
+    </div>
+    <div class="lab-principle">
+      <div class="lab-principle-num">02</div>
+      <div class="lab-principle-title">oklch, no rainbow gradients</div>
+      <div class="lab-principle-body">All colour tokens declared as <code>oklch()</code> with one accent hue. Gradients, if any, stay within 30° of the same hue.</div>
+    </div>
+    <div class="lab-principle">
+      <div class="lab-principle-num">03</div>
+      <div class="lab-principle-title">Namespaced tokens</div>
+      <div class="lab-principle-body">Every CSS variable is prefixed <code>--lab-</code>. No risk of collision when inlined into a larger host page.</div>
+    </div>
+    <div class="lab-principle">
+      <div class="lab-principle-num">04</div>
+      <div class="lab-principle-title">Tweaks protocol ready</div>
+      <div class="lab-principle-body">Listener registered before <code>__edit_mode_available</code> is posted. Defaults wrapped in <code>EDITMODE-BEGIN/END</code>.</div>
+    </div>
+    <div class="lab-principle">
+      <div class="lab-principle-num">05</div>
+      <div class="lab-principle-title">No placeholder filler</div>
+      <div class="lab-principle-body">Counts and stack strings reflect the real files on disk. No made-up stats, no decorative emoji, no hand-drawn SVG.</div>
+    </div>
+    <div class="lab-principle">
+      <div class="lab-principle-num">06</div>
+      <div class="lab-principle-title">Hit targets ≥ 44px</div>
+      <div class="lab-principle-body">Every clickable element — nav link, card CTA — reserves at least 44px of tap area per mobile accessibility guidance.</div>
+    </div>
+  </div>
+</section>
+
+<footer class="lab-footer">
+  <span>3DLAB/01 · showcase-2d.html</span>
+  <span>built without a bundler · vercel static</span>
+</footer>
+
+<!-- Tweaks panel (appears only when host activates edit mode) -->
+<aside class="lab-tweaks" id="labTweaks" aria-hidden="true">
+  <h4>Tweaks</h4>
+  <div class="lab-tweaks-row">
+    <label>Accent hue</label>
+    <input type="range" min="0" max="360" id="lab-tw-hue">
+  </div>
+  <div class="lab-tweaks-row">
+    <label>Body size</label>
+    <input type="range" min="13" max="18" id="lab-tw-size">
+  </div>
+  <div class="lab-tweaks-row">
+    <label>Card height</label>
+    <input type="range" min="260" max="400" id="lab-tw-h">
+  </div>
+</aside>
+
+<script>
+/*
+  Tweaks protocol wiring — strict order required by claude-design-prompt §6.1:
+  (1) REGISTER listener first
+  (2) THEN post __edit_mode_available
+  Otherwise the host's activate message can land before we are listening.
+*/
+(function(){
+  const panel = document.getElementById('labTweaks');
+  const tweaks = { ...TWEAK_DEFAULTS };
+  const hueEl  = document.getElementById('lab-tw-hue');
+  const sizeEl = document.getElementById('lab-tw-size');
+  const hEl    = document.getElementById('lab-tw-h');
+  hueEl.value = tweaks.accentHue;
+  sizeEl.value = tweaks.baseFontSize;
+  hEl.value = tweaks.cardMinHeight;
+
+  function applyTweaks(){
+    document.documentElement.style.setProperty('--lab-accent', `oklch(75% 0.13 ${tweaks.accentHue})`);
+    document.body.style.fontSize = tweaks.baseFontSize + 'px';
+    document.querySelectorAll('.lab-card').forEach(c => { c.style.minHeight = tweaks.cardMinHeight + 'px'; });
+  }
+  function postEdits(edits){
+    window.parent?.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+  }
+
+  // (1) register listener FIRST
+  window.addEventListener('message', (e) => {
+    const t = e.data?.type;
+    if (t === '__activate_edit_mode')   panel.classList.add('is-open');
+    if (t === '__deactivate_edit_mode') panel.classList.remove('is-open');
+    if (t === '__edit_mode_set_keys' && e.data.edits){
+      Object.assign(tweaks, e.data.edits);
+      hueEl.value = tweaks.accentHue;
+      sizeEl.value = tweaks.baseFontSize;
+      hEl.value = tweaks.cardMinHeight;
+      applyTweaks();
+    }
+  });
+
+  // local slider → update + round-trip to host
+  hueEl.addEventListener('input', (e) => { tweaks.accentHue = +e.target.value; applyTweaks(); postEdits({ accentHue: tweaks.accentHue }); });
+  sizeEl.addEventListener('input', (e) => { tweaks.baseFontSize = +e.target.value; applyTweaks(); postEdits({ baseFontSize: tweaks.baseFontSize }); });
+  hEl.addEventListener('input', (e) => { tweaks.cardMinHeight = +e.target.value; applyTweaks(); postEdits({ cardMinHeight: tweaks.cardMinHeight }); });
+
+  // (2) THEN tell the host we're ready
+  try { window.parent?.postMessage({ type: '__edit_mode_available' }, '*'); } catch(_) {}
+
+  applyTweaks();
+})();
+</script>
+</body>
+</html>

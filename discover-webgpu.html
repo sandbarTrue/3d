@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover · WebGPU TSL — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#120a0a;color:#e8e8f0;min-height:100vh;overflow-x:hidden}
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(244,114,182,0.2);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(244,114,182,0.4)}
+
+  /* ─── Nav ─── */
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(18,10,10,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(244,114,182,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px;background:linear-gradient(135deg,#f472b6,#fb923c);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .nav a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
+  .nav a:hover{color:rgba(255,255,255,0.8)}
+  .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:rgba(255,255,255,0.7)}
+  .nav-right .btn:hover{border-color:rgba(244,114,182,0.3);color:#fff}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#f472b6,#fb923c);color:white;border-color:transparent}
+  .nav-right .btn.primary:hover{box-shadow:0 0 20px rgba(244,114,182,0.4)}
+  .gpu-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;letter-spacing:0.3px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);transition:all .3s}
+  .gpu-chip .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .gpu-chip.ok{border-color:rgba(74,222,128,0.3);color:rgba(74,222,128,0.9)}
+  .gpu-chip.ok .dot{background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,0.5)}
+  .gpu-chip.fail{border-color:rgba(248,113,113,0.3);color:rgba(248,113,113,0.9)}
+  .gpu-chip.fail .dot{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,0.5)}
+
+  /* ─── Pills ─── */
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(18,10,10,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pills::-webkit-scrollbar{display:none}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .pill:hover{border-color:rgba(244,114,182,0.3);color:rgba(255,255,255,0.7)}
+  .pill.on{background:linear-gradient(135deg,#f472b6,#fb923c);color:white;border-color:transparent}
+
+  /* ─── Masonry ─── */
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}
+  @media(max-width:800px){.grid{column-count:2;padding:12px}}
+  @media(max-width:500px){.grid{column-count:1}}
+
+  /* ─── Card ─── */
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(30,18,18,0.8);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;position:relative}
+  .card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(244,114,182,0.15);border-color:rgba(244,114,182,0.2)}
+
+  /* 3D canvas container */
+  .card .scene{width:100%;position:relative;overflow:hidden}
+  .card .scene canvas{width:100%!important;height:100%!important;display:block}
+
+  /* Text overlays */
+  .card .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none}
+  .card .overlay.center{justify-content:center;align-items:center;text-align:center}
+  .card .overlay.gradient::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(transparent 30%,rgba(0,0,0,.55));pointer-events:none}
+  .card .overlay *{position:relative;z-index:1}
+  .card .overlay h2{color:white;font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-1px}
+  .card .overlay p{color:rgba(255,255,255,.65);font-size:11px;margin-top:4px;font-weight:500}
+
+  /* Card types */
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px;color:#e8e8f0}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+  .card-text .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(244,114,182,0.1);font-size:10px;font-weight:600;color:rgba(244,114,182,0.7)}
+
+  .card-pixel{background:rgba(18,10,10,0.9);color:#fb923c;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;text-transform:uppercase;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+
+  .card-love{padding:28px 20px;text-align:center;background:linear-gradient(160deg,rgba(40,15,15,0.9),rgba(50,20,10,0.9))}
+  .card-love .hearts{font-size:36px;margin-bottom:12px}
+  .card-love h3{font-family:'Playfair Display',serif;font-size:22px;font-style:italic;margin-bottom:6px;color:#f9a8d4}
+  .card-love p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;max-width:220px;margin:0 auto}
+
+  .card-deck{padding:24px 20px;background:rgba(25,14,14,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(244,114,182,0.5);font-weight:600;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#e8e8f0}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px}
+
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(50,20,10,0.9),rgba(40,15,20,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#fb923c,#f472b6,#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+  .card-cjk{padding:24px 20px;background:linear-gradient(135deg,rgba(60,30,30,0.9),rgba(80,30,20,0.9));color:white}
+  .card-cjk h3{font-size:24px;font-weight:900;margin-bottom:6px}
+  .card-cjk p{font-size:11px;opacity:.55}
+
+  .card-tool{padding:20px;border:2px dashed rgba(255,255,255,0.08);background:rgba(25,14,14,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:140px;color:rgba(255,255,255,0.25)}
+  .card-tool .icon{width:40px;height:40px;border-radius:10px;background:rgba(244,114,182,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(244,114,182,0.5)}
+  .card-tool p{font-size:12px;font-weight:500}
+
+  /* Footer */
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot.dark{border-color:rgba(255,255,255,0.04);background:rgba(18,10,10,0.9)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.2)}
+
+  /* ─── 3D Card glow on hover ─── */
+  .card .scene::after{
+    content:'';position:absolute;inset:0;z-index:3;
+    background:radial-gradient(circle at 50% 50%, rgba(244,114,182,0.12) 0%, transparent 70%);
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .card:hover .scene::after{opacity:1}
+
+  /* ─── Shimmer badge for 3D cards ─── */
+  .badge-3d{
+    position:absolute;top:10px;right:10px;z-index:5;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(244,114,182,0.15);backdrop-filter:blur(8px);
+    border:1px solid rgba(244,114,182,0.2);
+    font-size:9px;font-weight:700;letter-spacing:1px;
+    color:rgba(244,114,182,0.8);text-transform:uppercase;
+  }
+
+  /* ─── Shape name label ─── */
+  .shape-label{
+    position:absolute;bottom:10px;left:10px;z-index:5;
+    padding:3px 10px;border-radius:6px;
+    background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);
+    font-size:10px;font-weight:600;letter-spacing:0.5px;
+    color:rgba(255,255,255,0.6);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .card:hover .shape-label{opacity:1}
+
+  /* ─── Clickable 3D cards ─── */
+  .card-clickable{cursor:pointer}
+  .card-clickable:hover .badge-3d{
+    background:rgba(244,114,182,0.25);border-color:rgba(244,114,182,0.4);
+    color:rgba(244,114,182,1);
+  }
+
+  /* ─── WebGPU unavailable fallback ─── */
+  .scene-fallback{
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    font-size:12px;color:rgba(248,113,113,0.6);line-height:1.5;padding:20px;
+    background:rgba(18,10,10,0.95);
+  }
+
+  /* ─── Happy Robot Card (warm themed) ─── */
+  .card-happy-robot{
+    padding:0;background:linear-gradient(160deg,#2d1a1a,#1e1410);display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+  }
+  .card-happy-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-happy-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#f9a8d4 0%,#f472b6 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    box-shadow:0 8px 30px rgba(244,114,182,0.2),inset 0 -4px 8px rgba(0,0,0,0.1);
+    z-index:2;animation:robotBreathe 3s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-face{
+    width:80px;height:48px;background:#1a0a0a;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-happy-robot .robot-eye{
+    width:16px;height:16px;position:relative;animation:robotBlink 3.5s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-eye:nth-child(2){animation-delay:0.1s}
+  .card-happy-robot .robot-eye::before,.card-happy-robot .robot-eye::after{
+    content:'';position:absolute;width:10px;height:3px;background:#fb923c;border-radius:2px;
+  }
+  .card-happy-robot .robot-eye::before{transform:rotate(-45deg);top:6px;left:0}
+  .card-happy-robot .robot-eye::after{transform:rotate(45deg);top:6px;left:6px}
+  @keyframes robotBlink{0%,92%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(0.1)}}
+  @keyframes robotBreathe{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.02)}}
+  .card-happy-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#fb923c 0%,#ea580c 100%);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-happy-robot .robot-ear.left{left:8px;animation:earWiggleL 2.5s ease-in-out infinite}
+  .card-happy-robot .robot-ear.right{right:8px;animation:earWiggleR 2.5s ease-in-out infinite 0.3s}
+  @keyframes earWiggleL{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+  @keyframes earWiggleR{0%,100%{transform:rotate(0deg)}25%{transform:rotate(4deg)}75%{transform:rotate(-4deg)}}
+  .card-happy-robot .robot-neck{
+    width:20px;height:12px;background:#e8a4c0;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  .card-happy-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fcd34d,#fb923c);
+    border-radius:50%;position:absolute;z-index:1;
+    box-shadow:0 4px 12px rgba(251,146,60,0.2);
+    animation:robotFloat 3s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-sphere.s1{bottom:5px;left:18px;animation-delay:0s;width:22px;height:22px}
+  .card-happy-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:1s;width:14px;height:14px}
+  @keyframes robotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .card-happy-robot .robot-antenna{
+    width:4px;height:20px;background:linear-gradient(180deg,#fb923c,#ea580c);
+    border-radius:2px;position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
+    animation:antennaBob 2s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-antenna-tip{
+    width:10px;height:10px;background:radial-gradient(circle,#f472b6,#e11d48);
+    border-radius:50%;position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    box-shadow:0 0 8px rgba(244,114,182,0.6);
+    animation:antennaTipGlow 1.5s ease-in-out infinite;
+  }
+  @keyframes antennaBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(244,114,182,0.5)}50%{box-shadow:0 0 14px rgba(244,114,182,0.9)}}
+  .card-happy-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;
+    padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#f472b6,#fb923c);
+    color:white;font-size:13px;font-weight:600;letter-spacing:0.3px;
+    box-shadow:0 4px 16px rgba(244,114,182,0.3);
+    transition:transform .2s ease,box-shadow .2s ease;
+    position:relative;z-index:1;
+  }
+  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(244,114,182,0.4)}
+  .card-happy-robot .robot-btn::before{
+    content:'';position:absolute;inset:-4px;border-radius:28px;z-index:-1;
+    background:linear-gradient(135deg,rgba(244,114,182,0.4),rgba(251,146,60,0.4));
+    filter:blur(8px);opacity:0.5;
+    animation:btnGlowPulse 2s ease-in-out infinite;
+  }
+  @keyframes btnGlowPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.08)}}
+
+  .card-happy-robot .sparkle{
+    position:absolute;width:5px;height:5px;border-radius:50%;z-index:1;
+    background:radial-gradient(circle,rgba(244,114,182,0.8),transparent);
+    pointer-events:none;
+  }
+  @keyframes sparkleDrift1{0%{transform:translate(0,0);opacity:0.7}25%{opacity:1}50%{transform:translate(12px,-18px);opacity:0.5}100%{transform:translate(-8px,-30px);opacity:0}}
+  @keyframes sparkleDrift2{0%{transform:translate(0,0);opacity:0.5}30%{opacity:0.9}60%{transform:translate(-14px,-12px);opacity:0.6}100%{transform:translate(6px,-26px);opacity:0}}
+  @keyframes sparkleDrift3{0%{transform:translate(0,0);opacity:0.6}40%{opacity:1}70%{transform:translate(10px,-20px);opacity:0.4}100%{transform:translate(-5px,-35px);opacity:0}}
+  @keyframes sparkleDrift4{0%{transform:translate(0,0);opacity:0.4}35%{opacity:0.8}65%{transform:translate(-10px,-15px);opacity:0.5}100%{transform:translate(8px,-28px);opacity:0}}
+  .card-happy-robot .sparkle:nth-child(1){left:20%;top:60%;animation:sparkleDrift1 3.5s ease-in-out infinite}
+  .card-happy-robot .sparkle:nth-child(2){right:18%;top:50%;animation:sparkleDrift2 4s ease-in-out infinite 0.8s}
+  .card-happy-robot .sparkle:nth-child(3){left:30%;bottom:35%;animation:sparkleDrift3 3s ease-in-out infinite 1.5s}
+  .card-happy-robot .sparkle:nth-child(4){right:25%;bottom:40%;animation:sparkleDrift4 3.8s ease-in-out infinite 0.4s}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">3D Lab</div>
+  <a href="discover-cloudai.html">CloudAI</a>
+  <a href="discover-nicewolf.html">NiceWolf</a>
+  <a href="discover-openaec.html">OpenAEC</a>
+  <a href="discover-webgpu.html" class="on">WebGPU</a>
+  <div class="nav-right">
+    <span class="gpu-chip" id="gpuChip"><span class="dot"></span><span id="gpuLabel">checking...</span></span>
+    <button class="btn">Log in</button>
+    <button class="btn primary">Get Started</button>
+  </div>
+</nav>
+
+<div class="pills">
+  <button class="pill on" data-filter="all">All</button>
+  <button class="pill" data-filter="colorNode">colorNode</button>
+  <button class="pill" data-filter="positionNode">positionNode</button>
+  <button class="pill" data-filter="fresnel">fresnel</button>
+  <button class="pill" data-filter="pattern">pattern</button>
+  <button class="pill" data-filter="Fn()">Fn()</button>
+  <button class="pill" data-filter="uniform">uniform</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/webgpu": "https://unpkg.com/three@0.170.0/build/three.webgpu.js",
+    "three/tsl": "https://unpkg.com/three@0.170.0/build/three.webgpu.js"
+  }
+}
+</script>
+<script type="module">
+
+// ═══════════════════════════════════════════════════════════
+// WEBGPU AVAILABILITY CHECK
+// ═══════════════════════════════════════════════════════════
+let gpuAvailable = false;
+const gpuChip = document.getElementById('gpuChip');
+const gpuLabel = document.getElementById('gpuLabel');
+
+async function checkWebGPU() {
+  if (!navigator.gpu) {
+    gpuChip.classList.add('fail');
+    gpuLabel.textContent = 'no navigator.gpu';
+    return false;
+  }
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      gpuChip.classList.add('fail');
+      gpuLabel.textContent = 'no adapter';
+      return false;
+    }
+    gpuChip.classList.add('ok');
+    gpuLabel.textContent = 'WebGPU · TSL';
+    return true;
+  } catch (e) {
+    gpuChip.classList.add('fail');
+    gpuLabel.textContent = 'GPU error';
+    return false;
+  }
+}
+
+gpuAvailable = await checkWebGPU();
+
+// ═══════════════════════════════════════════════════════════
+// CARD DEFINITIONS (20 cards)
+// ═══════════════════════════════════════════════════════════
+const cards = [
+  // 1: Hero color oscillator
+  { type: '3d-hero', height: 280, tags: ['colorNode','uniform'],
+    tsl: 'colorOscillator',
+    title: 'Shaders<br>as JS', sub: 'TSL node graph · no GLSL strings',
+    foot: { color: '#f472b6', name: 'TSL Studio', likes: '3.2k' } },
+
+  // 2: Pixel card (TSL code snippet)
+  { type: 'pixel', tags: [] },
+
+  // 3: Position displacement
+  { type: '3d', height: 260, tags: ['positionNode','uniform'],
+    tsl: 'positionDisplacement', badge: 'positionNode',
+    foot: { color: '#fb923c', name: 'Displacement Lab', likes: '2.1k' } },
+
+  // 4: Text card
+  { type: 'text', tags: [],
+    data: { h: 'Node Materials', p: 'TSL compiles a JS node graph into WGSL shader strings at build time. No hand-written GLSL.', tag: 'WebGPU' } },
+
+  // 5: Fresnel rim
+  { type: '3d', height: 240, tags: ['fresnel','Fn()'],
+    tsl: 'fresnelRim', badge: 'fresnel',
+    foot: { color: '#e879f9', name: 'Fresnel Lab', likes: '1.8k' } },
+
+  // 6: Deck card
+  { type: 'deck', tags: [] },
+
+  // 7: UV wave pattern
+  { type: '3d', height: 220, tags: ['pattern','colorNode'],
+    tsl: 'uvWave', badge: 'pattern',
+    foot: { color: '#fbbf24', name: 'Pattern Studio', likes: '1.5k' } },
+
+  // 8: Love card (warm-tinted)
+  { type: 'love', tags: [] },
+
+  // 9: Hero combined
+  { type: '3d-hero', height: 260, tags: ['colorNode','positionNode','fresnel','Fn()'],
+    tsl: 'combined',
+    title: 'WGSL, but<br>as JS.', sub: 'Same compiles to WGSL on WebGPU',
+    foot: { color: '#fb923c', name: 'Combined Lab', likes: '4.1k' } },
+
+  // 10: CJK card
+  { type: 'cjk', tags: [] },
+
+  // 11: Metalness gradient
+  { type: '3d', height: 200, tags: ['uniform','colorNode'],
+    tsl: 'metalnessGradient', badge: 'metalness',
+    foot: { color: '#a78bfa', name: 'Material Lab', likes: '1.2k' } },
+
+  // 12: Play card
+  { type: 'play', tags: [] },
+
+  // 13: Stripe material
+  { type: '3d', height: 240, tags: ['pattern','colorNode'],
+    tsl: 'stripeMaterial', badge: 'step',
+    foot: { color: '#f472b6', name: 'Stripe Studio', likes: '1.7k' } },
+
+  // 14: Robot card (CSS-only, warm theme)
+  { type: 'robot', tags: [] },
+
+  // 15: Tool card
+  { type: 'tool', tags: [] },
+
+  // 16: Text card (TSL philosophy)
+  { type: 'text', tags: [],
+    data: { h: 'TSL Philosophy', p: 'Write shaders as composable JS functions. The TSL compiler handles optimization and platform targeting.', tag: 'Paradigm' } },
+
+  // 17: Color flow
+  { type: '3d', height: 220, tags: ['colorNode','uniform'],
+    tsl: 'colorFlow', badge: 'HSL',
+    foot: { color: '#34d399', name: 'Color Flow', likes: '2.3k' } },
+
+  // 18: Pixel card 2
+  { type: 'pixel2', tags: [] },
+
+  // 19: Text card 3
+  { type: 'text', tags: [],
+    data: { h: 'Beyond GLSL', p: 'TSL nodes are JS objects. Compose them, branch them, reuse them across materials without string concatenation.', tag: 'Architecture' } },
+
+  // 20: Deck card 2
+  { type: 'deck2', tags: [] },
+];
+
+
+// ═══════════════════════════════════════════════════════════
+// PILLS FILTER
+// ═══════════════════════════════════════════════════════════
+const pillBtns = document.querySelectorAll('.pill');
+let activeFilter = 'all';
+pillBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    pillBtns.forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('.card').forEach(card => {
+      if (activeFilter === 'all') {
+        card.style.display = '';
+      } else {
+        const tags = card.dataset.tags || '';
+        card.style.display = tags.includes(activeFilter) || tags === '' ? '' : 'none';
+      }
+    });
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════════
+// BUILD DOM
+// ═══════════════════════════════════════════════════════════
+const grid = document.getElementById('grid');
+const scenePending = [];
+
+cards.forEach((c, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.tags = (c.tags || []).join(',');
+
+  if (c.type === 'pixel') {
+    card.innerHTML = `
+      <div class="card-pixel">
+        <div class="label">TSL Shader Code</div>
+        <div class="body">mat.colorNode = mix(<br>&nbsp;&nbsp;color(0xd4542e),<br>&nbsp;&nbsp;color(0xfcd34d),<br>&nbsp;&nbsp;uv().x.add(sin(time).mul(0.3))<br>);</div>
+        <div class="foot">three@0.170.0 · TSL</div>
+      </div>
+      <div class="card-foot dark"><div class="dot" style="background:#fb923c"></div><span class="name">TSL Snippets</span><span class="likes">&#9829; 891</span></div>`;
+  } else if (c.type === 'pixel2') {
+    card.innerHTML = `
+      <div class="card-pixel">
+        <div class="label">Position Node</div>
+        <div class="body">mat.positionNode =<br>&nbsp;&nbsp;positionLocal.add(<br>&nbsp;&nbsp;&nbsp;&nbsp;normalWorld.mul(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sin(time.mul(speed))<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.mul(amplitude)<br>&nbsp;&nbsp;&nbsp;&nbsp;)<br>&nbsp;&nbsp;);</div>
+        <div class="foot">displacement · vertex shader</div>
+      </div>
+      <div class="card-foot dark"><div class="dot" style="background:#f472b6"></div><span class="name">Vertex Lab</span><span class="likes">&#9829; 1,204</span></div>`;
+  } else if (c.type === 'text') {
+    card.innerHTML = `
+      <div class="card-text">
+        <h3>${c.data.h}</h3><p>${c.data.p}</p>
+        ${c.data.tag ? `<span class="tag">${c.data.tag}</span>` : ''}
+      </div>`;
+  } else if (c.type === 'love') {
+    card.innerHTML = `
+      <div class="card-love">
+        <div class="hearts">&#128293; &#10024; &#128293;</div>
+        <h3>Warm Shaders</h3>
+        <p>Code is a canvas compiled by node graphs and rendered by imagination.</p>
+      </div>`;
+  } else if (c.type === 'deck') {
+    card.innerHTML = `
+      <div class="card-deck">
+        <div class="lbl">Pitch Deck</div>
+        <h3>WGSL, but<br>as JS.</h3>
+        <div class="author">Three.js r170+ · experimental</div>
+      </div>`;
+  } else if (c.type === 'deck2') {
+    card.innerHTML = `
+      <div class="card-deck">
+        <div class="lbl">Architecture</div>
+        <h3>Node<br>Graph</h3>
+        <div class="author">TSL · WebGPU Renderer</div>
+      </div>`;
+  } else if (c.type === 'play') {
+    card.innerHTML = `
+      <div class="card-play"><h2>TSL<br>node</h2></div>
+      <div class="card-foot" style="background:rgba(50,20,10,0.9);border-color:rgba(251,146,60,0.15)"><div class="dot" style="background:#fb923c"></div><span class="name">Node Jam 2024</span><span class="likes">&#9829; 934</span></div>`;
+  } else if (c.type === 'cjk') {
+    card.innerHTML = `
+      <div class="card-cjk"><h3>着色器革命</h3><p>Three Shading Language · 节点材质</p></div>
+      <div class="card-foot" style="background:rgba(60,20,20,0.9);border:none"><div class="dot" style="background:#f9a8d4"></div><span class="name" style="color:#f9a8d4">创意工坊</span><span class="likes" style="color:rgba(244,114,182,0.6)">&#9829; 672</span></div>`;
+  } else if (c.type === 'robot') {
+    card.innerHTML = `
+      <div class="card-happy-robot">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        <div class="robot-container">
+          <div class="robot-antenna"><div class="robot-antenna-tip"></div></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <button class="robot-btn">Get in touch</button>
+      </div>
+      <div class="card-foot"><div class="dot" style="background:#f472b6"></div><span class="name">Warm Bot</span><span class="likes">&#9829; 1,025</span></div>`;
+  } else if (c.type === 'tool') {
+    card.innerHTML = `<div class="card-tool"><div class="icon">+</div><p>Start a new TSL experiment.</p></div>`;
+  } else if (c.type === '3d' || c.type === '3d-hero') {
+    const h = c.height || 240;
+    const sceneDiv = document.createElement('div');
+    sceneDiv.className = 'scene';
+    sceneDiv.style.height = h + 'px';
+    sceneDiv.style.background = '#1a0e0e';
+    card.appendChild(sceneDiv);
+    card.classList.add('card-clickable');
+
+    // Badge
+    if (c.badge) {
+      const badge = document.createElement('div');
+      badge.className = 'badge-3d';
+      badge.textContent = c.badge;
+      sceneDiv.appendChild(badge);
+    } else {
+      const badge = document.createElement('div');
+      badge.className = 'badge-3d';
+      badge.textContent = 'TSL';
+      sceneDiv.appendChild(badge);
+    }
+
+    // Hover shape label
+    const label = document.createElement('div');
+    label.className = 'shape-label';
+    label.textContent = c.tsl;
+    sceneDiv.appendChild(label);
+
+    // Hero overlay
+    if (c.type === '3d-hero' && c.title) {
+      const overlay = document.createElement('div');
+      overlay.className = 'overlay gradient';
+      overlay.innerHTML = `<h2>${c.title}</h2><p>${c.sub || ''}</p>`;
+      sceneDiv.appendChild(overlay);
+    }
+
+    // Footer
+    if (c.foot) {
+      const foot = document.createElement('div');
+      foot.className = 'card-foot';
+      foot.innerHTML = `<div class="dot" style="background:${c.foot.color}"></div><span class="name">${c.foot.name}</span><span class="likes">&#9829; ${c.foot.likes}</span>`;
+      card.appendChild(foot);
+    }
+
+    scenePending.push({ el: sceneDiv, tsl: c.tsl, height: h });
+  }
+
+  grid.appendChild(card);
+});
+
+
+// ═══════════════════════════════════════════════════════════
+// WEBGPU TSL SCENE BUILDER
+// ═══════════════════════════════════════════════════════════
+if (!gpuAvailable) {
+  // Fallback: show message in all scene containers
+  scenePending.forEach(({ el, height }) => {
+    const fb = document.createElement('div');
+    fb.className = 'scene-fallback';
+    fb.style.height = height + 'px';
+    fb.textContent = 'WebGPU unavailable · Needs Chrome/Edge 113+ or Safari 17.4+';
+    el.appendChild(fb);
+  });
+} else {
+  // Dynamically import Three.js WebGPU build
+  const THREE = await import('three/webgpu');
+
+  const {
+    WebGPURenderer, PerspectiveCamera, Scene, AmbientLight, DirectionalLight,
+    Mesh, MeshPhysicalNodeMaterial, IcosahedronGeometry, BoxGeometry,
+    SphereGeometry, PlaneGeometry, Color,
+  } = THREE;
+
+  const {
+    color, uv, sin, cos, time, mix, float, vec3, normalWorld, positionLocal,
+    uniform, Fn, step, fract, mul, add, sub, cameraPosition,
+  } = THREE;
+
+  async function buildScene(container, tslName, height) {
+    const w = container.clientWidth || 300;
+    const h = height;
+
+    const renderer = new WebGPURenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(w, h);
+    await renderer.init();
+    container.appendChild(renderer.domElement);
+
+    const scene = new Scene();
+    scene.background = new Color(0x1a0e0e);
+
+    const camera = new PerspectiveCamera(45, w / h, 0.1, 100);
+    camera.position.set(0, 0, 3.5);
+
+    scene.add(new AmbientLight(0xffffff, 0.6));
+    const dirLight = new DirectionalLight(0xffeedd, 1.2);
+    dirLight.position.set(3, 4, 5);
+    scene.add(dirLight);
+
+    let mesh;
+    const mat = new MeshPhysicalNodeMaterial();
+    mat.roughness = 0.35;
+
+    const speed = uniform(1.0);
+    const amplitude = uniform(0.15);
+
+    switch (tslName) {
+
+      case 'colorOscillator': {
+        const geo = new IcosahedronGeometry(1, 3);
+        mat.colorNode = mix(
+          color(0xd4542e),
+          color(0xfcd34d),
+          uv().x.add(sin(time.mul(0.7)).mul(0.3))
+        );
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      case 'positionDisplacement': {
+        const geo = new BoxGeometry(1.4, 1.4, 1.4, 32, 32, 32);
+        mat.colorNode = mix(color(0xf472b6), color(0xfb923c), uv().y);
+        mat.positionNode = positionLocal.add(
+          normalWorld.mul(
+            sin(time.mul(speed).add(positionLocal.y.mul(2.5))).mul(amplitude)
+          )
+        );
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      case 'fresnelRim': {
+        const geo = new IcosahedronGeometry(1, 4);
+        mat.colorNode = color(0x1a0a1a);
+        const viewDir = cameraPosition.sub(positionLocal).normalize();
+        const fresnelTerm = float(1.0).sub(normalWorld.dot(viewDir).saturate()).pow(3.0);
+        mat.emissiveNode = mix(color(0xf472b6), color(0xfb923c), fresnelTerm).mul(fresnelTerm.mul(2.5));
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      case 'uvWave': {
+        const geo = new PlaneGeometry(2.4, 2.4, 1, 1);
+        const u = uv();
+        const t = time.mul(0.8);
+        const wave1 = sin(u.x.mul(6.0).add(t)).mul(0.5).add(0.5);
+        const wave2 = sin(u.y.mul(6.0).sub(t.mul(1.3))).mul(0.5).add(0.5);
+        mat.colorNode = mix(
+          color(0xd4542e),
+          color(0xfcd34d),
+          wave1.mul(wave2)
+        );
+        mesh = new Mesh(geo, mat);
+        camera.position.set(0, 0, 2.2);
+        break;
+      }
+
+      case 'combined': {
+        const geo = new SphereGeometry(1, 64, 64);
+        mat.colorNode = mix(
+          color(0xd4542e),
+          color(0xf472b6),
+          uv().x.add(sin(time.mul(0.5)).mul(0.4))
+        );
+        mat.positionNode = positionLocal.add(
+          normalWorld.mul(
+            sin(time.mul(1.2).add(positionLocal.y.mul(3.0))).mul(0.08)
+          )
+        );
+        const viewDir2 = cameraPosition.sub(positionLocal).normalize();
+        const fres2 = float(1.0).sub(normalWorld.dot(viewDir2).saturate()).pow(3.0);
+        mat.emissiveNode = color(0xfb923c).mul(fres2.mul(1.5));
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      case 'metalnessGradient': {
+        const geo = new SphereGeometry(1, 48, 48);
+        mat.colorNode = color(0xfcd34d);
+        mat.metalnessNode = uv().y;
+        mat.roughnessNode = float(1.0).sub(uv().y).mul(0.8);
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      case 'stripeMaterial': {
+        const geo = new SphereGeometry(1, 48, 48);
+        const stripe = step(fract(uv().y.mul(8.0)), 0.5);
+        mat.colorNode = mix(color(0xd4542e), color(0xfcd34d), stripe);
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      case 'colorFlow': {
+        const geo = new SphereGeometry(1, 48, 48);
+        const t = time.mul(0.3);
+        const hueShift = sin(t).mul(0.5).add(0.5);
+        mat.colorNode = mix(
+          mix(color(0xf472b6), color(0xfb923c), hueShift),
+          mix(color(0xfbbf24), color(0xe879f9), hueShift),
+          uv().y
+        );
+        mesh = new Mesh(geo, mat);
+        break;
+      }
+
+      default: {
+        const geo = new SphereGeometry(1, 32, 32);
+        mat.colorNode = color(0xf472b6);
+        mesh = new Mesh(geo, mat);
+      }
+    }
+
+    scene.add(mesh);
+
+    // Animation loop via setAnimationLoop (WebGPU requirement)
+    renderer.setAnimationLoop(() => {
+      if (tslName !== 'uvWave') {
+        mesh.rotation.x += 0.003;
+        mesh.rotation.y += 0.005;
+      }
+      renderer.render(scene, camera);
+    });
+
+    // Resize observer for responsive cards
+    const ro = new ResizeObserver(() => {
+      const nw = container.clientWidth;
+      if (nw > 0) {
+        renderer.setSize(nw, h);
+        camera.aspect = nw / h;
+        camera.updateProjectionMatrix();
+      }
+    });
+    ro.observe(container);
+  }
+
+  // Build all scenes sequentially to avoid GPU adapter contention
+  for (const { el, tsl, height } of scenePending) {
+    try {
+      await buildScene(el, tsl, height);
+    } catch (err) {
+      console.warn('Scene build failed:', tsl, err);
+      const fb = document.createElement('div');
+      fb.className = 'scene-fallback';
+      fb.style.height = height + 'px';
+      fb.textContent = 'WebGPU scene error · ' + err.message;
+      el.appendChild(fb);
+    }
+  }
+}
+
+</script>
+</body>
+</html>

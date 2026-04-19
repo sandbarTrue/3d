@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover NiceWolf ECS — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0a0f0d;color:#e8f0ec;min-height:100vh;overflow-x:hidden}
+
+  /* --- Scrollbar --- */
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(122,240,164,0.2);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(122,240,164,0.4)}
+
+  /* --- Nav --- */
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(10,15,13,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(122,240,164,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px;background:linear-gradient(135deg,#7af0a4,#23d5ab);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .nav a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
+  .nav a:hover{color:rgba(255,255,255,0.8)}
+  .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:rgba(255,255,255,0.7)}
+  .nav-right .btn:hover{border-color:rgba(122,240,164,0.3);color:#fff}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#23d5ab,#7af0a4);color:#0a0f0d;border-color:transparent;font-weight:700}
+  .nav-right .btn.primary:hover{box-shadow:0 0 20px rgba(122,240,164,0.4)}
+
+  /* --- Pills --- */
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(10,15,13,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pills::-webkit-scrollbar{display:none}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .pill:hover{border-color:rgba(122,240,164,0.3);color:rgba(255,255,255,0.7)}
+  .pill.on{background:linear-gradient(135deg,#23d5ab,#7af0a4);color:#0a0f0d;border-color:transparent;font-weight:700}
+
+  /* --- Masonry --- */
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}
+  @media(max-width:800px){.grid{column-count:2;padding:12px}}
+  @media(max-width:500px){.grid{column-count:1}}
+
+  /* --- Card --- */
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(16,24,20,0.8);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;position:relative}
+  .card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(122,240,164,0.15);border-color:rgba(122,240,164,0.2)}
+
+  /* 3D canvas container */
+  .card .scene{width:100%;position:relative;overflow:hidden}
+  .card .scene canvas{width:100%!important;height:100%!important;display:block}
+
+  /* Text overlays */
+  .card .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none}
+  .card .overlay.center{justify-content:center;align-items:center;text-align:center}
+  .card .overlay.gradient::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(transparent 30%,rgba(0,0,0,.55));pointer-events:none}
+  .card .overlay *{position:relative;z-index:1}
+  .card .overlay h2{color:white;font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-1px}
+  .card .overlay p{color:rgba(255,255,255,.65);font-size:11px;margin-top:4px;font-weight:500}
+
+  /* Card types */
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px;color:#e8f0ec}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+  .card-text .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(122,240,164,0.1);font-size:10px;font-weight:600;color:rgba(122,240,164,0.7)}
+
+  .card-pixel{background:rgba(10,18,14,0.9);color:#7af0a4;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;text-transform:uppercase;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+
+  .card-love{padding:28px 20px;text-align:center;background:linear-gradient(160deg,rgba(16,40,30,0.9),rgba(10,35,28,0.9))}
+  .card-love .hearts{font-size:36px;margin-bottom:12px}
+  .card-love h3{font-family:'Playfair Display',serif;font-size:22px;font-style:italic;margin-bottom:6px;color:#7af0a4}
+  .card-love p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;max-width:220px;margin:0 auto}
+
+  .card-deck{padding:24px 20px;background:rgba(12,20,16,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(122,240,164,0.5);font-weight:600;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#e8f0ec}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px}
+
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(12,30,20,0.9),rgba(10,25,22,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#23d5ab,#7af0a4,#5affb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+  .card-cjk{padding:24px 20px;background:linear-gradient(135deg,rgba(16,50,38,0.9),rgba(12,40,32,0.9));color:white}
+  .card-cjk h3{font-size:24px;font-weight:900;margin-bottom:6px}
+  .card-cjk p{font-size:11px;opacity:.55}
+
+  .card-tool{padding:20px;border:2px dashed rgba(255,255,255,0.08);background:rgba(12,20,16,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:140px;color:rgba(255,255,255,0.25)}
+  .card-tool .icon{width:40px;height:40px;border-radius:10px;background:rgba(122,240,164,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(122,240,164,0.5)}
+  .card-tool p{font-size:12px;font-weight:500}
+
+  /* Footer */
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot.dark{border-color:rgba(255,255,255,0.04);background:rgba(10,15,13,0.9)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.2)}
+
+  /* --- 3D Card glow on hover --- */
+  .card .scene::after{
+    content:'';position:absolute;inset:0;z-index:3;
+    background:radial-gradient(circle at 50% 50%, rgba(122,240,164,0.12) 0%, transparent 70%);
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .card:hover .scene::after{opacity:1}
+
+  /* --- Shimmer badge for 3D cards --- */
+  .badge-3d{
+    position:absolute;top:10px;right:10px;z-index:5;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(122,240,164,0.15);backdrop-filter:blur(8px);
+    border:1px solid rgba(122,240,164,0.2);
+    font-size:9px;font-weight:700;letter-spacing:1px;
+    color:rgba(122,240,164,0.8);text-transform:uppercase;
+  }
+
+  /* --- Shape name label --- */
+  .shape-label{
+    position:absolute;bottom:10px;left:10px;z-index:5;
+    padding:3px 10px;border-radius:6px;
+    background:rgba(0,0,0,0.4);backdrop-filter:blur(8px);
+    font-size:10px;font-weight:600;letter-spacing:0.5px;
+    color:rgba(255,255,255,0.6);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .card:hover .shape-label{opacity:1}
+
+  /* --- Clickable 3D cards --- */
+  .card-clickable{cursor:pointer}
+  .card-clickable:hover .badge-3d{
+    background:rgba(122,240,164,0.25);border-color:rgba(122,240,164,0.4);
+    color:rgba(122,240,164,1);
+  }
+
+  /* --- Happy Robot (Green Theme) --- */
+  .card-happy-robot{
+    padding:0;background:#c8f0d4;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+  }
+  .card-happy-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-happy-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#fff 0%,#e8f5eb 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    box-shadow:0 8px 30px rgba(0,0,0,0.08),inset 0 -4px 8px rgba(0,0,0,0.03);
+    z-index:2;
+  }
+  .card-happy-robot .robot-face{
+    width:80px;height:48px;background:#0a1a14;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-happy-robot .robot-eye{
+    width:16px;height:16px;position:relative;
+  }
+  .card-happy-robot .robot-eye::before,.card-happy-robot .robot-eye::after{
+    content:'';position:absolute;width:10px;height:3px;background:#23d5ab;border-radius:2px;
+  }
+  .card-happy-robot .robot-eye::before{transform:rotate(-45deg);top:6px;left:0}
+  .card-happy-robot .robot-eye::after{transform:rotate(45deg);top:6px;left:6px}
+  .card-happy-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#555 0%,#333 100%);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-happy-robot .robot-ear.left{left:8px}
+  .card-happy-robot .robot-ear.right{right:8px}
+  .card-happy-robot .robot-neck{
+    width:20px;height:12px;background:#d4ecd8;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  .card-happy-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fff,#d4ecd8);
+    border-radius:50%;position:absolute;z-index:1;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    animation:robotFloat 3s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-sphere.s1{bottom:5px;left:18px;animation-delay:0s;width:22px;height:22px}
+  .card-happy-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:1s;width:14px;height:14px}
+  @keyframes robotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .card-happy-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;
+    padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#23d5ab,#7af0a4);
+    color:#0a0f0d;font-size:13px;font-weight:600;letter-spacing:0.3px;
+    box-shadow:0 4px 16px rgba(35,213,171,0.3);
+    transition:transform .2s ease,box-shadow .2s ease;
+  }
+  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(35,213,171,0.4)}
+  .card-happy-robot .robot-title{font-size:18px;font-weight:700;color:#1a3a28;margin-top:0}
+
+  /* Robot animations */
+  @keyframes robotBlink{0%,92%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(0.1)}}
+  .card-happy-robot .robot-eye{animation:robotBlink 3.5s ease-in-out infinite}
+  .card-happy-robot .robot-eye:nth-child(2){animation-delay:0.1s}
+  @keyframes robotBreathe{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.02)}}
+  .card-happy-robot .robot-body{animation:robotBreathe 3s ease-in-out infinite}
+  @keyframes earWiggleL{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+  @keyframes earWiggleR{0%,100%{transform:rotate(0deg)}25%{transform:rotate(4deg)}75%{transform:rotate(-4deg)}}
+  .card-happy-robot .robot-ear.left{animation:earWiggleL 2.5s ease-in-out infinite}
+  .card-happy-robot .robot-ear.right{animation:earWiggleR 2.5s ease-in-out infinite 0.3s}
+
+  .card-happy-robot .robot-antenna{
+    width:4px;height:20px;background:linear-gradient(180deg,#888,#555);
+    border-radius:2px;position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
+  }
+  .card-happy-robot .robot-antenna-tip{
+    width:10px;height:10px;background:radial-gradient(circle,#23d5ab,#1aab88);
+    border-radius:50%;position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    box-shadow:0 0 8px rgba(35,213,171,0.6);
+  }
+  @keyframes antennaBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+  .card-happy-robot .robot-antenna{animation:antennaBob 2s ease-in-out infinite}
+  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(35,213,171,0.5)}50%{box-shadow:0 0 14px rgba(35,213,171,0.9)}}
+  .card-happy-robot .robot-antenna-tip{animation:antennaTipGlow 1.5s ease-in-out infinite}
+
+  .card-happy-robot .robot-btn{position:relative;z-index:1}
+  .card-happy-robot .robot-btn::before{
+    content:'';position:absolute;inset:-4px;border-radius:28px;z-index:-1;
+    background:linear-gradient(135deg,rgba(35,213,171,0.4),rgba(122,240,164,0.4));
+    filter:blur(8px);opacity:0.5;
+    animation:btnGlowPulse 2s ease-in-out infinite;
+  }
+  @keyframes btnGlowPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.08)}}
+
+  .card-happy-robot .sparkle{
+    position:absolute;width:5px;height:5px;border-radius:50%;z-index:1;
+    background:radial-gradient(circle,rgba(122,240,164,0.8),transparent);
+    pointer-events:none;
+  }
+  @keyframes sparkleDrift1{0%{transform:translate(0,0);opacity:0.7}25%{opacity:1}50%{transform:translate(12px,-18px);opacity:0.5}100%{transform:translate(-8px,-30px);opacity:0}}
+  @keyframes sparkleDrift2{0%{transform:translate(0,0);opacity:0.5}30%{opacity:0.9}60%{transform:translate(-14px,-12px);opacity:0.6}100%{transform:translate(6px,-26px);opacity:0}}
+  @keyframes sparkleDrift3{0%{transform:translate(0,0);opacity:0.6}40%{opacity:1}70%{transform:translate(10px,-20px);opacity:0.4}100%{transform:translate(-5px,-35px);opacity:0}}
+  @keyframes sparkleDrift4{0%{transform:translate(0,0);opacity:0.4}35%{opacity:0.8}65%{transform:translate(-10px,-15px);opacity:0.5}100%{transform:translate(8px,-28px);opacity:0}}
+  .card-happy-robot .sparkle:nth-child(1){left:20%;top:60%;animation:sparkleDrift1 3.5s ease-in-out infinite}
+  .card-happy-robot .sparkle:nth-child(2){right:18%;top:50%;animation:sparkleDrift2 4s ease-in-out infinite 0.8s}
+  .card-happy-robot .sparkle:nth-child(3){left:30%;bottom:35%;animation:sparkleDrift3 3s ease-in-out infinite 1.5s}
+  .card-happy-robot .sparkle:nth-child(4){right:25%;bottom:40%;animation:sparkleDrift4 3.8s ease-in-out infinite 0.4s}
+
+  .card:hover .card-happy-robot .robot-sphere{animation-duration:1.5s}
+
+  /* --- Entrance animation --- */
+  @keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .card{opacity:0;animation:cardIn .45s ease forwards}
+  .card:nth-child(1){animation-delay:.04s}
+  .card:nth-child(2){animation-delay:.08s}
+  .card:nth-child(3){animation-delay:.12s}
+  .card:nth-child(4){animation-delay:.16s}
+  .card:nth-child(5){animation-delay:.20s}
+  .card:nth-child(6){animation-delay:.24s}
+  .card:nth-child(7){animation-delay:.28s}
+  .card:nth-child(8){animation-delay:.32s}
+  .card:nth-child(n+9){animation-delay:.36s}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">3D Lab</div>
+  <a href="discover-cloudai.html">CloudAI</a>
+  <a href="discover-nicewolf.html" class="on">NiceWolf</a>
+  <a href="discover-openaec.html">OpenAEC</a>
+  <a href="discover-webgpu.html">WebGPU</a>
+  <div class="nav-right">
+    <button class="btn">Log in</button>
+    <button class="btn primary">Get Started</button>
+  </div>
+</nav>
+
+<div class="pills">
+  <button class="pill on">All</button>
+  <button class="pill">Movement</button>
+  <button class="pill">Gravity</button>
+  <button class="pill">Boids</button>
+  <button class="pill">Spin</button>
+  <button class="pill">Collide</button>
+  <button class="pill">Events</button>
+  <button class="pill">Orbit</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ================================================================
+// ECS CORE
+// ================================================================
+class World {
+  constructor() { this.next = 0; this.ents = new Set(); this.store = new Map(); this.sys = []; }
+  spawn(init) { const id = this.next++; this.ents.add(id); if (init) init(id, this); return id; }
+  set(tag, id, data) { if (!this.store.has(tag)) this.store.set(tag, new Map()); this.store.get(tag).set(id, data); }
+  get(tag, id) { return this.store.get(tag)?.get(id); }
+  query(...tags) {
+    const b = this.store.get(tags[0]);
+    if (!b) return [];
+    const o = [];
+    for (const id of b.keys()) if (tags.every(t => this.store.get(t)?.has(id))) o.push(id);
+    return o;
+  }
+  addSys(fn) { this.sys.push(fn); }
+  step(dt) { for (const fn of this.sys) fn(this, dt); }
+}
+
+// ================================================================
+// COMMON UTILS
+// ================================================================
+const G = {
+  green1: 0x7af0a4,
+  green2: 0x23d5ab,
+  green3: 0x1aab88,
+  dark:   0x0a0f0d,
+};
+
+function makeRenderer(container, bg) {
+  const w = container.clientWidth, h = container.clientHeight;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(bg ?? 0x0a0f0d);
+  container.appendChild(renderer.domElement);
+  return renderer;
+}
+
+function makeCamera(container, fov) {
+  const w = container.clientWidth, h = container.clientHeight;
+  const cam = new THREE.PerspectiveCamera(fov || 50, w / h, 0.1, 200);
+  return cam;
+}
+
+const tmpColor = new THREE.Color();
+const tmpDummy = new THREE.Object3D();
+const tmpVec = new THREE.Vector3();
+
+// ================================================================
+// SCENE 1: BOID FLOCKING (Hero, 280px)
+// ================================================================
+function buildBoidScene(container) {
+  const renderer = makeRenderer(container, 0x060d09);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 55);
+  cam.position.set(0, 2, 8);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x334433, 0.5));
+  const dl = new THREE.DirectionalLight(0x7af0a4, 0.8);
+  dl.position.set(3, 5, 4);
+  scene.add(dl);
+
+  const COUNT = 50;
+  const geo = new THREE.ConeGeometry(0.08, 0.22, 4);
+  geo.rotateX(Math.PI / 2);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x1a3a28, shininess: 60 });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  const w = new World();
+  const RANGE = 4;
+
+  for (let i = 0; i < COUNT; i++) {
+    w.spawn((id, w) => {
+      w.set('T', id, {
+        x: (Math.random() - 0.5) * RANGE * 2,
+        y: (Math.random() - 0.5) * RANGE,
+        z: (Math.random() - 0.5) * RANGE * 2,
+      });
+      w.set('V', id, {
+        x: (Math.random() - 0.5) * 0.8,
+        y: (Math.random() - 0.5) * 0.4,
+        z: (Math.random() - 0.5) * 0.8,
+      });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  // Boid systems
+  w.addSys((w, dt) => {
+    const ids = w.query('T', 'V');
+    const SEP_R = 0.8, ALI_R = 2.5, COH_R = 3.0;
+    const SEP_W = 2.0, ALI_W = 1.0, COH_W = 0.8;
+    const MAX_SPD = 2.5;
+
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id);
+      let sx = 0, sy = 0, sz = 0;
+      let ax = 0, ay = 0, az = 0, ac = 0;
+      let cx = 0, cy = 0, cz = 0, cc = 0;
+
+      for (const oid of ids) {
+        if (oid === id) continue;
+        const ot = w.get('T', oid), ov = w.get('V', oid);
+        const dx = t.x - ot.x, dy = t.y - ot.y, dz = t.z - ot.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.001;
+        if (d < SEP_R) { sx += dx / d; sy += dy / d; sz += dz / d; }
+        if (d < ALI_R) { ax += ov.x; ay += ov.y; az += ov.z; ac++; }
+        if (d < COH_R) { cx += ot.x; cy += ot.y; cz += ot.z; cc++; }
+      }
+
+      v.x += sx * SEP_W * dt;
+      v.y += sy * SEP_W * dt;
+      v.z += sz * SEP_W * dt;
+
+      if (ac > 0) {
+        v.x += ((ax / ac) - v.x) * ALI_W * dt;
+        v.y += ((ay / ac) - v.y) * ALI_W * dt;
+        v.z += ((az / ac) - v.z) * ALI_W * dt;
+      }
+      if (cc > 0) {
+        v.x += ((cx / cc - t.x)) * COH_W * dt;
+        v.y += ((cy / cc - t.y)) * COH_W * dt;
+        v.z += ((cz / cc - t.z)) * COH_W * dt;
+      }
+
+      // Boundary
+      const B = RANGE;
+      if (t.x > B) v.x -= 1; if (t.x < -B) v.x += 1;
+      if (t.y > B * 0.6) v.y -= 1; if (t.y < -B * 0.6) v.y += 1;
+      if (t.z > B) v.z -= 1; if (t.z < -B) v.z += 1;
+
+      const spd = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+      if (spd > MAX_SPD) { const s = MAX_SPD / spd; v.x *= s; v.y *= s; v.z *= s; }
+    }
+  });
+
+  // Move system
+  w.addSys((w, dt) => {
+    const ids = w.query('T', 'V');
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id);
+      t.x += v.x * dt; t.y += v.y * dt; t.z += v.z * dt;
+    }
+  });
+
+  // Render system
+  w.addSys((w) => {
+    const ids = w.query('T', 'V', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id), r = w.get('R', id);
+      tmpDummy.position.set(t.x, t.y, t.z);
+      tmpDummy.lookAt(t.x + v.x, t.y + v.y, t.z + v.z);
+      tmpDummy.updateMatrix();
+      mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  let time = 0;
+  function tick() {
+    requestAnimationFrame(tick);
+    const dt = 1 / 60;
+    time += dt;
+    w.step(dt);
+    cam.position.x = Math.sin(time * 0.08) * 2;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 2: GRAVITY ATTRACTOR (240px)
+// ================================================================
+function buildGravityScene(container) {
+  const renderer = makeRenderer(container, 0x060b08);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(0, 3, 7);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x223322, 0.4));
+  const pl = new THREE.PointLight(0x23d5ab, 2, 20);
+  scene.add(pl);
+
+  const COUNT = 40;
+  const geo = new THREE.SphereGeometry(0.06, 8, 8);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x0a2a18, shininess: 80 });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  // Glowing core
+  const coreGeo = new THREE.SphereGeometry(0.25, 32, 32);
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0x23d5ab });
+  const core = new THREE.Mesh(coreGeo, coreMat);
+  scene.add(core);
+  const glowGeo = new THREE.SphereGeometry(0.4, 16, 16);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x23d5ab, transparent: true, opacity: 0.15 });
+  scene.add(new THREE.Mesh(glowGeo, glowMat));
+
+  const w = new World();
+
+  for (let i = 0; i < COUNT; i++) {
+    w.spawn((id, w) => {
+      const angle = Math.random() * Math.PI * 2;
+      const r = 1.5 + Math.random() * 2.5;
+      const y = (Math.random() - 0.5) * 2;
+      w.set('T', id, { x: Math.cos(angle) * r, y, z: Math.sin(angle) * r });
+      const speed = 0.5 + Math.random() * 0.5;
+      w.set('V', id, {
+        x: -Math.sin(angle) * speed,
+        y: (Math.random() - 0.5) * 0.2,
+        z: Math.cos(angle) * speed
+      });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  // Gravity system
+  w.addSys((w, dt) => {
+    const ids = w.query('T', 'V');
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id);
+      const dx = -t.x, dy = -t.y, dz = -t.z;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.3;
+      const force = 3.0 / (d * d);
+      v.x += dx / d * force * dt;
+      v.y += dy / d * force * dt;
+      v.z += dz / d * force * dt;
+      t.x += v.x * dt; t.y += v.y * dt; t.z += v.z * dt;
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('T', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), r = w.get('R', id);
+      tmpDummy.position.set(t.x, t.y, t.z);
+      tmpDummy.updateMatrix();
+      mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  let time = 0;
+  function tick() {
+    requestAnimationFrame(tick);
+    time += 1 / 60;
+    w.step(1 / 60);
+    core.scale.setScalar(1 + Math.sin(time * 3) * 0.05);
+    cam.position.x = Math.sin(time * 0.15) * 3;
+    cam.position.z = Math.cos(time * 0.15) * 7;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 3: CAGE BOUNCE (260px)
+// ================================================================
+function buildCageBounceScene(container) {
+  const renderer = makeRenderer(container, 0x080d0a);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(4, 3, 5);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x334433, 0.5));
+  scene.add(new THREE.DirectionalLight(0x7af0a4, 0.7).translateZ(5).translateY(3));
+
+  // Wireframe cube
+  const cageGeo = new THREE.BoxGeometry(4, 4, 4);
+  const cageMat = new THREE.MeshBasicMaterial({ color: 0x23d5ab, wireframe: true, transparent: true, opacity: 0.2 });
+  scene.add(new THREE.Mesh(cageGeo, cageMat));
+
+  const COUNT = 30;
+  const geo = new THREE.SphereGeometry(0.1, 12, 12);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x0d2a1a, shininess: 60 });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  const w = new World();
+  const HALF = 1.9;
+
+  for (let i = 0; i < COUNT; i++) {
+    w.spawn((id, w) => {
+      w.set('T', id, {
+        x: (Math.random() - 0.5) * 3,
+        y: (Math.random() - 0.5) * 3,
+        z: (Math.random() - 0.5) * 3,
+      });
+      w.set('V', id, {
+        x: (Math.random() - 0.5) * 4,
+        y: (Math.random() - 0.5) * 4,
+        z: (Math.random() - 0.5) * 4,
+      });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  // Bounce system
+  w.addSys((w, dt) => {
+    const ids = w.query('T', 'V');
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id);
+      t.x += v.x * dt; t.y += v.y * dt; t.z += v.z * dt;
+      if (t.x > HALF) { t.x = HALF; v.x *= -0.95; }
+      if (t.x < -HALF) { t.x = -HALF; v.x *= -0.95; }
+      if (t.y > HALF) { t.y = HALF; v.y *= -0.95; }
+      if (t.y < -HALF) { t.y = -HALF; v.y *= -0.95; }
+      if (t.z > HALF) { t.z = HALF; v.z *= -0.95; }
+      if (t.z < -HALF) { t.z = -HALF; v.z *= -0.95; }
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('T', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), r = w.get('R', id);
+      tmpDummy.position.set(t.x, t.y, t.z);
+      tmpDummy.updateMatrix();
+      mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  let time = 0;
+  function tick() {
+    requestAnimationFrame(tick);
+    time += 1 / 60;
+    w.step(1 / 60);
+    cam.position.x = Math.sin(time * 0.1) * 5;
+    cam.position.z = Math.cos(time * 0.1) * 5;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 4: SPIN GRID (220px)
+// ================================================================
+function buildSpinGridScene(container) {
+  const renderer = makeRenderer(container, 0x070c09);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(5, 5, 7);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x223322, 0.6));
+  const dl = new THREE.DirectionalLight(0x7af0a4, 0.8);
+  dl.position.set(3, 5, 4);
+  scene.add(dl);
+
+  const NX = 5, NY = 5, NZ = 3;
+  const COUNT = NX * NY * NZ;
+  const geo = new THREE.IcosahedronGeometry(0.18, 0);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x0a2818, shininess: 50, flatShading: true });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  const w = new World();
+  let idx = 0;
+  for (let x = 0; x < NX; x++) {
+    for (let y = 0; y < NY; y++) {
+      for (let z = 0; z < NZ; z++) {
+        const i = idx++;
+        w.spawn((id, w) => {
+          w.set('T', id, {
+            x: (x - (NX - 1) / 2) * 0.8,
+            y: (y - (NY - 1) / 2) * 0.8,
+            z: (z - (NZ - 1) / 2) * 0.8,
+          });
+          w.set('Spin', id, {
+            sx: (Math.random() - 0.5) * 2,
+            sy: (Math.random() - 0.5) * 2,
+            sz: 0,
+            rx: 0, ry: 0, rz: 0,
+          });
+          w.set('R', id, { idx: i });
+        });
+      }
+    }
+  }
+
+  // Spin system
+  w.addSys((w, dt) => {
+    const ids = w.query('Spin');
+    for (const id of ids) {
+      const s = w.get('Spin', id);
+      s.rx += s.sx * dt;
+      s.ry += s.sy * dt;
+      s.rz += s.sz * dt;
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('T', 'Spin', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), s = w.get('Spin', id), r = w.get('R', id);
+      tmpDummy.position.set(t.x, t.y, t.z);
+      tmpDummy.rotation.set(s.rx, s.ry, s.rz);
+      tmpDummy.updateMatrix();
+      mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  let time = 0;
+  function tick() {
+    requestAnimationFrame(tick);
+    time += 1 / 60;
+    w.step(1 / 60);
+    cam.position.x = Math.sin(time * 0.12) * 6;
+    cam.position.z = Math.cos(time * 0.12) * 7;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 5: PARTICLE SWARM (Hero, 260px)
+// ================================================================
+function buildSwarmScene(container) {
+  const renderer = makeRenderer(container, 0x060b08);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(0, 2, 8);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x223322, 0.4));
+  const pl = new THREE.PointLight(0x7af0a4, 1.5, 25);
+  pl.position.set(0, 2, 0);
+  scene.add(pl);
+
+  const COUNT = 60;
+  const geo = new THREE.SphereGeometry(0.05, 6, 6);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green2, emissive: 0x0a2818, shininess: 60 });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  const w = new World();
+
+  for (let i = 0; i < COUNT; i++) {
+    w.spawn((id, w) => {
+      w.set('T', id, {
+        x: (Math.random() - 0.5) * 8,
+        y: (Math.random() - 0.5) * 5,
+        z: (Math.random() - 0.5) * 8,
+      });
+      w.set('V', id, {
+        x: (Math.random() - 0.5) * 2,
+        y: (Math.random() - 0.5) * 2,
+        z: (Math.random() - 0.5) * 2,
+      });
+      w.set('Drag', id, { factor: 0.98 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  // Attraction + noise system
+  let time = 0;
+  w.addSys((w, dt) => {
+    time += dt;
+    const ids = w.query('T', 'V', 'Drag');
+    const tx = Math.sin(time * 0.3) * 2;
+    const ty = Math.cos(time * 0.4) * 1.5;
+    const tz = Math.sin(time * 0.2) * 2;
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id), drag = w.get('Drag', id);
+      const dx = tx - t.x, dy = ty - t.y, dz = tz - t.z;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.5;
+      v.x += (dx / d) * 1.5 * dt + (Math.random() - 0.5) * 0.3;
+      v.y += (dy / d) * 1.5 * dt + (Math.random() - 0.5) * 0.3;
+      v.z += (dz / d) * 1.5 * dt + (Math.random() - 0.5) * 0.3;
+      v.x *= drag.factor; v.y *= drag.factor; v.z *= drag.factor;
+      t.x += v.x * dt; t.y += v.y * dt; t.z += v.z * dt;
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('T', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), r = w.get('R', id);
+      tmpDummy.position.set(t.x, t.y, t.z);
+      tmpDummy.updateMatrix();
+      mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  function tick() {
+    requestAnimationFrame(tick);
+    w.step(1 / 60);
+    cam.position.x = Math.sin(time * 0.1) * 3;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 6: ORBIT RING (240px)
+// ================================================================
+function buildOrbitScene(container) {
+  const renderer = makeRenderer(container, 0x070c09);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(0, 4, 6);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x223322, 0.5));
+  const pl = new THREE.PointLight(0x23d5ab, 1.5, 20);
+  scene.add(pl);
+
+  const COUNT = 24;
+  const geo = new THREE.OctahedronGeometry(0.12, 0);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x0a2818, shininess: 70, flatShading: true });
+  const mesh = new THREE.InstancedMesh(geo, mat, COUNT);
+  scene.add(mesh);
+
+  // Ring indicator
+  const ringGeo = new THREE.TorusGeometry(2.5, 0.01, 8, 64);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x23d5ab, transparent: true, opacity: 0.2 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI / 2;
+  scene.add(ring);
+
+  // Center sphere
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0x23d5ab, transparent: true, opacity: 0.5 });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), coreMat));
+
+  const w = new World();
+
+  for (let i = 0; i < COUNT; i++) {
+    w.spawn((id, w) => {
+      const phase = (i / COUNT) * Math.PI * 2;
+      w.set('Orbit', id, { radius: 2.5, phase, speed: 0.4 + Math.random() * 0.2, yOff: Math.sin(phase * 3) * 0.3 });
+      w.set('T', id, { x: 0, y: 0, z: 0 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  let time = 0;
+  w.addSys((w, dt) => {
+    time += dt;
+    const ids = w.query('Orbit', 'T');
+    for (const id of ids) {
+      const o = w.get('Orbit', id), t = w.get('T', id);
+      const angle = o.phase + time * o.speed;
+      t.x = Math.cos(angle) * o.radius;
+      t.z = Math.sin(angle) * o.radius;
+      t.y = o.yOff + Math.sin(time * 1.5 + o.phase) * 0.15;
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('T', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), r = w.get('R', id);
+      tmpDummy.position.set(t.x, t.y, t.z);
+      tmpDummy.rotation.set(time * 0.8, time * 0.6, 0);
+      tmpDummy.updateMatrix();
+      mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  function tick() {
+    requestAnimationFrame(tick);
+    w.step(1 / 60);
+    cam.position.x = Math.sin(time * 0.1) * 2;
+    cam.position.z = 5 + Math.cos(time * 0.08) * 1.5;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 7: TRAIL SYSTEM (200px)
+// ================================================================
+function buildTrailScene(container) {
+  const renderer = makeRenderer(container, 0x060b08);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(0, 3, 7);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x223322, 0.4));
+  scene.add(new THREE.PointLight(0x7af0a4, 1.2, 20));
+
+  const ENTITIES = 8;
+  const TRAIL_LEN = 12;
+  const TOTAL = ENTITIES * TRAIL_LEN;
+  const geo = new THREE.SphereGeometry(0.06, 6, 6);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x0a2818, transparent: true, opacity: 0.8 });
+  const mesh = new THREE.InstancedMesh(geo, mat, TOTAL);
+  scene.add(mesh);
+
+  const w = new World();
+
+  for (let e = 0; e < ENTITIES; e++) {
+    w.spawn((id, w) => {
+      const trail = [];
+      for (let t = 0; t < TRAIL_LEN; t++) trail.push({ x: 0, y: 0, z: 0 });
+      w.set('T', id, {
+        x: (Math.random() - 0.5) * 4,
+        y: (Math.random() - 0.5) * 3,
+        z: (Math.random() - 0.5) * 4,
+      });
+      w.set('V', id, {
+        x: (Math.random() - 0.5) * 2,
+        y: (Math.random() - 0.5) * 2,
+        z: (Math.random() - 0.5) * 2,
+      });
+      w.set('Trail', id, { points: trail, baseIdx: e * TRAIL_LEN });
+      w.set('R', id, { idx: e });
+    });
+  }
+
+  let frameCount = 0;
+  w.addSys((w, dt) => {
+    frameCount++;
+    const ids = w.query('T', 'V', 'Trail');
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id), trail = w.get('Trail', id);
+
+      // Wander
+      v.x += (Math.random() - 0.5) * 0.5;
+      v.y += (Math.random() - 0.5) * 0.5;
+      v.z += (Math.random() - 0.5) * 0.5;
+      const spd = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+      if (spd > 2) { v.x *= 2 / spd; v.y *= 2 / spd; v.z *= 2 / spd; }
+
+      // Boundary pull
+      if (Math.abs(t.x) > 3) v.x -= Math.sign(t.x) * 0.3;
+      if (Math.abs(t.y) > 2) v.y -= Math.sign(t.y) * 0.3;
+      if (Math.abs(t.z) > 3) v.z -= Math.sign(t.z) * 0.3;
+
+      t.x += v.x * dt; t.y += v.y * dt; t.z += v.z * dt;
+
+      // Update trail every 3 frames
+      if (frameCount % 3 === 0) {
+        for (let i = trail.points.length - 1; i > 0; i--) {
+          trail.points[i].x = trail.points[i - 1].x;
+          trail.points[i].y = trail.points[i - 1].y;
+          trail.points[i].z = trail.points[i - 1].z;
+        }
+        trail.points[0].x = t.x;
+        trail.points[0].y = t.y;
+        trail.points[0].z = t.z;
+      }
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('Trail');
+    for (const id of ids) {
+      const trail = w.get('Trail', id);
+      for (let i = 0; i < trail.points.length; i++) {
+        const p = trail.points[i];
+        const scale = 1 - (i / trail.points.length) * 0.7;
+        tmpDummy.position.set(p.x, p.y, p.z);
+        tmpDummy.scale.setScalar(scale);
+        tmpDummy.updateMatrix();
+        mesh.setMatrixAt(trail.baseIdx + i, tmpDummy.matrix);
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  let time = 0;
+  function tick() {
+    requestAnimationFrame(tick);
+    time += 1 / 60;
+    w.step(1 / 60);
+    cam.position.x = Math.sin(time * 0.1) * 2;
+    cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+// ================================================================
+// SCENE 8: EXPLOSION BURST (220px)
+// ================================================================
+function buildExplosionScene(container) {
+  const renderer = makeRenderer(container, 0x060b08);
+  const scene = new THREE.Scene();
+  const cam = makeCamera(container, 50);
+  cam.position.set(0, 2, 7);
+  cam.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0x223322, 0.5));
+  scene.add(new THREE.PointLight(0x7af0a4, 1.2, 20));
+
+  const MAX = 200;
+  const geo = new THREE.TetrahedronGeometry(0.08, 0);
+  const mat = new THREE.MeshPhongMaterial({ color: G.green1, emissive: 0x0a2818, shininess: 60, flatShading: true });
+  const mesh = new THREE.InstancedMesh(geo, mat, MAX);
+  scene.add(mesh);
+
+  // Hide all initially
+  const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+  for (let i = 0; i < MAX; i++) mesh.setMatrixAt(i, zeroMatrix);
+  mesh.instanceMatrix.needsUpdate = true;
+
+  const w = new World();
+  let usedSlots = 0;
+
+  function spawnBurst(cx, cy, cz) {
+    const BURST = 20;
+    for (let i = 0; i < BURST; i++) {
+      if (usedSlots >= MAX) return;
+      const slot = usedSlots++;
+      w.spawn((id, w) => {
+        w.set('T', id, { x: cx, y: cy, z: cz });
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        const speed = 2 + Math.random() * 4;
+        w.set('V', id, {
+          x: Math.sin(phi) * Math.cos(theta) * speed,
+          y: Math.sin(phi) * Math.sin(theta) * speed,
+          z: Math.cos(phi) * speed,
+        });
+        w.set('Life', id, { t: 0, max: 1.5 + Math.random() * 1 });
+        w.set('R', id, { idx: slot });
+      });
+    }
+  }
+
+  // Auto-burst periodically
+  let lastBurst = 0;
+  let time = 0;
+
+  w.addSys((w, dt) => {
+    const ids = w.query('T', 'V', 'Life');
+    for (const id of ids) {
+      const t = w.get('T', id), v = w.get('V', id), life = w.get('Life', id);
+      v.y -= 2.0 * dt; // gravity
+      v.x *= 0.995; v.z *= 0.995;
+      t.x += v.x * dt; t.y += v.y * dt; t.z += v.z * dt;
+      life.t += dt;
+    }
+  });
+
+  w.addSys((w) => {
+    const ids = w.query('T', 'Life', 'R');
+    for (const id of ids) {
+      const t = w.get('T', id), life = w.get('Life', id), r = w.get('R', id);
+      const alpha = 1 - life.t / life.max;
+      if (alpha <= 0) {
+        mesh.setMatrixAt(r.idx, zeroMatrix);
+      } else {
+        tmpDummy.position.set(t.x, t.y, t.z);
+        tmpDummy.scale.setScalar(alpha);
+        tmpDummy.rotation.set(life.t * 3, life.t * 2, 0);
+        tmpDummy.updateMatrix();
+        mesh.setMatrixAt(r.idx, tmpDummy.matrix);
+      }
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  // Click handler
+  container.addEventListener('click', () => {
+    usedSlots = 0;
+    // Reset world
+    w.ents.clear(); w.store.clear(); w.next = 0;
+    for (let i = 0; i < MAX; i++) mesh.setMatrixAt(i, zeroMatrix);
+    spawnBurst(
+      (Math.random() - 0.5) * 2,
+      (Math.random() - 0.5) * 1,
+      (Math.random() - 0.5) * 2
+    );
+  });
+
+  function tick() {
+    requestAnimationFrame(tick);
+    time += 1 / 60;
+    // Auto burst every 2.5s
+    if (time - lastBurst > 2.5) {
+      lastBurst = time;
+      usedSlots = 0;
+      w.ents.clear(); w.store.clear(); w.next = 0;
+      for (let i = 0; i < MAX; i++) mesh.setMatrixAt(i, zeroMatrix);
+      spawnBurst(
+        (Math.random() - 0.5) * 2,
+        1 + Math.random(),
+        (Math.random() - 0.5) * 2
+      );
+    }
+    w.step(1 / 60);
+    renderer.render(scene, cam);
+  }
+  tick();
+}
+
+
+// ================================================================
+// CARD DATA (20 cards)
+// ================================================================
+const cards = [
+  // 1: Hero boid flocking
+  { type: '3d-hero', height: 280, bg: '#060d09',
+    builder: buildBoidScene,
+    title: 'Entities<br>are IDs', sub: 'Data over inheritance',
+    foot: { color: '#7af0a4', name: 'Boid Lab', likes: '3.2k' } },
+
+  // 2: Pixel card (ECS code snippet)
+  { type: 'pixel', data: {
+    label: 'ECS Core',
+    body: 'class World { spawn(init) { const id = this.next++; this.ents.add(id); init?.(id, this); return id; } }',
+    foot: 'World v1.0.0'
+  }},
+
+  // 3: Gravity attractor
+  { type: '3d', height: 240, bg: '#060b08',
+    builder: buildGravityScene, badge: 'gravity',
+    foot: { color: '#23d5ab', name: 'Gravity Lab', likes: '2.8k' } },
+
+  // 4: Text card
+  { type: 'text', data: {
+    h: 'Entity-Component<br>System', p: 'Pure IDs, flat data stores, composable systems. No inheritance trees. No virtual dispatch. Just data and functions.', tag: 'Architecture'
+  }},
+
+  // 5: Cage bounce
+  { type: '3d', height: 260, bg: '#080d0a',
+    builder: buildCageBounceScene, badge: 'collide',
+    foot: { color: '#7af0a4', name: 'Collide Studio', likes: '2.1k' } },
+
+  // 6: Deck card
+  { type: 'deck', data: {
+    lbl: 'Pitch Deck', h3: 'Entities<br>are IDs.', author: 'Branded types &middot; TypeScript'
+  }},
+
+  // 7: Spin grid
+  { type: '3d', height: 220, bg: '#070c09',
+    builder: buildSpinGridScene, badge: 'spin',
+    foot: { color: '#23d5ab', name: 'Spin Factory', likes: '1.7k' } },
+
+  // 8: Love card
+  { type: 'love' },
+
+  // 9: Hero particle swarm
+  { type: '3d-hero', height: 260, bg: '#060b08',
+    builder: buildSwarmScene,
+    title: 'tick<br>step', sub: 'World.step(dt)',
+    foot: { color: '#23d5ab', name: 'Swarm Lab', likes: '4.1k' } },
+
+  // 10: CJK card
+  { type: 'cjk', data: {
+    h3: '\u6570\u636E\u9A71\u52A8\u8BBE\u8BA1', p: 'Entity-Component-System architecture'
+  }},
+
+  // 11: Orbit ring
+  { type: '3d', height: 240, bg: '#070c09',
+    builder: buildOrbitScene, badge: 'orbit',
+    foot: { color: '#7af0a4', name: 'Orbit Ring', likes: '1.9k' } },
+
+  // 12: Play card
+  { type: 'play', data: { h2: 'tick<br>step' }},
+
+  // 13: Trail system
+  { type: '3d', height: 200, bg: '#060b08',
+    builder: buildTrailScene, badge: 'trail',
+    foot: { color: '#23d5ab', name: 'Trail Studio', likes: '1.5k' } },
+
+  // 14: Robot card (CSS-only, green theme)
+  { type: 'happy-robot' },
+
+  // 15: Tool card
+  { type: 'tool' },
+
+  // 16: Text card (ECS philosophy)
+  { type: 'text', data: {
+    h: 'Composition over<br>Inheritance', p: 'Entities gain behavior by attaching components. Systems query by component signature. No class hierarchies, no god objects.', tag: 'ECS'
+  }},
+
+  // 17: Explosion burst
+  { type: '3d', height: 220, bg: '#060b08',
+    builder: buildExplosionScene, badge: 'events',
+    foot: { color: '#7af0a4', name: 'Burst Lab', likes: '2.6k' } },
+
+  // 18: Pixel card 2
+  { type: 'pixel', data: {
+    label: 'System Pattern',
+    body: 'w.addSys((world, dt) => { for (const id of world.query("T","V")) { /* move */ } });',
+    foot: 'Systems v2.0.0'
+  }},
+
+  // 19: Text card 3
+  { type: 'text', data: {
+    h: 'Cache-Friendly<br>Data', p: 'Flat Map-of-Maps storage. Iterate by component type. Locality of reference for free. No pointer chasing.', tag: 'Performance'
+  }},
+
+  // 20: Deck card 2
+  { type: 'deck', data: {
+    lbl: 'Design Doc', h3: 'World<br>step(dt)', author: 'Tick-based systems &middot; 60fps'
+  }},
+];
+
+
+// ================================================================
+// BUILD DOM
+// ================================================================
+const grid = document.getElementById('grid');
+
+cards.forEach((c, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  if (c.type === 'pixel') {
+    const d = c.data || {};
+    card.innerHTML = `
+      <div class="card-pixel">
+        <div class="label">${d.label || 'ECS Core'}</div>
+        <div class="body">${d.body || 'w.spawn((id, w) => { w.set("T", id, {x:0,y:0,z:0}); });'}</div>
+        <div class="foot">${d.foot || 'ECS v1.0.0'}</div>
+      </div>
+      <div class="card-foot dark"><div class="dot" style="background:#7af0a4"></div><span class="name">ECS Lab</span><span class="likes">&#9829; 891</span></div>`;
+  } else if (c.type === 'text') {
+    const d = c.data || {};
+    card.innerHTML = `
+      <div class="card-text">
+        <h3>${d.h}</h3><p>${d.p}</p>
+        ${d.tag ? `<span class="tag">${d.tag}</span>` : ''}
+      </div>`;
+  } else if (c.type === 'love') {
+    card.innerHTML = `
+      <div class="card-love">
+        <div class="hearts">&#128154; &#128155; &#128154;</div>
+        <h3>Data Loves Systems</h3>
+        <p>Components are just data. Systems are just functions. Together they compose everything.</p>
+      </div>`;
+  } else if (c.type === 'deck') {
+    const d = c.data || {};
+    card.innerHTML = `
+      <div class="card-deck">
+        <div class="lbl">${d.lbl || 'Pitch Deck'}</div>
+        <h3>${d.h3 || 'Next<br>Side'}</h3>
+        <div class="author">${d.author || 'Nice Wolf Studio'}</div>
+      </div>`;
+  } else if (c.type === 'play') {
+    const d = c.data || {};
+    card.innerHTML = `
+      <div class="card-play"><h2>${d.h2 || 'tick<br>step'}</h2></div>
+      <div class="card-foot" style="background:rgba(12,30,20,0.9);border-color:rgba(35,213,171,0.15)"><div class="dot" style="background:#23d5ab"></div><span class="name">ECS Runtime</span><span class="likes">&#9829; 934</span></div>`;
+  } else if (c.type === 'cjk') {
+    const d = c.data || {};
+    card.innerHTML = `
+      <div class="card-cjk"><h3>${d.h3 || 'ECS\u67B6\u6784'}</h3><p>${d.p || 'Entity-Component-System'}</p></div>
+      <div class="card-foot" style="background:rgba(12,40,32,0.9);border:none"><div class="dot" style="background:#7af0a4"></div><span class="name" style="color:#7af0a4">\u521B\u610F\u5DE5\u574A</span><span class="likes" style="color:rgba(35,213,171,0.6)">&#9829; 672</span></div>`;
+  } else if (c.type === 'happy-robot') {
+    card.innerHTML = `
+      <div class="card-happy-robot">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        <div class="robot-container">
+          <div class="robot-antenna"><div class="robot-antenna-tip"></div></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <button class="robot-btn">Spawn Entity</button>
+      </div>
+      <div class="card-foot"><div class="dot" style="background:#23d5ab"></div><span class="name">NiceWolf Bot</span><span class="likes">&#9829; 1,025</span></div>`;
+  } else if (c.type === 'tool') {
+    card.innerHTML = `<div class="card-tool"><div class="icon">+</div><p>Create a new ECS world.</p></div>`;
+  } else if (c.type === '3d' || c.type === '3d-hero') {
+    const h = c.height || 240;
+    const sceneDiv = document.createElement('div');
+    sceneDiv.className = 'scene';
+    sceneDiv.style.height = h + 'px';
+    sceneDiv.style.background = c.bg || '#060b08';
+    card.appendChild(sceneDiv);
+
+    // Badge
+    if (c.badge) {
+      card.classList.add('card-clickable');
+      const badge = document.createElement('div');
+      badge.className = 'badge-3d';
+      badge.textContent = c.badge;
+      sceneDiv.appendChild(badge);
+    }
+    if (c.type === '3d' && !c.badge) {
+      const badge = document.createElement('div');
+      badge.className = 'badge-3d';
+      badge.textContent = 'ECS';
+      sceneDiv.appendChild(badge);
+    }
+
+    // Hero overlay
+    if (c.type === '3d-hero') {
+      const ov = document.createElement('div');
+      ov.className = 'overlay gradient';
+      ov.innerHTML = `<h2>${c.title}</h2><p>${c.sub}</p>`;
+      sceneDiv.appendChild(ov);
+    }
+
+    // Footer
+    if (c.foot) {
+      const f = document.createElement('div');
+      f.className = 'card-foot';
+      f.innerHTML = `<div class="dot" style="background:${c.foot.color}"></div><span class="name">${c.foot.name}</span><span class="likes">&#9829; ${c.foot.likes}</span>`;
+      card.appendChild(f);
+    }
+
+    grid.appendChild(card);
+
+    // Lazy-init scene when visible
+    if (c.builder) {
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            observer.disconnect();
+            c.builder(sceneDiv);
+          }
+        }
+      }, { threshold: 0.1 });
+      observer.observe(card);
+    }
+    return; // already appended
+  }
+
+  grid.appendChild(card);
+});
+
+</script>
+</body>
+</html>

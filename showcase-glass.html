@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!--
+  showcase-glass.html
+  规范依据: CloudAI-X/threejs-skills
+    · threejs-fundamentals  — scene/camera/renderer + 正确 resize
+    · threejs-materials     — MeshPhysicalMaterial 玻璃参数 (transmission/ior/thickness/roughness/clearcoat)
+    · threejs-shaders       — 背景 ShaderMaterial + simplex noise
+    · threejs-postprocessing — EffectComposer + UnrealBloomPass (composer.render 代替 renderer.render)
+  注意: 不修改 index.html / discover.html。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glass Blob — 3D Lab Showcase</title>
+<style>
+  html,body{margin:0;padding:0;background:#07060d;color:#eaeaf2;font-family:'Space Grotesk','Helvetica Neue',sans-serif;overflow:hidden;height:100%}
+  canvas{display:block}
+  .overlay{position:fixed;top:20px;left:20px;z-index:10;max-width:360px;pointer-events:none}
+  .overlay h1{margin:0 0 8px;font-size:20px;font-weight:600;letter-spacing:-0.01em}
+  .overlay p{margin:0;font-size:13px;line-height:1.55;color:#a9a6bb}
+  .overlay .tag{display:inline-block;margin-top:10px;padding:3px 8px;font-size:11px;color:#d4b7ff;border:1px solid rgba(212,183,255,0.3);border-radius:3px}
+  .back{position:fixed;top:20px;right:20px;z-index:10;color:#a9a6bb;text-decoration:none;font-size:13px;padding:6px 12px;border:1px solid rgba(255,255,255,0.12);border-radius:3px;pointer-events:auto}
+  .back:hover{color:#eaeaf2;border-color:rgba(255,255,255,0.3)}
+  .controls{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:8px;padding:10px 14px;background:rgba(15,12,24,0.7);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.08);border-radius:4px;font-size:12px;color:#a9a6bb}
+  .controls label{display:flex;align-items:center;gap:6px}
+  .controls input[type=range]{width:90px;accent-color:#a78bfa}
+</style>
+</head>
+<body>
+<div class="overlay">
+  <h1>Glass Blob Morphing</h1>
+  <p>MeshPhysicalMaterial (<code>transmission: 1, ior: 1.5, thickness: 0.5</code>) with vertex displacement via simplex noise. Bloom composer applies after scene render.</p>
+  <span class="tag">threejs-shaders · postprocessing · materials</span>
+</div>
+<a class="back" href="showcase-2d.html">← Lab</a>
+<div class="controls">
+  <label>Morph <input type="range" id="morph" min="0" max="100" value="35"></label>
+  <label>Bloom <input type="range" id="bloom" min="0" max="300" value="80"></label>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.164.1/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ---------- Scene / Camera / Renderer ---------- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07060d);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 0, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+
+/* ---------- Environment (for PBR reflections) ---------- */
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+/* ---------- Lights (additive to envmap) ---------- */
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+const key = new THREE.DirectionalLight(0xfff3d6, 2.5);
+key.position.set(4, 4, 5);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xa78bfa, 1.5);
+rim.position.set(-5, -2, -3);
+scene.add(rim);
+
+/* ---------- Glass Blob ---------- */
+const geometry = new THREE.IcosahedronGeometry(1.2, 64);
+const glass = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  roughness: 0.08,
+  metalness: 0,
+  transmission: 1.0,
+  thickness: 0.6,
+  ior: 1.52,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.05,
+  envMapIntensity: 1.2,
+});
+
+/* inject simplex noise displacement via onBeforeCompile (threejs-shaders §extending-materials) */
+const uniforms = { uTime: { value: 0 }, uMorph: { value: 0.35 } };
+glass.onBeforeCompile = (shader) => {
+  shader.uniforms.uTime = uniforms.uTime;
+  shader.uniforms.uMorph = uniforms.uMorph;
+  shader.vertexShader = `
+    uniform float uTime;
+    uniform float uMorph;
+    // --- 3D simplex noise (Ashima / Stefan Gustavson) ---
+    vec3 mod289(vec3 x){return x-floor(x*(1./289.))*289.;}
+    vec4 mod289(vec4 x){return x-floor(x*(1./289.))*289.;}
+    vec4 permute(vec4 x){return mod289(((x*34.)+1.)*x);}
+    vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-.85373472095314*r;}
+    float snoise(vec3 v){
+      const vec2 C=vec2(1./6.,1./3.); const vec4 D=vec4(0.,.5,1.,2.);
+      vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+      vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.-g;
+      vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+      vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+2.*C.xxx; vec3 x3=x0-1.+3.*C.xxx;
+      i=mod289(i);
+      vec4 p=permute(permute(permute(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));
+      float n_=.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+      vec4 j=p-49.*floor(p*ns.z*ns.z);
+      vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.*x_);
+      vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.-abs(x)-abs(y);
+      vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+      vec4 s0=floor(b0)*2.+1.; vec4 s1=floor(b1)*2.+1.; vec4 sh=-step(h,vec4(0.));
+      vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+      vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+      vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+      p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;
+      vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.); m=m*m;
+      return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+    }
+  ` + shader.vertexShader.replace(
+    '#include <begin_vertex>',
+    `
+      float n = snoise(position * 1.8 + uTime * 0.35);
+      vec3 transformed = position + normal * n * uMorph;
+    `
+  );
+};
+
+const blob = new THREE.Mesh(geometry, glass);
+scene.add(blob);
+
+/* ---------- Background ShaderMaterial plane (uses built-in uniforms only) ---------- */
+const bgGeo = new THREE.PlaneGeometry(40, 24);
+const bgMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: uniforms.uTime },
+  vertexShader: `
+    varying vec2 vUv;
+    void main(){
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    varying vec2 vUv;
+    void main(){
+      vec2 p = vUv - 0.5;
+      float r = length(p);
+      float glow = smoothstep(0.75, 0.0, r);
+      float hue = 0.72 + sin(uTime * 0.2) * 0.05;
+      vec3 col = mix(vec3(0.04, 0.03, 0.08), vec3(0.28, 0.18, 0.45) * hue, glow);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+  depthWrite: false,
+});
+const bg = new THREE.Mesh(bgGeo, bgMat);
+bg.position.z = -6;
+scene.add(bg);
+
+/* ---------- Controls ---------- */
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+orbit.enablePan = false;
+
+/* ---------- Post-processing (threejs-postprocessing §quick-start) ---------- */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(innerWidth, innerHeight),
+  0.8,   // strength
+  0.5,   // radius
+  0.72   // threshold
+);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+/* ---------- UI wiring ---------- */
+const morphInput = document.getElementById('morph');
+const bloomInput = document.getElementById('bloom');
+morphInput.addEventListener('input', (e) => { uniforms.uMorph.value = e.target.value / 100; });
+bloomInput.addEventListener('input', (e) => { bloom.strength = e.target.value / 100; });
+
+/* ---------- Resize (must resize BOTH renderer and composer) ---------- */
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+/* ---------- Loop ---------- */
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  uniforms.uTime.value = clock.getElapsedTime();
+  blob.rotation.y += 0.002;
+  orbit.update();
+  composer.render();  // NOT renderer.render()
+}
+tick();
+</script>
+</body>
+</html>

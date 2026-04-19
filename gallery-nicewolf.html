@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--
+  gallery-nicewolf.html
+  复刻老 discover 风格 (nav/pills/masonry/multi-card), 每个 scene-card 用 ECS 驱动.
+  规范依据: Nice-Wolf-Studio/claude-skills-threejs-ecs-ts
+    · ecs/architecture.md       — EntityManager / ComponentStore / System list
+    · ecs/system-patterns.md    — tick-based systems, component queries
+    · ecs/component-patterns.md — pure-data components
+  每卡独立 ECS World, 互不影响, 展示同一抽象对不同行为的复用.
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery · Nice-Wolf ECS — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Space Grotesk',system-ui,sans-serif;background:#0a0f0d;color:#e8f0ea;min-height:100vh;overflow-x:hidden}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(122,240,164,0.25);border-radius:3px}
+  a{color:inherit;text-decoration:none}
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(10,15,13,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(122,240,164,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;margin-right:32px;background:linear-gradient(135deg,#7af0a4,#23d5ab);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+  .nav a{font-size:13px;font-weight:500;margin-right:20px;color:rgba(255,255,255,0.4)}
+  .nav a:hover{color:rgba(255,255,255,0.8)} .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;color:rgba(255,255,255,0.7)}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#23d5ab,#7af0a4);color:#001008;border:none}
+
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(10,15,13,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;white-space:nowrap}
+  .pill.on{background:linear-gradient(135deg,#23d5ab,#7af0a4);color:#001008;border-color:transparent}
+
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}@media(max-width:800px){.grid{column-count:2;padding:12px}}@media(max-width:500px){.grid{column-count:1}}
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(18,25,22,0.8);border:1px solid rgba(255,255,255,0.05);position:relative;transition:transform .3s ease}
+  .card:hover{transform:translateY(-4px);border-color:rgba(122,240,164,0.25)}
+  .card .scene{width:100%;position:relative;overflow:hidden;background:#08120e}
+  .card .scene canvas{display:block;width:100%!important;height:100%!important}
+  .badge-3d{position:absolute;top:10px;right:10px;z-index:5;padding:3px 8px;border-radius:6px;background:rgba(122,240,164,0.15);backdrop-filter:blur(8px);border:1px solid rgba(122,240,164,0.25);font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(122,240,164,0.9);text-transform:uppercase}
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5}
+  .card-pixel{background:rgba(8,20,14,0.95);color:#7af0a4;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+  .card-deck{padding:24px 20px;background:rgba(15,22,18,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(122,240,164,0.8);font-weight:700;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px}
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(30,80,60,0.9),rgba(20,50,40,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:44px;font-weight:800;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#7af0a4,#23d5ab);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.5)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.25)}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo">3D Lab / NiceWolf ECS</div>
+  <a href="gallery-cloudai.html">CloudAI</a>
+  <a href="gallery-nicewolf.html" class="on">NiceWolf</a>
+  <a href="gallery-openaec.html">OpenAEC</a>
+  <a href="gallery-webgpu.html">WebGPU</a>
+  <div class="nav-right">
+    <a href="showcase-2d.html" class="btn">Index</a>
+    <a href="discover.html" class="btn primary">Legacy</a>
+  </div>
+</nav>
+<div class="pills">
+  <button class="pill on">All</button>
+  <button class="pill">Movement</button>
+  <button class="pill">Gravity</button>
+  <button class="pill">Boids</button>
+  <button class="pill">Spin</button>
+  <button class="pill">Collide</button>
+</div>
+<main class="grid" id="grid"></main>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* --- Shared ECS core (translated from Nice-Wolf skills/ecs/architecture.md) --- */
+class World {
+  constructor(){ this.next = 0; this.ents = new Set(); this.store = new Map(); this.sys = []; this.tick = 0; }
+  spawn(init){ const id = this.next++; this.ents.add(id); init?.(id, this); return id; }
+  set(tag, id, data){ if (!this.store.has(tag)) this.store.set(tag, new Map()); this.store.get(tag).set(id, data); }
+  get(tag, id){ return this.store.get(tag)?.get(id); }
+  query(...tags){ const base = this.store.get(tags[0]); if (!base) return []; const out = []; for (const id of base.keys()) if (tags.every(t => this.store.get(t)?.has(id))) out.push(id); return out; }
+  addSys(fn){ this.sys.push(fn); }
+  step(dt){ this.tick++; for (const fn of this.sys) fn(this, dt); }
+}
+
+const cards = [
+  { kind: 'scene', builder: boid,      h: 260, badge: 'boids',    title: 'Flocking', text: 'Three rules (align/cohere/separate) as systems', author: 'NiceWolf · ecs/system-patterns', dot: '#7af0a4', likes: '2.1k' },
+  { kind: 'pixel' },
+  { kind: 'scene', builder: gravity,   h: 240, badge: 'gravity',  title: 'Attractor', text: 'Single Attract system pulls all Transform+Velocity', author: 'NiceWolf · ecs/architecture', dot: '#23d5ab', likes: '1.1k' },
+  { kind: 'deck' },
+  { kind: 'scene', builder: bounce,    h: 260, badge: 'collide',  title: 'Cage bounce', text: 'Boundary system reverses velocity at cube walls', author: 'NiceWolf · ecs/events', dot: '#6ee7b7', likes: '834' },
+  { kind: 'play' },
+  { kind: 'scene', builder: spinGrid,  h: 220, badge: 'spin',     title: 'Spin grid', text: 'Two systems: one writes Spin, one syncs to mesh', author: 'NiceWolf · ecs/queries', dot: '#34d399', likes: '540' },
+  { kind: 'text', title: 'Data over inheritance', text: 'Entities are IDs. Components are plain objects. Systems iterate component tuples. Composition beats class trees.', tag: 'ECS core' },
+];
+
+const grid = document.getElementById('grid');
+const sceneRequests = [];
+
+cards.forEach(c => {
+  const card = document.createElement('div'); card.className = 'card';
+  if (c.kind === 'scene') {
+    card.innerHTML = `<span class="badge-3d">${c.badge}</span><div class="scene" style="height:${c.h}px"></div><div class="card-text"><h3>${c.title}</h3><p>${c.text}</p></div><div class="card-foot"><span class="dot" style="background:${c.dot}"></span><span class="name">${c.author}</span><span class="likes">♥ ${c.likes}</span></div>`;
+    sceneRequests.push({ el: card.querySelector('.scene'), build: c.builder });
+  } else if (c.kind === 'pixel') {
+    card.innerHTML = `<div class="card-pixel"><div class="label">ECS · architecture.md</div><div class="body">interface Component {}<br>type EntityId = number<br><br>System: (w, dt) =><br>&nbsp;&nbsp;world.query(T,V)<br>&nbsp;&nbsp;&nbsp;&nbsp;.forEach(step)</div><div class="foot">26 threejs + 8 ecs md files</div></div><div class="card-foot" style="background:rgba(8,20,14,0.95)"><span class="dot" style="background:#7af0a4"></span><span class="name">Nice-Wolf-Studio</span><span class="likes">♥ 1.5k</span></div>`;
+  } else if (c.kind === 'deck') {
+    card.innerHTML = `<div class="card-deck"><div class="lbl">Pitch deck</div><h3>Entities<br>are IDs.</h3><div class="author">Branded types · TypeScript</div></div><div class="card-foot"><span class="dot" style="background:#23d5ab"></span><span class="name">ecs-skills</span><span class="likes">♥ 672</span></div>`;
+  } else if (c.kind === 'play') {
+    card.innerHTML = `<div class="card-play"><h2>tick<br>step</h2></div><div class="card-foot" style="background:rgba(30,80,60,0.9);border-color:rgba(122,240,164,0.15)"><span class="dot" style="background:#7af0a4"></span><span class="name">World.step(dt)</span><span class="likes">♥ 1.2k</span></div>`;
+  } else if (c.kind === 'text') {
+    card.innerHTML = `<div class="card-text"><h3>${c.title}</h3><p>${c.text}</p>${c.tag?`<span class="tag" style="display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(122,240,164,0.12);font-size:10px;font-weight:700;color:rgba(122,240,164,0.9)">${c.tag}</span>`:''}</div>`;
+  }
+  grid.appendChild(card);
+});
+
+/* --- renderer helper --- */
+function scene(el) {
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  r.setPixelRatio(Math.min(devicePixelRatio, 2));
+  r.setSize(el.clientWidth, el.clientHeight);
+  el.appendChild(r.domElement);
+  const cam = new THREE.PerspectiveCamera(45, el.clientWidth/el.clientHeight, 0.1, 100);
+  cam.position.set(0, 2, 8); cam.lookAt(0, 0, 0);
+  const s = new THREE.Scene();
+  s.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const l = new THREE.DirectionalLight(0xffffff, 1.2); l.position.set(4, 6, 5); s.add(l);
+  const rim = new THREE.DirectionalLight(0x7af0a4, 0.7); rim.position.set(-4, -2, -4); s.add(rim);
+  new ResizeObserver(()=>{ r.setSize(el.clientWidth, el.clientHeight); cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix(); }).observe(el);
+  return { r, cam, s };
+}
+
+function mkInstanced(s, max, hueRange=[0.32,0.48]) {
+  const geo = new THREE.IcosahedronGeometry(0.22, 0);
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.1 });
+  const im = new THREE.InstancedMesh(geo, mat, max);
+  im.count = 0;
+  im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(max*3), 3);
+  s.add(im);
+  return { im, hueRange };
+}
+const tmp = new THREE.Object3D();
+
+function renderECS(world, im, tick, spin=0) {
+  const ids = world.query('T', 'R');
+  im.count = ids.length;
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const t = world.get('T', id), r = world.get('R', id), p = world.get('P', id);
+    tmp.position.set(t.x, t.y, t.z);
+    if (p) tmp.rotation.set(p.rx, p.ry, p.rz); else tmp.rotation.set(0,0,0);
+    tmp.scale.setScalar(r.s || 1);
+    tmp.updateMatrix(); im.setMatrixAt(i, tmp.matrix);
+    im.instanceColor.setXYZ(i, r.r, r.g, r.b);
+  }
+  im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true;
+}
+
+/* ---- boid (flocking) ---- */
+function boid(el){
+  const { r, cam, s } = scene(el);
+  const { im } = mkInstanced(s, 80);
+  const w = new World();
+  for (let i = 0; i < 50; i++) {
+    w.spawn((id, ww) => {
+      const c = new THREE.Color().setHSL(0.35 + Math.random()*0.1, 0.6, 0.55);
+      ww.set('T', id, { x: (Math.random()-0.5)*4, y: (Math.random()-0.5)*2.5, z: (Math.random()-0.5)*4 });
+      ww.set('V', id, { vx: (Math.random()-0.5)*1.5, vy: (Math.random()-0.5)*0.5, vz: (Math.random()-0.5)*1.5 });
+      ww.set('R', id, { r: c.r, g: c.g, b: c.b, s: 0.8 });
+    });
+  }
+  w.addSys((ww, dt) => {
+    const ids = ww.query('T','V');
+    const cx = 0, cy = 0, cz = 0;
+    for (const id of ids) {
+      const t = ww.get('T',id), v = ww.get('V',id);
+      // steer toward center with drag
+      v.vx += (cx - t.x) * 0.3 * dt - v.vx * 0.05;
+      v.vy += (cy - t.y) * 0.5 * dt - v.vy * 0.1;
+      v.vz += (cz - t.z) * 0.3 * dt - v.vz * 0.05;
+      // separation (simple: sample 2 random neighbors)
+      for (let k = 0; k < 2; k++) {
+        const nid = ids[Math.floor(Math.random()*ids.length)]; if (nid === id) continue;
+        const nt = ww.get('T',nid); const dx=t.x-nt.x,dy=t.y-nt.y,dz=t.z-nt.z; const d2 = dx*dx+dy*dy+dz*dz;
+        if (d2 < 0.6 && d2 > 0) { const f = 1/d2; v.vx += dx*f*0.04; v.vy += dy*f*0.04; v.vz += dz*f*0.04; }
+      }
+      t.x += v.vx*dt; t.y += v.vy*dt; t.z += v.vz*dt;
+    }
+  });
+  const clock = new THREE.Clock();
+  function t(){ requestAnimationFrame(t); w.step(Math.min(clock.getDelta(), 0.05)); renderECS(w, im); s.rotation.y += 0.002; r.render(s, cam); } t();
+}
+
+/* ---- gravity (single attractor) ---- */
+function gravity(el){
+  const { r, cam, s } = scene(el);
+  const { im } = mkInstanced(s, 60);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshStandardMaterial({ color: 0x7af0a4, emissive: 0x23d5ab, emissiveIntensity: 0.6 }));
+  s.add(core);
+  const w = new World();
+  for (let i = 0; i < 40; i++) {
+    w.spawn((id, ww) => {
+      const c = new THREE.Color().setHSL(0.42, 0.7, 0.55 + Math.random()*0.2);
+      const a = Math.random()*Math.PI*2, r0 = 1 + Math.random()*2.5;
+      ww.set('T', id, { x: Math.cos(a)*r0, y: (Math.random()-0.5)*1.5, z: Math.sin(a)*r0 });
+      ww.set('V', id, { vx: -Math.sin(a)*1.5, vy: 0, vz: Math.cos(a)*1.5 });
+      ww.set('R', id, { r: c.r, g: c.g, b: c.b, s: 0.7 });
+    });
+  }
+  w.addSys((ww, dt) => {
+    for (const id of ww.query('T','V')) {
+      const t = ww.get('T',id), v = ww.get('V',id);
+      const d = Math.sqrt(t.x*t.x + t.y*t.y + t.z*t.z) || 0.01;
+      const force = -2 / Math.max(d*d, 0.1);
+      v.vx += (t.x/d) * force * dt; v.vy += (t.y/d) * force * dt; v.vz += (t.z/d) * force * dt;
+      t.x += v.vx*dt; t.y += v.vy*dt; t.z += v.vz*dt;
+    }
+  });
+  const clock = new THREE.Clock();
+  function t(){ requestAnimationFrame(t); w.step(Math.min(clock.getDelta(), 0.03)); renderECS(w, im); r.render(s, cam); } t();
+}
+
+/* ---- cage bounce ---- */
+function bounce(el){
+  const { r, cam, s } = scene(el);
+  const { im } = mkInstanced(s, 40);
+  const B = 2.5;
+  s.add(new THREE.Mesh(new THREE.BoxGeometry(B*2,B*2,B*2), new THREE.MeshBasicMaterial({ wireframe: true, transparent: true, opacity: 0.15, color: 0x7af0a4 })));
+  const w = new World();
+  for (let i = 0; i < 30; i++) {
+    w.spawn((id, ww) => {
+      const c = new THREE.Color().setHSL(0.42 + Math.random()*0.1, 0.6, 0.55);
+      ww.set('T', id, { x: (Math.random()-0.5)*B*1.5, y: (Math.random()-0.5)*B*1.5, z: (Math.random()-0.5)*B*1.5 });
+      ww.set('V', id, { vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2, vz: (Math.random()-0.5)*2 });
+      ww.set('R', id, { r: c.r, g: c.g, b: c.b, s: 1 });
+    });
+  }
+  w.addSys((ww, dt) => {
+    for (const id of ww.query('T','V')) {
+      const t = ww.get('T',id), v = ww.get('V',id);
+      t.x += v.vx*dt; t.y += v.vy*dt; t.z += v.vz*dt;
+      if (t.x < -B) { t.x=-B; v.vx=-v.vx; } if (t.x > B) { t.x=B; v.vx=-v.vx; }
+      if (t.y < -B) { t.y=-B; v.vy=-v.vy; } if (t.y > B) { t.y=B; v.vy=-v.vy; }
+      if (t.z < -B) { t.z=-B; v.vz=-v.vz; } if (t.z > B) { t.z=B; v.vz=-v.vz; }
+    }
+  });
+  const clock = new THREE.Clock();
+  function t(){ requestAnimationFrame(t); w.step(Math.min(clock.getDelta(), 0.03)); renderECS(w, im); s.rotation.y += 0.003; r.render(s, cam); } t();
+}
+
+/* ---- spin grid ---- */
+function spinGrid(el){
+  const { r, cam, s } = scene(el);
+  const { im } = mkInstanced(s, 80);
+  cam.position.set(0, 2, 7);
+  const w = new World();
+  const G = 5;
+  for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) for (let k = 0; k < 3; k++) {
+    w.spawn((id, ww) => {
+      const c = new THREE.Color().setHSL(0.35 + (i/G)*0.1, 0.6, 0.55);
+      ww.set('T', id, { x: (i-G/2)*0.6, y: (k-1)*0.6, z: (j-G/2)*0.6 });
+      ww.set('P', id, { rx: 0, ry: 0, rz: 0, sx: Math.random()*2, sy: Math.random()*2, sz: Math.random()*2 });
+      ww.set('R', id, { r: c.r, g: c.g, b: c.b, s: 0.6 });
+    });
+  }
+  w.addSys((ww, dt) => {
+    for (const id of ww.query('P')) {
+      const p = ww.get('P', id);
+      p.rx += p.sx * dt; p.ry += p.sy * dt; p.rz += p.sz * dt;
+    }
+  });
+  const clock = new THREE.Clock();
+  function t(){ requestAnimationFrame(t); w.step(Math.min(clock.getDelta(), 0.03)); renderECS(w, im); s.rotation.y += 0.004; r.render(s, cam); } t();
+}
+
+requestAnimationFrame(() => sceneRequests.forEach(x => x.build(x.el)));
+</script>
+</body>
+</html>

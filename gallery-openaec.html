@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<!--
+  gallery-openaec.html
+  复刻老 discover 风格, 每个 scene-card 可视化 OpenAEC INDEX.md 的一个子集.
+  诚实声明仍在: 该包没有实际 SKILL.md, 所以每张 3D 卡片都是 catalog 的可视化片段,
+  而不是该 skill 的"demo".
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery · OpenAEC — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Space Grotesk',system-ui,sans-serif;background:#080a14;color:#e8eaf4;min-height:100vh;overflow-x:hidden}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(96,165,250,0.25);border-radius:3px}
+  a{color:inherit;text-decoration:none}
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(8,10,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(96,165,250,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;margin-right:32px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px}
+  .nav a{font-size:13px;font-weight:500;margin-right:20px;color:rgba(255,255,255,0.4)}
+  .nav a:hover{color:rgba(255,255,255,0.8)} .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;color:rgba(255,255,255,0.7)}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#2563eb,#60a5fa);color:white;border:none}
+
+  .notice{max-width:1500px;margin:14px auto 0;padding:10px 16px 10px 18px;border:1px solid rgba(96,165,250,0.2);border-left:3px solid #60a5fa;background:rgba(15,22,42,0.6);border-radius:6px;font-size:13px;color:rgba(255,255,255,0.6)}
+  .notice b{color:#e8eaf4}
+
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(8,10,20,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;font-family:inherit;white-space:nowrap}
+  .pill.on{background:linear-gradient(135deg,#2563eb,#60a5fa);color:white;border-color:transparent}
+
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}@media(max-width:800px){.grid{column-count:2;padding:12px}}@media(max-width:500px){.grid{column-count:1}}
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(15,18,32,0.8);border:1px solid rgba(255,255,255,0.05);position:relative;transition:transform .3s ease, border-color .3s ease}
+  .card:hover{transform:translateY(-4px);border-color:rgba(96,165,250,0.25)}
+  .card .scene{width:100%;position:relative;overflow:hidden;background:#05060f}
+  .card .scene canvas{display:block;width:100%!important;height:100%!important}
+  .badge-3d{position:absolute;top:10px;right:10px;z-index:5;padding:3px 8px;border-radius:6px;background:rgba(96,165,250,0.15);backdrop-filter:blur(8px);border:1px solid rgba(96,165,250,0.25);font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(96,165,250,0.9);text-transform:uppercase}
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5}
+  .card-pixel{background:rgba(6,10,20,0.95);color:#60a5fa;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+  .card-deck{padding:24px 20px;background:rgba(12,18,32,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(96,165,250,0.8);font-weight:700;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px}
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(20,40,80,0.9),rgba(30,30,80,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:40px;font-weight:800;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#60a5fa,#a78bfa,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;font-family:'Space Mono',monospace}
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.5)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.25)}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo">3D Lab / OpenAEC</div>
+  <a href="gallery-cloudai.html">CloudAI</a>
+  <a href="gallery-nicewolf.html">NiceWolf</a>
+  <a href="gallery-openaec.html" class="on">OpenAEC</a>
+  <a href="gallery-webgpu.html">WebGPU</a>
+  <div class="nav-right">
+    <a href="showcase-2d.html" class="btn">Index</a>
+    <a href="discover.html" class="btn primary">Legacy</a>
+  </div>
+</nav>
+<div class="notice"><b>Honesty note.</b> This package ships <code>INDEX.md</code> + <code>README.md</code> only — no implemented skills yet. Every tile below therefore visualises a slice of the <i>catalog</i>, not a demo of that skill.</div>
+<div class="pills">
+  <button class="pill on">All</button>
+  <button class="pill">Core (4)</button>
+  <button class="pill">Syntax (5)</button>
+  <button class="pill">Impl (10)</button>
+  <button class="pill">Errors (2)</button>
+  <button class="pill">Agents (2)</button>
+</div>
+<main class="grid" id="grid"></main>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.164.1/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* Data transcribed from OpenAEC INDEX.md */
+const LAYERS = [
+  { id: 0, name: 'Core',        items: ['core-scene-graph','core-renderer','core-math','core-raycaster'],           color: 0xff7a59 },
+  { id: 1, name: 'Syntax base', items: ['syntax-geometries','syntax-materials','syntax-loaders','syntax-controls'],  color: 0xfcd34d },
+  { id: 2, name: 'Syntax/Impl', items: ['syntax-shaders','impl-lighting','impl-shadows','impl-animation','impl-post'], color: 0x7af0a4 },
+  { id: 3, name: 'Impl',        items: ['impl-physics','impl-r3f','impl-webgpu','impl-ifc','impl-audio','impl-xr'],   color: 0x60a5fa },
+  { id: 4, name: 'Errors',      items: ['impl-drei','errors-perf','errors-rendering'],                                color: 0xa78bfa },
+  { id: 5, name: 'Agents',      items: ['agents-scene-builder','agents-model-optimizer'],                             color: 0xc084fc },
+];
+
+const cards = [
+  { kind: 'scene', builder: tower,     h: 300, badge: 'catalog', title: '24-skill tower', text: '5 layers stacked, sphere count matches INDEX.md tally', author: 'OpenAEC · INDEX.md', dot: '#60a5fa', likes: '1.3k' },
+  { kind: 'pixel' },
+  { kind: 'scene', builder: orbit,     h: 240, badge: 'layer-1',  title: 'Syntax ring', text: 'Five syntax skills orbit the core — the promised Layer 1', author: 'OpenAEC · §Skill Dependencies', dot: '#fcd34d', likes: '612' },
+  { kind: 'deck' },
+  { kind: 'scene', builder: webs,      h: 240, badge: 'deps',    title: 'Dep arcs', text: 'Arrows drawn for every declared edge in the catalog', author: 'OpenAEC · ASCII tree', dot: '#a78bfa', likes: '420' },
+  { kind: 'play' },
+  { kind: 'scene', builder: mono,      h: 220, badge: 'monolith', title: 'Skill monolith', text: 'A single slab: this is what the repo looks like today', author: 'OpenAEC · just INDEX.md', dot: '#8b5cf6', likes: '310' },
+  { kind: 'text', title: 'Roadmap, not runtime', text: 'When the 24 files land, each sphere above can switch from a placeholder into its real quick-start. The harness stays the same.', tag: 'roadmap' },
+];
+
+const grid = document.getElementById('grid');
+const req = [];
+cards.forEach(c => {
+  const card = document.createElement('div'); card.className = 'card';
+  if (c.kind === 'scene') {
+    card.innerHTML = `<span class="badge-3d">${c.badge}</span><div class="scene" style="height:${c.h}px"></div><div class="card-text"><h3>${c.title}</h3><p>${c.text}</p></div><div class="card-foot"><span class="dot" style="background:${c.dot}"></span><span class="name">${c.author}</span><span class="likes">♥ ${c.likes}</span></div>`;
+    req.push({ el: card.querySelector('.scene'), build: c.builder });
+  } else if (c.kind === 'pixel') {
+    card.innerHTML = `<div class="card-pixel"><div class="label">OpenAEC · ls</div><div class="body">INDEX.md&nbsp;&nbsp;&nbsp;7k<br>README.md&nbsp;&nbsp;3k<br>DECISIONS&nbsp;.md<br>WAY_OF_WORK.md<br>-- no skills yet --</div><div class="foot">24 promised, 0 shipped</div></div><div class="card-foot" style="background:rgba(6,10,20,0.95)"><span class="dot" style="background:#60a5fa"></span><span class="name">thatopen/foundation</span><span class="likes">♥ 412</span></div>`;
+  } else if (c.kind === 'deck') {
+    card.innerHTML = `<div class="card-deck"><div class="lbl">Pitch deck</div><h3>A catalog<br>as contract.</h3><div class="author">Promise now, code later · 2026</div></div><div class="card-foot"><span class="dot" style="background:#60a5fa"></span><span class="name">OpenAEC-Foundation</span><span class="likes">♥ 532</span></div>`;
+  } else if (c.kind === 'play') {
+    card.innerHTML = `<div class="card-play"><h2>24<br>skills</h2></div><div class="card-foot" style="background:rgba(20,40,80,0.9);border-color:rgba(96,165,250,0.15)"><span class="dot" style="background:#60a5fa"></span><span class="name">Core · Syntax · Impl · Errors · Agents</span><span class="likes">♥ 821</span></div>`;
+  } else if (c.kind === 'text') {
+    card.innerHTML = `<div class="card-text"><h3>${c.title}</h3><p>${c.text}</p><span class="tag" style="display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(96,165,250,0.12);font-size:10px;font-weight:700;color:rgba(96,165,250,0.9)">${c.tag}</span></div>`;
+  }
+  grid.appendChild(card);
+});
+
+function stage(el){
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  r.setPixelRatio(Math.min(devicePixelRatio, 2));
+  r.setSize(el.clientWidth, el.clientHeight);
+  el.appendChild(r.domElement);
+  const cam = new THREE.PerspectiveCamera(45, el.clientWidth/el.clientHeight, 0.1, 100); cam.position.set(0, 3, 10);
+  const s = new THREE.Scene(); s.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const l = new THREE.DirectionalLight(0xffffff, 1.1); l.position.set(5, 6, 7); s.add(l);
+  new ResizeObserver(()=>{ r.setSize(el.clientWidth, el.clientHeight); cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix(); }).observe(el);
+  return { r, cam, s };
+}
+
+function tower(el){
+  const { r, cam, s } = stage(el); cam.position.set(0, 4, 9); cam.lookAt(0, 0, 0);
+  const g = new THREE.Group();
+  LAYERS.forEach((L, li) => {
+    L.items.forEach((it, i) => {
+      const count = L.items.length;
+      const angle = (i/count)*Math.PI*2 + li*0.3;
+      const radius = Math.max(0.7, count*0.35);
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28, 16, 16),
+        new THREE.MeshStandardMaterial({ color: L.color, emissive: L.color, emissiveIntensity: 0.15, roughness: 0.35 })
+      );
+      mesh.position.set(Math.cos(angle)*radius, li*1.1 - 2.5, Math.sin(angle)*radius);
+      g.add(mesh);
+    });
+  });
+  s.add(g);
+  function t(){ requestAnimationFrame(t); g.rotation.y += 0.004; r.render(s, cam); } t();
+}
+
+function orbit(el){
+  const { r, cam, s } = stage(el); cam.position.set(0, 0, 5);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 2), new THREE.MeshStandardMaterial({ color: 0xff7a59, emissive: 0xff7a59, emissiveIntensity: 0.3, roughness: 0.3 }));
+  s.add(core);
+  const ring = new THREE.Group();
+  LAYERS[1].items.forEach((it, i) => {
+    const a = (i/LAYERS[1].items.length)*Math.PI*2;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), new THREE.MeshStandardMaterial({ color: 0xfcd34d, roughness: 0.4 }));
+    m.position.set(Math.cos(a)*1.8, Math.sin(a*1.3)*0.3, Math.sin(a)*1.8);
+    ring.add(m);
+    // line to core
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), m.position]);
+    ring.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4a5a7a, transparent: true, opacity: 0.4 })));
+  });
+  s.add(ring);
+  function t(){ requestAnimationFrame(t); ring.rotation.y += 0.006; core.rotation.y += 0.01; r.render(s, cam); } t();
+}
+
+function webs(el){
+  const { r, cam, s } = stage(el); cam.position.set(0, 2, 7);
+  const count = 18;
+  const nodes = [];
+  for (let i = 0; i < count; i++) {
+    const a = (i/count)*Math.PI*2;
+    const ring = Math.floor(i/6);
+    const rad = 1 + ring*0.7;
+    const col = [0xff7a59, 0xfcd34d, 0x7af0a4, 0x60a5fa, 0xa78bfa][ring%5];
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 12), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.2 }));
+    m.position.set(Math.cos(a)*rad, (ring-1)*0.6, Math.sin(a)*rad);
+    s.add(m); nodes.push(m);
+  }
+  // draw lines between sequential nodes + a few crossings
+  const mat = new THREE.LineBasicMaterial({ color: 0x334466, transparent: true, opacity: 0.45 });
+  for (let i = 0; i < nodes.length; i++) {
+    for (let k = 1; k <= 3; k++) {
+      const j = (i+k*3) % nodes.length;
+      const geo = new THREE.BufferGeometry().setFromPoints([nodes[i].position, nodes[j].position]);
+      s.add(new THREE.Line(geo, mat));
+    }
+  }
+  function t(){ requestAnimationFrame(t); s.rotation.y += 0.004; r.render(s, cam); } t();
+}
+
+function mono(el){
+  const { r, cam, s } = stage(el); cam.position.set(0, 0, 4);
+  const geo = new THREE.BoxGeometry(1.4, 2.2, 0.25);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2a3448, roughness: 0.2, metalness: 0.6, emissive: 0x60a5fa, emissiveIntensity: 0.12 });
+  const slab = new THREE.Mesh(geo, mat); s.add(slab);
+  // engraved text-like stripes
+  const stripeMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
+  for (let i = 0; i < 8; i++) {
+    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.03), stripeMat);
+    stripe.position.set(0, 0.8 - i*0.22, 0.131); s.add(stripe);
+  }
+  function t(){ requestAnimationFrame(t); slab.rotation.y = Math.sin(Date.now()*0.0006)*0.5; r.render(s, cam); } t();
+}
+
+requestAnimationFrame(() => req.forEach(x => x.build(x.el)));
+</script>
+</body>
+</html>
