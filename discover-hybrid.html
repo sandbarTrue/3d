@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover Hybrid — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&family=Space+Mono:wght@700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0c0a08;color:#e8e0d0;min-height:100vh;overflow-x:hidden}
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(245,166,35,0.2);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(245,166,35,0.4)}
+
+  /* ─── Nav ─── */
+  .nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(12,10,8,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(245,166,35,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px;background:linear-gradient(135deg,#d97706,#f5a623);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .nav a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
+  .nav a:hover{color:rgba(255,255,255,0.8)}
+  .nav a.on{color:#fff}
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .nav-right .btn{padding:7px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:rgba(255,255,255,0.7)}
+  .nav-right .btn:hover{border-color:rgba(245,166,35,0.3);color:#fff}
+  .nav-right .btn.primary{background:linear-gradient(135deg,#d97706,#f5a623);color:white;border-color:transparent}
+  .nav-right .btn.primary:hover{box-shadow:0 0 20px rgba(245,166,35,0.4)}
+
+  /* ─── Pills ─── */
+  .pills{display:flex;gap:6px;padding:14px 24px;background:rgba(12,10,8,0.6);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.04);overflow-x:auto}
+  .pills::-webkit-scrollbar{display:none}
+  .pill{padding:7px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;font-weight:500;color:rgba(255,255,255,0.4);cursor:pointer;white-space:nowrap;transition:all .15s}
+  .pill:hover{border-color:rgba(245,166,35,0.3);color:rgba(255,255,255,0.7)}
+  .pill.on{background:linear-gradient(135deg,#d97706,#f5a623);color:white;border-color:transparent}
+
+  /* ─── Masonry ─── */
+  .grid{column-count:4;column-gap:14px;padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:1200px){.grid{column-count:3}}
+  @media(max-width:800px){.grid{column-count:2;padding:12px}}
+  @media(max-width:500px){.grid{column-count:1}}
+
+  /* ─── Card ─── */
+  .card{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:rgba(20,16,10,0.8);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;position:relative;opacity:0;transform:translateY(20px);animation:cardIn 0.5s ease forwards}
+  .card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(245,166,35,0.15);border-color:rgba(245,166,35,0.2)}
+  @keyframes cardIn{to{opacity:1;transform:translateY(0)}}
+
+  /* 3D canvas container */
+  .card .scene{width:100%;position:relative;overflow:hidden}
+
+  /* Text overlays */
+  .card .overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none}
+  .card .overlay.center{justify-content:center;align-items:center;text-align:center}
+  .card .overlay.gradient::before{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(transparent 30%,rgba(0,0,0,.55));pointer-events:none}
+  .card .overlay *{position:relative;z-index:1}
+  .card .overlay h2{color:white;font-size:28px;font-weight:900;line-height:1.1;letter-spacing:-1px}
+  .card .overlay p{color:rgba(255,255,255,.65);font-size:11px;margin-top:4px;font-weight:500}
+
+  /* Card types */
+  .card-text{padding:24px 20px}
+  .card-text h3{font-size:16px;font-weight:700;margin-bottom:6px;color:#e8e0d0}
+  .card-text p{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.5}
+  .card-text .tag{display:inline-block;margin-top:10px;padding:3px 8px;border-radius:10px;background:rgba(245,166,35,0.1);font-size:10px;font-weight:600;color:rgba(245,166,35,0.7)}
+
+  .card-pixel{background:rgba(12,10,4,0.9);color:#f5a623;padding:24px 20px;font-family:'Space Mono',monospace}
+  .card-pixel .label{font-size:9px;text-transform:uppercase;letter-spacing:2px;opacity:.5;margin-bottom:10px}
+  .card-pixel .body{font-size:11px;line-height:1.7;text-transform:uppercase;font-weight:700}
+  .card-pixel .foot{margin-top:14px;font-size:10px;opacity:.4}
+
+  .card-love{padding:28px 20px;text-align:center;background:linear-gradient(160deg,rgba(40,28,10,0.9),rgba(50,30,15,0.9))}
+  .card-love .hearts{font-size:36px;margin-bottom:12px;color:#f5a623}
+  .card-love h3{font-family:'Playfair Display',serif;font-size:22px;font-style:italic;margin-bottom:6px;color:#fbbf24}
+  .card-love p{font-size:11px;color:rgba(255,255,255,0.4);line-height:1.5;max-width:220px;margin:0 auto}
+
+  .card-deck{padding:24px 20px;background:rgba(15,12,8,0.9)}
+  .card-deck .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,166,35,0.5);font-weight:600;margin-bottom:8px}
+  .card-deck h3{font-size:26px;font-weight:900;letter-spacing:-1px;line-height:1.1;color:#e8e0d0}
+  .card-deck .author{font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px}
+
+  .card-play{padding:28px;background:linear-gradient(135deg,rgba(40,30,10,0.9),rgba(50,25,8,0.9));display:flex;align-items:center;justify-content:center;min-height:160px}
+  .card-play h2{font-size:44px;font-weight:900;letter-spacing:-2px;line-height:1;background:linear-gradient(135deg,#d97706,#f5a623,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+  .card-cjk{padding:24px 20px;background:linear-gradient(135deg,rgba(60,40,12,0.9),rgba(50,30,10,0.9));color:white}
+  .card-cjk h3{font-size:24px;font-weight:900;margin-bottom:6px}
+  .card-cjk p{font-size:11px;opacity:.55}
+
+  .card-tool{padding:20px;border:2px dashed rgba(255,255,255,0.08);background:rgba(15,12,8,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:140px;color:rgba(255,255,255,0.25)}
+  .card-tool .icon{width:40px;height:40px;border-radius:10px;background:rgba(245,166,35,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(245,166,35,0.5)}
+  .card-tool p{font-size:12px;font-weight:500}
+
+  /* Footer */
+  .card-foot{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.04)}
+  .card-foot.dark{border-color:rgba(255,255,255,0.04);background:rgba(10,8,6,0.9)}
+  .card-foot .dot{width:20px;height:20px;border-radius:50%}
+  .card-foot .name{font-size:11px;font-weight:500;color:rgba(255,255,255,0.4)}
+  .card-foot .likes{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.2)}
+
+  /* ─── 3D Card glow on hover ─── */
+  .card .scene::after{
+    content:'';position:absolute;inset:0;z-index:3;
+    background:radial-gradient(circle at 50% 50%, rgba(245,166,35,0.12) 0%, transparent 70%);
+    opacity:0;transition:opacity .4s ease;pointer-events:none;
+  }
+  .card:hover .scene::after{opacity:1}
+
+  /* ─── 3D badge ─── */
+  .badge-3d{
+    position:absolute;top:10px;right:10px;z-index:5;
+    padding:3px 8px;border-radius:6px;
+    background:rgba(245,166,35,0.15);backdrop-filter:blur(8px);
+    border:1px solid rgba(245,166,35,0.2);
+    font-size:9px;font-weight:700;letter-spacing:1px;
+    color:rgba(245,166,35,0.8);text-transform:uppercase;
+  }
+
+  /* ─── Happy Robot Card (CSS-only, amber theme) ─── */
+  .card-happy-robot{
+    padding:0;background:#e8dcc8;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:320px;position:relative;overflow:hidden;
+  }
+  .card-happy-robot .robot-container{position:relative;width:160px;height:160px;margin-top:30px}
+  .card-happy-robot .robot-body{
+    width:120px;height:100px;background:linear-gradient(180deg,#fff 0%,#f5f0e8 100%);
+    border-radius:28px;position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    box-shadow:0 8px 30px rgba(0,0,0,0.08),inset 0 -4px 8px rgba(0,0,0,0.03);
+    z-index:2;
+  }
+  .card-happy-robot .robot-face{
+    width:80px;height:48px;background:#1a1610;border-radius:12px;
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    display:flex;align-items:center;justify-content:center;gap:16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .card-happy-robot .robot-eye{
+    width:14px;height:14px;background:#f5a623;border-radius:50%;
+    box-shadow:0 0 8px rgba(245,166,35,0.6);
+    position:relative;
+  }
+  .card-happy-robot .robot-eye::after{
+    content:'';position:absolute;width:5px;height:5px;background:#fff;border-radius:50%;top:2px;left:2px;
+  }
+  .card-happy-robot .robot-ear{
+    width:14px;height:28px;background:linear-gradient(180deg,#d97706 0%,#b45309 100%);
+    border-radius:6px;position:absolute;top:42px;z-index:1;
+  }
+  .card-happy-robot .robot-ear.left{left:8px}
+  .card-happy-robot .robot-ear.right{right:8px}
+  .card-happy-robot .robot-ear::after{
+    content:'';position:absolute;width:6px;height:6px;background:#fbbf24;border-radius:50%;
+    bottom:4px;left:50%;transform:translateX(-50%);
+  }
+  .card-happy-robot .robot-neck{
+    width:20px;height:12px;background:#e8e0d0;border-radius:0 0 6px 6px;
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:2;
+  }
+  .card-happy-robot .robot-antenna{
+    width:4px;height:20px;background:linear-gradient(180deg,#d97706,#92400e);
+    border-radius:2px;position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
+  }
+  .card-happy-robot .robot-antenna-tip{
+    width:10px;height:10px;background:radial-gradient(circle,#fbbf24,#f5a623);
+    border-radius:50%;position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    box-shadow:0 0 8px rgba(251,191,36,0.6);
+  }
+  .card-happy-robot .robot-buttons{
+    position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+    display:flex;gap:6px;z-index:3;
+  }
+  .card-happy-robot .robot-buttons .dot{
+    width:8px;height:8px;border-radius:50%;background:#f5a623;
+    box-shadow:0 0 4px rgba(245,166,35,0.4);
+  }
+  .card-happy-robot .robot-buttons .dot:nth-child(2){background:#fbbf24}
+  .card-happy-robot .robot-buttons .dot:nth-child(3){background:#d97706}
+  .card-happy-robot .robot-sphere{
+    width:18px;height:18px;background:linear-gradient(135deg,#fff,#f0e8d8);
+    border-radius:50%;position:absolute;z-index:1;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+    animation:robotFloat 3s ease-in-out infinite;
+  }
+  .card-happy-robot .robot-sphere.s1{bottom:5px;left:18px;animation-delay:0s;width:22px;height:22px}
+  .card-happy-robot .robot-sphere.s2{bottom:12px;right:14px;animation-delay:1s;width:14px;height:14px}
+  @keyframes robotFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .card-happy-robot .robot-btn{
+    margin-top:16px;margin-bottom:24px;
+    padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#d97706,#f5a623);
+    color:white;font-size:13px;font-weight:600;letter-spacing:0.3px;
+    box-shadow:0 4px 16px rgba(245,166,35,0.3);
+    transition:transform .2s ease,box-shadow .2s ease;
+    position:relative;z-index:1;
+  }
+  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(245,166,35,0.4)}
+  .card-happy-robot .robot-btn::before{
+    content:'';position:absolute;inset:-4px;border-radius:28px;z-index:-1;
+    background:linear-gradient(135deg,rgba(245,166,35,0.4),rgba(217,119,6,0.4));
+    filter:blur(8px);opacity:0.5;animation:btnGlowPulse 2s ease-in-out infinite;
+  }
+  @keyframes btnGlowPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.08)}}
+  .card-happy-robot .robot-title{font-size:18px;font-weight:700;color:#2a2418;margin-top:0}
+  .card-happy-robot .speech-bubble{
+    position:absolute;top:10px;right:16px;z-index:4;
+    background:#fff;border-radius:10px;padding:4px 10px;
+    font-size:11px;font-weight:700;color:#d97706;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  }
+  .card-happy-robot .speech-bubble::after{
+    content:'';position:absolute;bottom:-6px;right:14px;
+    width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #fff;
+  }
+
+  /* Robot animations */
+  @keyframes robotBlink{0%,92%,100%{transform:scaleY(1)}95%,97%{transform:scaleY(0.1)}}
+  .card-happy-robot .robot-eye{animation:robotBlink 3.5s ease-in-out infinite}
+  .card-happy-robot .robot-eye:nth-child(2){animation-delay:0.1s}
+  @keyframes robotBreathe{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.02)}}
+  .card-happy-robot .robot-body{animation:robotBreathe 3s ease-in-out infinite}
+  @keyframes earWiggleL{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+  @keyframes earWiggleR{0%,100%{transform:rotate(0deg)}25%{transform:rotate(4deg)}75%{transform:rotate(-4deg)}}
+  .card-happy-robot .robot-ear.left{animation:earWiggleL 2.5s ease-in-out infinite}
+  .card-happy-robot .robot-ear.right{animation:earWiggleR 2.5s ease-in-out infinite 0.3s}
+  @keyframes antennaBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+  .card-happy-robot .robot-antenna{animation:antennaBob 2s ease-in-out infinite}
+  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(251,191,36,0.5)}50%{box-shadow:0 0 14px rgba(251,191,36,0.9)}}
+  .card-happy-robot .robot-antenna-tip{animation:antennaTipGlow 1.5s ease-in-out infinite}
+
+  /* Mouse tracking */
+  .card-happy-robot .robot-face{transition:transform 0.15s ease-out}
+  .card-happy-robot .robot-eye{transition:transform 0.12s ease-out}
+  .card-happy-robot .robot-container{transition:transform 0.3s ease-out}
+
+  /* Sparkles */
+  .card-happy-robot .sparkle{
+    position:absolute;width:5px;height:5px;border-radius:50%;z-index:1;
+    background:radial-gradient(circle,rgba(245,166,35,0.8),transparent);
+    pointer-events:none;
+  }
+  @keyframes sparkleDrift1{0%{transform:translate(0,0);opacity:0.7}25%{opacity:1}50%{transform:translate(12px,-18px);opacity:0.5}100%{transform:translate(-8px,-30px);opacity:0}}
+  @keyframes sparkleDrift2{0%{transform:translate(0,0);opacity:0.5}30%{opacity:0.9}60%{transform:translate(-14px,-12px);opacity:0.6}100%{transform:translate(6px,-26px);opacity:0}}
+  @keyframes sparkleDrift3{0%{transform:translate(0,0);opacity:0.6}40%{opacity:1}70%{transform:translate(10px,-20px);opacity:0.4}100%{transform:translate(-5px,-35px);opacity:0}}
+  @keyframes sparkleDrift4{0%{transform:translate(0,0);opacity:0.4}35%{opacity:0.8}65%{transform:translate(-10px,-15px);opacity:0.5}100%{transform:translate(8px,-28px);opacity:0}}
+  .card-happy-robot .sparkle:nth-child(1){left:20%;top:60%;animation:sparkleDrift1 3.5s ease-in-out infinite}
+  .card-happy-robot .sparkle:nth-child(2){right:18%;top:50%;animation:sparkleDrift2 4s ease-in-out infinite 0.8s}
+  .card-happy-robot .sparkle:nth-child(3){left:30%;bottom:35%;animation:sparkleDrift3 3s ease-in-out infinite 1.5s}
+  .card-happy-robot .sparkle:nth-child(4){right:25%;bottom:40%;animation:sparkleDrift4 3.8s ease-in-out infinite 0.4s}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<div class="nav">
+  <div class="nav-logo">3D&#183;LAB</div>
+  <a href="#">Explore</a>
+  <a class="on" href="#">Hybrid</a>
+  <a href="#">ECS</a>
+  <a href="#">Shaders</a>
+  <div class="nav-right">
+    <button class="btn">Sign In</button>
+    <button class="btn primary">Create</button>
+  </div>
+</div>
+
+<!-- Pills -->
+<div class="pills">
+  <div class="pill on">All</div>
+  <div class="pill">ECS Scenes</div>
+  <div class="pill">Shader Art</div>
+  <div class="pill">JSON Driven</div>
+  <div class="pill">Architecture</div>
+  <div class="pill">Cosine Palettes</div>
+  <div class="pill">Performance</div>
+  <div class="pill">Declarative</div>
+</div>
+
+<!-- Grid (generated by JS) -->
+<div class="grid" id="grid"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   1. ECS CORE — Minimal NiceWolf-pattern Entity Component System
+   ═══════════════════════════════════════════════════════════════════════ */
+class World {
+  constructor() {
+    this.next = 0;
+    this.ents = new Set();
+    this.store = new Map();
+    this.sys = [];
+  }
+  spawn(init) {
+    const id = this.next++;
+    this.ents.add(id);
+    if (init) init(id, this);
+    return id;
+  }
+  set(tag, id, data) {
+    if (!this.store.has(tag)) this.store.set(tag, new Map());
+    this.store.get(tag).set(id, data);
+  }
+  get(tag, id) {
+    return this.store.get(tag)?.get(id);
+  }
+  query(...tags) {
+    const b = this.store.get(tags[0]);
+    if (!b) return [];
+    const o = [];
+    for (const id of b.keys()) {
+      if (tags.every(t => this.store.get(t)?.has(id))) o.push(id);
+    }
+    return o;
+  }
+  addSys(fn) { this.sys.push(fn); }
+  step(dt) { for (const fn of this.sys) fn(this, dt); }
+  clear() {
+    this.ents.clear();
+    this.store.clear();
+    this.next = 0;
+    this.sys = [];
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2. PALETTES + SHADER SYSTEM
+   ═══════════════════════════════════════════════════════════════════════ */
+const PALETTES = {
+  nebula:  { a:[0.5,0.5,0.5], b:[0.5,0.5,0.5], c:[1.0,1.0,1.0], d:[0.00,0.33,0.67] },
+  coral:   { a:[0.5,0.5,0.5], b:[0.5,0.5,0.5], c:[1.0,1.0,0.5], d:[0.80,0.90,0.30] },
+  aurora:  { a:[0.5,0.5,0.5], b:[0.5,0.5,0.5], c:[1.0,0.7,0.4], d:[0.00,0.15,0.20] },
+  sunset:  { a:[0.5,0.5,0.5], b:[0.5,0.5,0.3], c:[0.5,0.5,0.3], d:[0.50,0.20,0.15] },
+  ember:   { a:[0.6,0.3,0.1], b:[0.4,0.3,0.2], c:[1.0,0.6,0.3], d:[0.00,0.10,0.20] },
+  ocean:   { a:[0.5,0.5,0.5], b:[0.5,0.5,0.5], c:[1.0,1.0,1.0], d:[0.30,0.20,0.20] },
+};
+
+const VERT_SHADER = `
+  uniform float uTime;
+  uniform float uHover;
+  varying vec3 vNormal;
+  varying vec3 vViewPos;
+  varying vec3 vWorldPos;
+  varying float vNoise;
+
+  // 3D simplex-ish noise
+  vec3 mod289(vec3 x){ return x - floor(x / 289.0) * 289.0; }
+  vec4 mod289v4(vec4 x){ return x - floor(x / 289.0) * 289.0; }
+  vec4 perm(vec4 x){ return mod289v4(((x * 34.0) + 1.0) * x); }
+  float snoise(vec3 v){
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    vec3 i = floor(v + dot(v, vec3(C.y)));
+    vec3 x0 = v - i + dot(i, vec3(C.x));
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g, l.zxy);
+    vec3 i2 = max(g, l.zxy);
+    vec3 x1 = x0 - i1 + C.x;
+    vec3 x2 = x0 - i2 + C.y;
+    vec3 x3 = x0 - 0.5;
+    i = mod289(i);
+    vec4 p = perm(perm(perm(
+      i.z + vec4(0.0, i1.z, i2.z, 1.0))
+      + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+      + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    vec4 j = p - 49.0 * floor(p / 49.0);
+    vec4 x_ = floor(j / 7.0);
+    vec4 y_ = floor(j - 7.0 * x_);
+    vec4 x1_ = (x_ * 2.0 + 0.5) / 7.0 - 1.0;
+    vec4 y1_ = (y_ * 2.0 + 0.5) / 7.0 - 1.0;
+    vec4 h = 1.0 - abs(x1_) - abs(y1_);
+    vec4 b0 = vec4(x1_.xy, y1_.xy);
+    vec4 b1 = vec4(x1_.zw, y1_.zw);
+    vec4 sh = -step(h, vec4(0.0));
+    vec4 a0 = b0.xzyw + (floor(b0) * 2.0 + 1.0) * sh.xxyy;
+    vec4 a1 = b1.xzyw + (floor(b1) * 2.0 + 1.0) * sh.zzww;
+    vec3 g0 = vec3(a0.xy, h.x);
+    vec3 g1 = vec3(a0.zw, h.y);
+    vec3 g2 = vec3(a1.xy, h.z);
+    vec3 g3 = vec3(a1.zw, h.w);
+    vec4 norm = 1.79284291400159 - 0.85373472095314 * vec4(dot(g0,g0),dot(g1,g1),dot(g2,g2),dot(g3,g3));
+    g0 *= norm.x; g1 *= norm.y; g2 *= norm.z; g3 *= norm.w;
+    vec4 m = max(0.6 - vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(g0,x0),dot(g1,x1),dot(g2,x2),dot(g3,x3)));
+  }
+
+  void main(){
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPos = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+    vViewPos = -mvPos.xyz;
+    vWorldPos = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
+    vNoise = snoise(vWorldPos * 2.0 + uTime * 0.3);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+function buildFragShader(pal) {
+  const p = PALETTES[pal] || PALETTES.nebula;
+  return `
+  uniform float uTime;
+  uniform float uHover;
+  varying vec3 vNormal;
+  varying vec3 vViewPos;
+  varying vec3 vWorldPos;
+  varying float vNoise;
+
+  vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d){
+    return a + b * cos(6.283185 * (c * t + d));
+  }
+
+  void main(){
+    vec3 N = normalize(vNormal);
+    vec3 V = normalize(vViewPos);
+    vec3 L = normalize(vec3(0.6, 0.8, 0.5));
+
+    // Cosine palette color
+    float palT = vNoise * 0.5 + 0.5 + uTime * 0.1;
+    vec3 palColor = cosPalette(palT,
+      vec3(${p.a.join(',')}),
+      vec3(${p.b.join(',')}),
+      vec3(${p.c.join(',')}),
+      vec3(${p.d.join(',')})
+    );
+
+    // Diffuse
+    float diff = max(dot(N, L), 0.0) * 0.6 + 0.4;
+
+    // Fresnel rim
+    float fresnel = pow(1.0 - max(dot(V, N), 0.0), 3.0);
+    vec3 rimColor = palColor * 1.4;
+
+    // SSS approximation
+    vec3 sssDir = L + N * 0.6;
+    float sss = max(dot(V, -normalize(sssDir)), 0.0);
+    sss = pow(sss, 3.0) * 0.4;
+    vec3 sssColor = palColor * vec3(1.2, 0.9, 0.8);
+
+    // Specular
+    vec3 H = normalize(V + L);
+    float spec = pow(max(dot(N, H), 0.0), 32.0) * 0.5;
+
+    // Combine
+    vec3 color = palColor * diff;
+    color += rimColor * fresnel * (0.6 + uHover * 0.4);
+    color += sssColor * sss;
+    color += vec3(1.0) * spec;
+
+    // Surface detail from noise
+    color += palColor * vNoise * 0.12;
+
+    // Hover boost
+    color += palColor * uHover * 0.15;
+
+    gl_FragColor = vec4(color, 1.0);
+  }`;
+}
+
+function createHybridMaterial(paletteName) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime:  { value: 0 },
+      uHover: { value: 0 },
+    },
+    vertexShader: VERT_SHADER,
+    fragmentShader: buildFragShader(paletteName),
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   3. JSON SCENE DESCRIPTORS
+   ═══════════════════════════════════════════════════════════════════════ */
+const SCENES = {
+  wave: {
+    entities: 45, geometry: 'sphere', radius: 0.12,
+    palette: 'nebula', layout: 'grid', gridSize: [9, 5],
+    systems: ['wave', 'render'],
+    animation: { type: 'wave', amplitude: 0.6, frequency: 2.0 }
+  },
+  orbit: {
+    entities: 30, geometry: 'icosahedron', radius: 0.08,
+    palette: 'coral', layout: 'spherical',
+    systems: ['orbit', 'render'],
+    animation: { type: 'orbit', speed: 0.5 }
+  },
+  gravity: {
+    entities: 40, geometry: 'sphere', radius: 0.06,
+    palette: 'aurora', layout: 'random',
+    systems: ['gravity', 'move', 'render'],
+    animation: { type: 'gravity' }
+  },
+  boid: {
+    entities: 35, geometry: 'octahedron', radius: 0.05,
+    palette: 'sunset', layout: 'random',
+    systems: ['boid', 'render'],
+    animation: { type: 'boid' }
+  },
+  swarm: {
+    entities: 50, geometry: 'sphere', radius: 0.055,
+    palette: 'ember', layout: 'random',
+    systems: ['swarm', 'render'],
+    animation: { type: 'swarm' }
+  },
+  crystal: {
+    entities: 25, geometry: 'icosahedron', radius: 0.1,
+    palette: 'ocean', layout: 'grid', gridSize: [5, 5],
+    systems: ['spin', 'render'],
+    animation: { type: 'spin' }
+  },
+  trail: {
+    entities: 8, geometry: 'sphere', radius: 0.08,
+    palette: 'nebula', layout: 'random',
+    systems: ['trail', 'trailRender'],
+    animation: { type: 'trail' },
+    trailLength: 12
+  },
+  explosion: {
+    entities: 60, geometry: 'dodecahedron', radius: 0.04,
+    palette: 'coral', layout: 'burst',
+    systems: ['life', 'move', 'render'],
+    animation: { type: 'explosion' }
+  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   4. SCENE BUILDERS — assembles ECS worlds from JSON descriptors
+   ═══════════════════════════════════════════════════════════════════════ */
+function makeGeometry(desc) {
+  const r = desc.radius || 0.1;
+  switch (desc.geometry) {
+    case 'icosahedron':   return new THREE.IcosahedronGeometry(r, 1);
+    case 'octahedron':    return new THREE.OctahedronGeometry(r, 0);
+    case 'dodecahedron':  return new THREE.DodecahedronGeometry(r, 0);
+    default:              return new THREE.SphereGeometry(r, 16, 12);
+  }
+}
+
+/* ── Wave scene ── */
+function buildWaveScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  const [cols, rows] = desc.gridSize;
+  const spacing = 0.32;
+  for (let i = 0; i < desc.entities; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = (col - (cols - 1) / 2) * spacing;
+    const z = (row - (rows - 1) / 2) * spacing;
+    world.spawn((id, w) => {
+      w.set('T', id, { x, y: 0, z, baseY: 0 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const amp = desc.animation.amplitude;
+  const freq = desc.animation.frequency;
+  const dummy = new THREE.Object3D();
+
+  world.addSys((w, dt) => {
+    const t = performance.now() / 1000;
+    for (const id of w.query('T', 'R')) {
+      const tr = w.get('T', id);
+      tr.y = tr.baseY + Math.sin(t * freq + tr.x * 2.0 + tr.z * 1.5) * amp * 0.3;
+    }
+  });
+
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'R')) {
+      const tr = w.get('T', id);
+      const ri = w.get('R', id);
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(ri.idx, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh, mat };
+}
+
+/* ── Orbit scene ── */
+function buildOrbitScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  for (let i = 0; i < desc.entities; i++) {
+    const angle = (i / desc.entities) * Math.PI * 2;
+    const radius = 0.5 + Math.random() * 0.8;
+    const speed = (0.3 + Math.random() * 0.5) * desc.animation.speed;
+    const yOff = Math.random() * Math.PI * 2;
+    world.spawn((id, w) => {
+      w.set('Orbit', id, { angle, radius, speed, yOff });
+      w.set('T', id, { x: 0, y: 0, z: 0 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const dummy = new THREE.Object3D();
+
+  world.addSys((w, dt) => {
+    const t = performance.now() / 1000;
+    for (const id of w.query('Orbit', 'T')) {
+      const orb = w.get('Orbit', id);
+      orb.angle += orb.speed * dt;
+      const tr = w.get('T', id);
+      tr.x = Math.cos(orb.angle) * orb.radius;
+      tr.z = Math.sin(orb.angle) * orb.radius;
+      tr.y = Math.sin(t + orb.yOff) * 0.3;
+    }
+  });
+
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'R')) {
+      const tr = w.get('T', id);
+      const ri = w.get('R', id);
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(ri.idx, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh, mat };
+}
+
+/* ── Gravity scene ── */
+function buildGravityScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  for (let i = 0; i < desc.entities; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = 0.6 + Math.random() * 0.8;
+    world.spawn((id, w) => {
+      w.set('T', id, { x: Math.cos(angle) * r, y: (Math.random() - 0.5) * 1.2, z: Math.sin(angle) * r });
+      w.set('V', id, { vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, vz: (Math.random() - 0.5) * 0.3 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const dummy = new THREE.Object3D();
+
+  // Gravity system
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'V')) {
+      const tr = w.get('T', id);
+      const vel = w.get('V', id);
+      const dx = -tr.x, dy = -tr.y, dz = -tr.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.1;
+      const force = 0.8 / (dist * dist);
+      vel.vx += dx / dist * force * dt;
+      vel.vy += dy / dist * force * dt;
+      vel.vz += dz / dist * force * dt;
+    }
+  });
+
+  // Move system
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'V')) {
+      const tr = w.get('T', id);
+      const vel = w.get('V', id);
+      tr.x += vel.vx * dt;
+      tr.y += vel.vy * dt;
+      tr.z += vel.vz * dt;
+      vel.vx *= 0.995;
+      vel.vy *= 0.995;
+      vel.vz *= 0.995;
+    }
+  });
+
+  // Render system
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'R')) {
+      const tr = w.get('T', id);
+      const ri = w.get('R', id);
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(ri.idx, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh, mat };
+}
+
+/* ── Boid scene ── */
+function buildBoidScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  for (let i = 0; i < desc.entities; i++) {
+    world.spawn((id, w) => {
+      w.set('T', id, {
+        x: (Math.random() - 0.5) * 2,
+        y: (Math.random() - 0.5) * 1.5,
+        z: (Math.random() - 0.5) * 2
+      });
+      w.set('V', id, {
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        vz: (Math.random() - 0.5) * 0.5
+      });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const dummy = new THREE.Object3D();
+  const BOUND = 1.4;
+
+  // Boid system
+  world.addSys((w, dt) => {
+    const ids = w.query('T', 'V');
+    const positions = ids.map(id => w.get('T', id));
+    const velocities = ids.map(id => w.get('V', id));
+
+    for (let i = 0; i < ids.length; i++) {
+      const p = positions[i];
+      const v = velocities[i];
+      let sx = 0, sy = 0, sz = 0; // separation
+      let ax = 0, ay = 0, az = 0; // alignment
+      let cx = 0, cy = 0, cz = 0; // cohesion
+      let neighbors = 0;
+
+      for (let j = 0; j < ids.length; j++) {
+        if (i === j) continue;
+        const o = positions[j];
+        const dx = p.x - o.x, dy = p.y - o.y, dz = p.z - o.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (d < 0.6) {
+          // Separation
+          if (d < 0.25 && d > 0.001) {
+            sx += dx / d; sy += dy / d; sz += dz / d;
+          }
+          // Alignment
+          const ov = velocities[j];
+          ax += ov.vx; ay += ov.vy; az += ov.vz;
+          // Cohesion
+          cx += o.x; cy += o.y; cz += o.z;
+          neighbors++;
+        }
+      }
+
+      if (neighbors > 0) {
+        ax /= neighbors; ay /= neighbors; az /= neighbors;
+        cx = cx / neighbors - p.x;
+        cy = cy / neighbors - p.y;
+        cz = cz / neighbors - p.z;
+      }
+
+      const sep = 1.8, ali = 0.6, coh = 0.4;
+      v.vx += (sx * sep + (ax - v.vx) * ali + cx * coh) * dt;
+      v.vy += (sy * sep + (ay - v.vy) * ali + cy * coh) * dt;
+      v.vz += (sz * sep + (az - v.vz) * ali + cz * coh) * dt;
+
+      // Boundary
+      if (p.x > BOUND) v.vx -= 0.5 * dt; if (p.x < -BOUND) v.vx += 0.5 * dt;
+      if (p.y > BOUND) v.vy -= 0.5 * dt; if (p.y < -BOUND) v.vy += 0.5 * dt;
+      if (p.z > BOUND) v.vz -= 0.5 * dt; if (p.z < -BOUND) v.vz += 0.5 * dt;
+
+      // Speed limit
+      const speed = Math.sqrt(v.vx * v.vx + v.vy * v.vy + v.vz * v.vz);
+      if (speed > 1.5) {
+        v.vx = (v.vx / speed) * 1.5;
+        v.vy = (v.vy / speed) * 1.5;
+        v.vz = (v.vz / speed) * 1.5;
+      }
+
+      p.x += v.vx * dt;
+      p.y += v.vy * dt;
+      p.z += v.vz * dt;
+    }
+  });
+
+  // Render
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'R')) {
+      const tr = w.get('T', id);
+      const ri = w.get('R', id);
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(ri.idx, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh, mat };
+}
+
+/* ── Swarm scene ── */
+function buildSwarmScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  for (let i = 0; i < desc.entities; i++) {
+    world.spawn((id, w) => {
+      w.set('T', id, {
+        x: (Math.random() - 0.5) * 2.5,
+        y: (Math.random() - 0.5) * 2,
+        z: (Math.random() - 0.5) * 2.5
+      });
+      w.set('V', id, { vx: 0, vy: 0, vz: 0 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const dummy = new THREE.Object3D();
+
+  // Swarm system
+  world.addSys((w, dt) => {
+    const t = performance.now() / 1000;
+    const tx = Math.sin(t * 0.7) * 1.0;
+    const ty = Math.cos(t * 0.5) * 0.6;
+    const tz = Math.sin(t * 0.3) * 1.0;
+
+    for (const id of w.query('T', 'V')) {
+      const tr = w.get('T', id);
+      const vel = w.get('V', id);
+
+      // Steer toward oscillating target
+      const dx = tx - tr.x, dy = ty - tr.y, dz = tz - tr.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
+      vel.vx += (dx / dist) * 2.0 * dt;
+      vel.vy += (dy / dist) * 2.0 * dt;
+      vel.vz += (dz / dist) * 2.0 * dt;
+
+      // Random noise
+      vel.vx += (Math.random() - 0.5) * 0.8 * dt;
+      vel.vy += (Math.random() - 0.5) * 0.8 * dt;
+      vel.vz += (Math.random() - 0.5) * 0.8 * dt;
+
+      // Drag
+      vel.vx *= 0.97; vel.vy *= 0.97; vel.vz *= 0.97;
+
+      tr.x += vel.vx * dt;
+      tr.y += vel.vy * dt;
+      tr.z += vel.vz * dt;
+    }
+  });
+
+  // Render
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'R')) {
+      const tr = w.get('T', id);
+      const ri = w.get('R', id);
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(ri.idx, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh, mat };
+}
+
+/* ── Crystal spin scene ── */
+function buildCrystalScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  const [cols, rows] = desc.gridSize;
+  const spacing = 0.35;
+  for (let i = 0; i < desc.entities; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = (col - (cols - 1) / 2) * spacing;
+    const z = (row - (rows - 1) / 2) * spacing;
+    const rx = (Math.random() - 0.5) * 2;
+    const ry = (Math.random() - 0.5) * 2;
+    world.spawn((id, w) => {
+      w.set('T', id, { x, y: 0, z });
+      w.set('Spin', id, { rx, ry, rotX: 0, rotY: 0 });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const dummy = new THREE.Object3D();
+
+  // Spin system
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'Spin')) {
+      const sp = w.get('Spin', id);
+      sp.rotX += sp.rx * dt;
+      sp.rotY += sp.ry * dt;
+    }
+  });
+
+  // Render
+  world.addSys((w, dt) => {
+    const t = performance.now() / 1000;
+    for (const id of w.query('T', 'Spin', 'R')) {
+      const tr = w.get('T', id);
+      const sp = w.get('Spin', id);
+      const ri = w.get('R', id);
+      dummy.position.set(tr.x, Math.sin(t + tr.x * 2 + tr.z * 2) * 0.2, tr.z);
+      dummy.rotation.set(sp.rotX, sp.rotY, 0);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(ri.idx, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh, mat };
+}
+
+/* ── Trail scene ── */
+function buildTrailScene(desc, world, scene3d) {
+  const headGeo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const trailLen = desc.trailLength || 12;
+  const totalTrailParticles = desc.entities * trailLen;
+  const headMesh = new THREE.InstancedMesh(headGeo, mat, desc.entities);
+  headMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(headMesh);
+
+  const dotGeo = new THREE.SphereGeometry(desc.radius * 0.4, 8, 6);
+  const trailMat = createHybridMaterial(desc.palette);
+  const trailMesh = new THREE.InstancedMesh(dotGeo, trailMat, totalTrailParticles);
+  trailMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(trailMesh);
+
+  for (let i = 0; i < desc.entities; i++) {
+    const angle = (i / desc.entities) * Math.PI * 2;
+    const r = 0.5 + Math.random() * 0.5;
+    const points = [];
+    for (let j = 0; j < trailLen; j++) points.push({ x: 0, y: 0, z: 0 });
+    world.spawn((id, w) => {
+      w.set('T', id, { x: Math.cos(angle) * r, y: 0, z: Math.sin(angle) * r });
+      w.set('V', id, { vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.3, vz: (Math.random() - 0.5) * 0.5 });
+      w.set('Trail', id, { points, headIdx: i });
+      w.set('R', id, { idx: i });
+    });
+  }
+
+  const dummy = new THREE.Object3D();
+  const BOUND = 1.2;
+
+  // Trail update system
+  world.addSys((w, dt) => {
+    const t = performance.now() / 1000;
+    for (const id of w.query('T', 'V', 'Trail')) {
+      const tr = w.get('T', id);
+      const vel = w.get('V', id);
+      const trail = w.get('Trail', id);
+
+      // Steering
+      const tx = Math.sin(t * 0.8 + trail.headIdx) * 0.8;
+      const ty = Math.cos(t * 0.6 + trail.headIdx * 2) * 0.5;
+      const tz = Math.sin(t * 0.4 + trail.headIdx * 3) * 0.8;
+      vel.vx += (tx - tr.x) * 0.5 * dt;
+      vel.vy += (ty - tr.y) * 0.5 * dt;
+      vel.vz += (tz - tr.z) * 0.5 * dt;
+      vel.vx *= 0.98; vel.vy *= 0.98; vel.vz *= 0.98;
+
+      tr.x += vel.vx * dt;
+      tr.y += vel.vy * dt;
+      tr.z += vel.vz * dt;
+
+      // Boundary wrap
+      if (tr.x > BOUND) tr.x = -BOUND;
+      if (tr.x < -BOUND) tr.x = BOUND;
+      if (tr.y > BOUND) tr.y = -BOUND;
+      if (tr.y < -BOUND) tr.y = BOUND;
+      if (tr.z > BOUND) tr.z = -BOUND;
+      if (tr.z < -BOUND) tr.z = BOUND;
+
+      // Push to trail
+      trail.points.pop();
+      trail.points.unshift({ x: tr.x, y: tr.y, z: tr.z });
+    }
+  });
+
+  // Trail render system
+  world.addSys((w, dt) => {
+    for (const id of w.query('T', 'Trail', 'R')) {
+      const tr = w.get('T', id);
+      const trail = w.get('Trail', id);
+      const ri = w.get('R', id);
+
+      // Head
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      headMesh.setMatrixAt(ri.idx, dummy.matrix);
+
+      // Trail dots
+      for (let j = 0; j < trail.points.length; j++) {
+        const pt = trail.points[j];
+        const s = 1 - (j / trail.points.length) * 0.8;
+        dummy.position.set(pt.x, pt.y, pt.z);
+        dummy.scale.set(s, s, s);
+        dummy.updateMatrix();
+        trailMesh.setMatrixAt(trail.headIdx * trailLen + j, dummy.matrix);
+      }
+    }
+    headMesh.instanceMatrix.needsUpdate = true;
+    trailMesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return { mesh: headMesh, mat, extraMeshes: [trailMesh], extraMats: [trailMat] };
+}
+
+/* ── Explosion scene ── */
+function buildExplosionScene(desc, world, scene3d) {
+  const geo = makeGeometry(desc);
+  const mat = createHybridMaterial(desc.palette);
+  const mesh = new THREE.InstancedMesh(geo, mat, desc.entities);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  scene3d.add(mesh);
+
+  const dummy = new THREE.Object3D();
+
+  function spawnBurst(w) {
+    w.clear();
+    for (let i = 0; i < desc.entities; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const speed = 0.5 + Math.random() * 1.5;
+      world.spawn((id, w2) => {
+        w2.set('T', id, { x: 0, y: 0, z: 0 });
+        w2.set('V', id, {
+          vx: Math.sin(phi) * Math.cos(theta) * speed,
+          vy: Math.sin(phi) * Math.sin(theta) * speed,
+          vz: Math.cos(phi) * speed
+        });
+        w2.set('Life', id, { ttl: 1.5 + Math.random() * 1.5, max: 3.0 });
+        w2.set('R', id, { idx: i });
+      });
+    }
+
+    // Re-add systems after clear
+    // Life system
+    w.addSys((w2, dt) => {
+      let allDead = true;
+      for (const id of w2.query('Life')) {
+        const life = w2.get('Life', id);
+        life.ttl -= dt;
+        if (life.ttl > 0) allDead = false;
+      }
+      if (allDead && w2.ents.size > 0) {
+        spawnBurst(w2);
+      }
+    });
+
+    // Move system
+    w.addSys((w2, dt) => {
+      for (const id of w2.query('T', 'V', 'Life')) {
+        const tr = w2.get('T', id);
+        const vel = w2.get('V', id);
+        const life = w2.get('Life', id);
+        if (life.ttl <= 0) continue;
+        tr.x += vel.vx * dt;
+        tr.y += vel.vy * dt;
+        tr.z += vel.vz * dt;
+        vel.vx *= 0.98; vel.vy *= 0.98; vel.vz *= 0.98;
+      }
+    });
+
+    // Render system
+    w.addSys((w2, dt) => {
+      for (const id of w2.query('T', 'Life', 'R')) {
+        const tr = w2.get('T', id);
+        const life = w2.get('Life', id);
+        const ri = w2.get('R', id);
+        const s = Math.max(life.ttl / life.max, 0);
+        dummy.position.set(tr.x, tr.y, tr.z);
+        dummy.scale.set(s, s, s);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(ri.idx, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    });
+  }
+
+  spawnBurst(world);
+
+  return { mesh, mat, clickHandler: () => spawnBurst(world) };
+}
+
+/* Master build function */
+function buildSceneFromJSON(sceneName) {
+  const desc = SCENES[sceneName];
+  if (!desc) return null;
+
+  const world = new World();
+  const scene3d = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 50);
+  camera.position.set(0, 0.5, 3.5);
+  camera.lookAt(0, 0, 0);
+
+  // Lighting
+  const ambLight = new THREE.AmbientLight(0xffffff, 0.3);
+  scene3d.add(ambLight);
+  const dirLight = new THREE.DirectionalLight(0xfff0e0, 0.8);
+  dirLight.position.set(2, 3, 2);
+  scene3d.add(dirLight);
+
+  let result;
+  switch (sceneName) {
+    case 'wave':      result = buildWaveScene(desc, world, scene3d); break;
+    case 'orbit':     result = buildOrbitScene(desc, world, scene3d); break;
+    case 'gravity':   result = buildGravityScene(desc, world, scene3d); break;
+    case 'boid':      result = buildBoidScene(desc, world, scene3d); break;
+    case 'swarm':     result = buildSwarmScene(desc, world, scene3d); break;
+    case 'crystal':   result = buildCrystalScene(desc, world, scene3d); break;
+    case 'trail':     result = buildTrailScene(desc, world, scene3d); break;
+    case 'explosion': result = buildExplosionScene(desc, world, scene3d); break;
+    default: return null;
+  }
+
+  return { world, scene3d, camera, ...result };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   5. CARD DATA ARRAY
+   ═══════════════════════════════════════════════════════════════════════ */
+const cards = [
+  { type:'3d-hero', h:280, scene:'wave', title:'Hybrid<br>Architecture', sub:'ECS + Shaders + JSON', foot:{color:'#f5a623',name:'Wave Grid',likes:'4.1k'} },
+  { type:'pixel', data:{label:'HYBRID CORE', body:'WORLD.SPAWN(INIT)\nWORLD.SET(TAG, ID, DATA)\nWORLD.STEP(DT)\n\u2192 SHADER(PALETTE)', foot:'ECS + ShaderMaterial'} },
+  { type:'3d', h:220, scene:'orbit', foot:{color:'#fbbf24',name:'Orbit Ring',likes:'2.8k'} },
+  { type:'text', data:{h:'ECS Meets<br>Custom Shaders', p:'NiceWolf ECS for data-driven scene assembly. Hand-written Fresnel + SSS shaders for visual quality. Best of both worlds.', tag:'Architecture'} },
+  { type:'3d', h:240, scene:'gravity', foot:{color:'#d97706',name:'Gravity Well',likes:'3.5k'} },
+  { type:'deck', data:{lbl:'INSIGHT', h:'Systems are<br>pure functions', author:'\u2014 NiceWolf ECS'} },
+  { type:'3d', h:220, scene:'boid', foot:{color:'#f5a623',name:'Boid Flock',likes:'2.4k'} },
+  { type:'love', data:{hearts:'\u2726 \u25C6 \u2726', h:'Data Loves<br>Shaders', p:'When ECS structure meets custom materials, every entity gets premium rendering'} },
+  { type:'3d-hero', h:260, scene:'swarm', title:'JSON<br>Declarative', sub:'AI-friendly scene descriptions', foot:{color:'#fbbf24',name:'Swarm Field',likes:'3.9k'} },
+  { type:'cjk', data:{h:'\u6DF7\u5408\u67B6\u6784', p:'ECS \u6570\u636E\u9A71\u52A8 \u00D7 \u624B\u5199\u7740\u8272\u5668 \u00D7 JSON \u58F0\u660E\u5F0F'} },
+  { type:'3d', h:200, scene:'crystal', foot:{color:'#d97706',name:'Crystal Spin',likes:'1.9k'} },
+  { type:'play', data:{h:'spawn<br>step'} },
+  { type:'3d', h:240, scene:'trail', foot:{color:'#f5a623',name:'Trail System',likes:'2.1k'} },
+  { type:'happy-robot' },
+  { type:'tool', data:{label:'+Generate a scene from JSON'} },
+  { type:'text', data:{h:'12 Cosine<br>Palettes', p:'Nebula, coral, aurora, sunset, ember, ocean \u2014 each palette drives Fresnel rims, SSS tints, and environment reflections.', tag:'Shaders'} },
+  { type:'3d', h:220, scene:'explosion', foot:{color:'#fbbf24',name:'Burst',likes:'2.7k'} },
+  { type:'pixel', data:{label:'SCENE JSON', body:'{ ENTITIES: 45,\n  GEOMETRY: "SPHERE",\n  PALETTE: "NEBULA",\n  SYSTEMS: ["WAVE"] }', foot:'AI can generate this'} },
+  { type:'text', data:{h:'Single Renderer<br>Scissor Culling', p:'One WebGLRenderer, many scenes. Scissor test ensures only visible cards are rendered. Zero wasted GPU cycles.', tag:'Performance'} },
+  { type:'deck', data:{lbl:'PHILOSOPHY', h:'Prompt \u2192<br>JSON \u2192 ECS', author:'\u2014 Hybrid Architecture'} },
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   6. DOM RENDERING
+   ═══════════════════════════════════════════════════════════════════════ */
+const grid = document.getElementById('grid');
+const sceneInstances = []; // { el, world, scene3d, camera, mat, extraMats, visible }
+
+cards.forEach((c, idx) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.animationDelay = `${idx * 60}ms`;
+
+  if (c.type === '3d-hero' || c.type === '3d') {
+    const isHero = c.type === '3d-hero';
+    const sceneDiv = document.createElement('div');
+    sceneDiv.className = 'scene';
+    sceneDiv.style.height = (c.h || 220) + 'px';
+    sceneDiv.setAttribute('data-scene', c.scene);
+    card.appendChild(sceneDiv);
+
+    // Badge
+    const badge = document.createElement('div');
+    badge.className = 'badge-3d';
+    badge.textContent = isHero ? 'HYBRID' : 'ECS';
+    sceneDiv.appendChild(badge);
+
+    // Overlay for hero
+    if (isHero) {
+      const ov = document.createElement('div');
+      ov.className = 'overlay gradient';
+      ov.innerHTML = `<h2>${c.title}</h2><p>${c.sub}</p>`;
+      sceneDiv.appendChild(ov);
+    }
+
+    // Footer
+    if (c.foot) {
+      const foot = document.createElement('div');
+      foot.className = 'card-foot dark';
+      foot.innerHTML = `<div class="dot" style="background:${c.foot.color}"></div><span class="name">${c.foot.name}</span><span class="likes">\u2764 ${c.foot.likes}</span>`;
+      card.appendChild(foot);
+    }
+
+    // Build the 3D scene
+    const inst = buildSceneFromJSON(c.scene);
+    if (inst) {
+      sceneInstances.push({
+        el: sceneDiv,
+        world: inst.world,
+        scene3d: inst.scene3d,
+        camera: inst.camera,
+        mat: inst.mat,
+        extraMats: inst.extraMats || [],
+        hovered: false,
+        visible: false,
+        clickHandler: inst.clickHandler || null,
+      });
+
+      // Click handler for explosion
+      if (inst.clickHandler) {
+        card.addEventListener('click', inst.clickHandler);
+      }
+
+      // Hover tracking
+      card.addEventListener('mouseenter', () => {
+        const si = sceneInstances.find(s => s.el === sceneDiv);
+        if (si) si.hovered = true;
+      });
+      card.addEventListener('mouseleave', () => {
+        const si = sceneInstances.find(s => s.el === sceneDiv);
+        if (si) si.hovered = false;
+      });
+    }
+  }
+  else if (c.type === 'text') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-text"><h3>${d.h}</h3><p>${d.p}</p>${d.tag ? `<span class="tag">${d.tag}</span>` : ''}</div>`;
+  }
+  else if (c.type === 'pixel') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-pixel"><div class="label">${d.label}</div><div class="body">${d.body.replace(/\n/g, '<br>')}</div><div class="foot">${d.foot}</div></div>`;
+  }
+  else if (c.type === 'love') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-love"><div class="hearts">${d.hearts}</div><h3>${d.h}</h3><p>${d.p}</p></div>`;
+  }
+  else if (c.type === 'deck') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-deck"><div class="lbl">${d.lbl}</div><h3>${d.h}</h3><div class="author">${d.author}</div></div>`;
+  }
+  else if (c.type === 'play') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-play"><h2>${d.h}</h2></div>`;
+  }
+  else if (c.type === 'cjk') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-cjk"><h3>${d.h}</h3><p>${d.p}</p></div>`;
+  }
+  else if (c.type === 'tool') {
+    const d = c.data;
+    card.innerHTML = `<div class="card-tool"><div class="icon">\u2726</div><p>${d.label}</p></div>`;
+  }
+  else if (c.type === 'happy-robot') {
+    card.innerHTML = `
+      <div class="card-happy-robot">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        <div class="speech-bubble">Hybrid!</div>
+        <div class="robot-container">
+          <div class="robot-antenna"><div class="robot-antenna-tip"></div></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+            <div class="robot-buttons"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <p class="robot-title">Hybrid Bot</p>
+        <button class="robot-btn">Say Hello</button>
+      </div>`;
+
+    // Mouse tracking for robot eyes
+    const robotEl = card;
+    robotEl.addEventListener('mousemove', (e) => {
+      const rect = robotEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height * 0.35;
+      const dx = (e.clientX - cx) / rect.width;
+      const dy = (e.clientY - cy) / rect.height;
+      const face = robotEl.querySelector('.robot-face');
+      const eyes = robotEl.querySelectorAll('.robot-eye');
+      const container = robotEl.querySelector('.robot-container');
+      if (face) face.style.transform = `translate(calc(-50% + ${dx * 3}px), calc(-50% + ${dy * 2}px))`;
+      eyes.forEach(eye => { eye.style.transform = `translate(${dx * 4}px, ${dy * 3}px)`; });
+      if (container) container.style.transform = `perspective(400px) rotateY(${dx * 5}deg) rotateX(${-dy * 3}deg)`;
+    });
+    robotEl.addEventListener('mouseleave', () => {
+      const face = robotEl.querySelector('.robot-face');
+      const eyes = robotEl.querySelectorAll('.robot-eye');
+      const container = robotEl.querySelector('.robot-container');
+      if (face) face.style.transform = 'translate(-50%, -50%)';
+      eyes.forEach(eye => { eye.style.transform = 'translate(0, 0)'; });
+      if (container) container.style.transform = 'none';
+    });
+  }
+
+  grid.appendChild(card);
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   7. SHARED RENDERER + SCISSOR LOOP
+   ═══════════════════════════════════════════════════════════════════════ */
+const canvas = document.createElement('canvas');
+canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;';
+document.body.prepend(canvas);
+
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setScissorTest(true);
+renderer.autoClear = false;
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// IntersectionObserver for visibility tracking
+const observer = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    const si = sceneInstances.find(s => s.el === entry.target);
+    if (si) si.visible = entry.isIntersecting;
+  }
+}, { rootMargin: '200px' });
+
+sceneInstances.forEach(si => observer.observe(si.el));
+
+// Main RAF loop
+let lastTime = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.05); // cap at 50ms
+  lastTime = now;
+
+  const fullW = renderer.domElement.width;
+  const fullH = renderer.domElement.height;
+
+  renderer.clear();
+
+  for (const si of sceneInstances) {
+    if (!si.visible) continue;
+
+    const rect = si.el.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight || rect.width === 0 || rect.height === 0) continue;
+
+    // Convert DOM rect to canvas pixel coordinates
+    const dpr = renderer.getPixelRatio();
+    const x = rect.left * dpr;
+    const y = (window.innerHeight - rect.bottom) * dpr;
+    const w = rect.width * dpr;
+    const h = rect.height * dpr;
+
+    // Clamp to canvas bounds
+    const cx = Math.max(0, Math.floor(x));
+    const cy = Math.max(0, Math.floor(y));
+    const cw = Math.min(fullW - cx, Math.ceil(w));
+    const ch = Math.min(fullH - cy, Math.ceil(h));
+    if (cw <= 0 || ch <= 0) continue;
+
+    // Update camera aspect
+    si.camera.aspect = rect.width / rect.height;
+    si.camera.updateProjectionMatrix();
+
+    // Update ECS world
+    si.world.step(dt);
+
+    // Update shader uniforms
+    const t = now / 1000;
+    const targetHover = si.hovered ? 1 : 0;
+    if (si.mat) {
+      if (si.mat.uniforms) {
+        si.mat.uniforms.uTime.value = t;
+        si.mat.uniforms.uHover.value += (targetHover - si.mat.uniforms.uHover.value) * 0.08;
+      }
+    }
+    if (si.extraMats) {
+      for (const em of si.extraMats) {
+        if (em && em.uniforms) {
+          em.uniforms.uTime.value = t;
+          em.uniforms.uHover.value += (targetHover - em.uniforms.uHover.value) * 0.08;
+        }
+      }
+    }
+
+    // Rotate camera subtly
+    si.camera.position.x = Math.sin(t * 0.2) * 0.3;
+    si.camera.position.y = 0.5 + Math.sin(t * 0.15) * 0.1;
+    si.camera.lookAt(0, 0, 0);
+
+    // Scissor render
+    renderer.setScissor(cx, cy, cw, ch);
+    renderer.setViewport(cx, cy, cw, ch);
+    renderer.render(si.scene3d, si.camera);
+  }
+}
+
+animate();
+</script>
+</body>
+</html>
