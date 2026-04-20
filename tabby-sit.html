@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabby Cat — Sitting | 3D LAB</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #1a1a2e; font-family: 'Inter', -apple-system, sans-serif; }
+canvas { display: block; }
+#nav { position: fixed; top: 0; left: 0; right: 0; height: 48px; display: flex; align-items: center; padding: 0 24px; z-index: 100; }
+#nav a { color: #aaa; text-decoration: none; font-size: 14px; transition: color 0.2s; }
+#nav a:hover { color: #f5a623; }
+#nav .logo { font-weight: 700; font-size: 18px; color: #f5a623; letter-spacing: 2px; margin-right: 24px; }
+#info { position: fixed; bottom: 24px; left: 24px; background: rgba(20,20,35,0.75); backdrop-filter: blur(12px); border: 1px solid rgba(245,166,35,0.2); border-radius: 12px; padding: 20px; max-width: 360px; color: #eee; z-index: 100; }
+#info h2 { font-size: 16px; margin-bottom: 6px; color: #f5a623; }
+#info p { font-size: 12px; color: #aaa; margin-bottom: 4px; }
+#info pre { font-size: 10px; color: #888; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-top: 8px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<div id="nav">
+  <span class="logo">3D&middot;LAB</span>
+  <a href="index.html">&larr; Back</a>
+</div>
+<div id="info">
+  <h2>&#x1F431; Tabby Cat &mdash; Sitting</h2>
+  <p>Reference: 狸花猫坐在西瓜垫上</p>
+  <p id="stats">Entities: 0 | Systems: 0</p>
+  <pre id="descriptor">{
+  "subject": "tabby_cat",
+  "pose": "sitting",
+  "props": ["watermelon_cushion", "blue_sofa"],
+  "features": ["white_chest", "white_paws", "tabby_stripes"]
+}</pre>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// === ECS World ===
+class World {
+  constructor() { this.next = 0; this.ents = new Set(); this.store = new Map(); this.sys = []; }
+  spawn(init) { const id = this.next++; this.ents.add(id); if(init) init(id,this); return id; }
+  set(tag, id, data) { if(!this.store.has(tag)) this.store.set(tag,new Map()); this.store.get(tag).set(id,data); }
+  get(tag, id) { return this.store.get(tag)?.get(id); }
+  query(...tags) { const b=this.store.get(tags[0]); if(!b)return[]; const o=[]; for(const id of b.keys()) if(tags.every(t=>this.store.get(t)?.has(id))) o.push(id); return o; }
+  addSys(fn) { this.sys.push(fn); }
+  step(dt) { for(const fn of this.sys) fn(this,dt); }
+}
+
+const W = new World();
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf0ece4);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 50);
+camera.position.set(0, 1.2, 3.2);
+camera.lookAt(0, 0.6, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// === Lighting ===
+const ambient = new THREE.AmbientLight(0xfff8f0, 0.5);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xffeedd, 0.8);
+dirLight.position.set(3, 4, 2);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024, 1024);
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 12;
+dirLight.shadow.camera.left = -3;
+dirLight.shadow.camera.right = 3;
+dirLight.shadow.camera.top = 3;
+dirLight.shadow.camera.bottom = -1;
+scene.add(dirLight);
+
+const fillLight = new THREE.PointLight(0xffeebb, 0.3, 8);
+fillLight.position.set(-2, 1.5, 2);
+scene.add(fillLight);
+
+// === Materials ===
+function createTabbyMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec2 vUv;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec2 vUv;
+      float hash(vec3 p) {
+        p = fract(p * vec3(443.897, 441.423, 437.195));
+        p += dot(p, p.yzx + 19.19);
+        return fract((p.x + p.y) * p.z);
+      }
+      float noise(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float a = hash(i); float b = hash(i + vec3(1,0,0));
+        float c = hash(i + vec3(0,1,0)); float d = hash(i + vec3(1,1,0));
+        float e = hash(i + vec3(0,0,1)); float f2 = hash(i + vec3(1,0,1));
+        float g = hash(i + vec3(0,1,1)); float h = hash(i + vec3(1,1,1));
+        return mix(mix(mix(a,b,f.x), mix(c,d,f.x), f.y), mix(mix(e,f2,f.x), mix(g,h,f.x), f.y), f.z);
+      }
+      void main() {
+        vec3 baseColor = vec3(0.72, 0.55, 0.35);
+        float n = noise(vWorldPos * 3.0);
+        float stripe = smoothstep(0.35, 0.5, sin(vWorldPos.y * 10.0 + n * 3.0));
+        vec3 stripeColor = vec3(0.2, 0.13, 0.05);
+        vec3 color = mix(baseColor, stripeColor, stripe * 0.8);
+        vec3 lightDir = normalize(vec3(0.5, 1.0, 0.8));
+        float diff = max(dot(vNormal, lightDir), 0.0) * 0.6 + 0.4;
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
+        color = color * diff + vec3(0.9, 0.8, 0.6) * fresnel * 0.15;
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+}
+
+function createWhiteMaterial() {
+  return new THREE.MeshStandardMaterial({ color: 0xfaf5ee, roughness: 0.6, metalness: 0 });
+}
+function createPinkMaterial() {
+  return new THREE.MeshStandardMaterial({ color: 0xf5a0a0, roughness: 0.5, metalness: 0 });
+}
+function createEyeMaterial() {
+  return new THREE.MeshStandardMaterial({ color: 0x8bc34a, emissive: 0x4a7a10, emissiveIntensity: 0.3, roughness: 0.2, metalness: 0.1 });
+}
+function createDarkMaterial() {
+  return new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, metalness: 0 });
+}
+
+const tabbyMat = createTabbyMaterial();
+const whiteMat = createWhiteMaterial();
+const pinkMat = createPinkMaterial();
+const eyeMat = createEyeMaterial();
+const darkMat = createDarkMaterial();
+
+// === Build Cat ===
+const catGroup = new THREE.Group();
+catGroup.position.set(0, 0.45, 0);
+
+// Body
+const bodyGeo = new THREE.SphereGeometry(0.35, 24, 18);
+const body = new THREE.Mesh(bodyGeo, tabbyMat);
+body.scale.set(1.0, 1.3, 0.9);
+body.position.set(0, 0.1, 0);
+body.castShadow = true;
+catGroup.add(body);
+W.spawn((id, w) => { w.set('mesh', id, body); w.set('body', id, true); });
+
+// White chest
+const chestGeo = new THREE.SphereGeometry(0.26, 18, 14);
+const chest = new THREE.Mesh(chestGeo, whiteMat);
+chest.scale.set(0.8, 1.1, 0.7);
+chest.position.set(0, 0.05, 0.12);
+chest.castShadow = true;
+catGroup.add(chest);
+W.spawn((id, w) => { w.set('mesh', id, chest); });
+
+// Head
+const headGeo = new THREE.SphereGeometry(0.25, 22, 16);
+const head = new THREE.Mesh(headGeo, tabbyMat);
+head.scale.set(1.0, 0.95, 0.9);
+head.position.set(0, 0.55, 0.08);
+head.castShadow = true;
+catGroup.add(head);
+W.spawn((id, w) => { w.set('mesh', id, head); w.set('head', id, true); });
+
+// Ears
+function makeEar(x) {
+  const earGroup = new THREE.Group();
+  const outerGeo = new THREE.ConeGeometry(0.08, 0.16, 4);
+  const outer = new THREE.Mesh(outerGeo, tabbyMat);
+  earGroup.add(outer);
+  const innerGeo = new THREE.ConeGeometry(0.05, 0.11, 4);
+  const inner = new THREE.Mesh(innerGeo, pinkMat);
+  inner.position.y = 0.01;
+  earGroup.add(inner);
+  earGroup.position.set(x * 0.14, 0.78, 0.05);
+  earGroup.rotation.z = x * -0.15;
+  earGroup.rotation.x = -0.1;
+  return earGroup;
+}
+const earL = makeEar(-1);
+const earR = makeEar(1);
+catGroup.add(earL);
+catGroup.add(earR);
+W.spawn((id, w) => { w.set('mesh', id, earL); w.set('ear', id, { side: 'left', base: earL.rotation.z }); });
+W.spawn((id, w) => { w.set('mesh', id, earR); w.set('ear', id, { side: 'right', base: earR.rotation.z }); });
+
+// Eyes
+function makeEye(x) {
+  const eyeGroup = new THREE.Group();
+  const outerGeo = new THREE.SphereGeometry(0.055, 14, 10);
+  const outer = new THREE.Mesh(outerGeo, eyeMat);
+  outer.scale.set(1, 1, 0.6);
+  eyeGroup.add(outer);
+  // Pupil slit
+  const pupilGeo = new THREE.SphereGeometry(0.025, 8, 8);
+  const pupil = new THREE.Mesh(pupilGeo, darkMat);
+  pupil.scale.set(0.35, 1.4, 0.5);
+  pupil.position.z = 0.03;
+  eyeGroup.add(pupil);
+  // Highlight
+  const hlGeo = new THREE.SphereGeometry(0.015, 6, 6);
+  const hl = new THREE.Mesh(hlGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  hl.position.set(0.015, 0.02, 0.04);
+  eyeGroup.add(hl);
+  eyeGroup.position.set(x * 0.09, 0.58, 0.2);
+  return eyeGroup;
+}
+const eyeL = makeEye(-1);
+const eyeR = makeEye(1);
+catGroup.add(eyeL);
+catGroup.add(eyeR);
+W.spawn((id, w) => { w.set('mesh', id, eyeL); w.set('eye', id, { orig: eyeL.scale.clone() }); });
+W.spawn((id, w) => { w.set('mesh', id, eyeR); w.set('eye', id, { orig: eyeR.scale.clone() }); });
+
+// Nose
+const noseGeo = new THREE.SphereGeometry(0.025, 8, 6);
+const nose = new THREE.Mesh(noseGeo, pinkMat);
+nose.scale.set(1.2, 0.8, 0.7);
+nose.position.set(0, 0.5, 0.24);
+catGroup.add(nose);
+W.spawn((id, w) => { w.set('mesh', id, nose); });
+
+// Muzzle bumps
+const muzzleGeo = new THREE.SphereGeometry(0.04, 10, 8);
+const muzzleL = new THREE.Mesh(muzzleGeo, whiteMat);
+muzzleL.position.set(-0.04, 0.48, 0.21);
+muzzleL.scale.set(1, 0.8, 0.7);
+catGroup.add(muzzleL);
+const muzzleR = new THREE.Mesh(muzzleGeo, whiteMat);
+muzzleR.position.set(0.04, 0.48, 0.21);
+muzzleR.scale.set(1, 0.8, 0.7);
+catGroup.add(muzzleR);
+W.spawn((id, w) => { w.set('mesh', id, muzzleL); });
+W.spawn((id, w) => { w.set('mesh', id, muzzleR); });
+
+// Front legs
+function makeFrontLeg(x) {
+  const legGroup = new THREE.Group();
+  const legGeo = new THREE.CylinderGeometry(0.06, 0.055, 0.3, 10);
+  const leg = new THREE.Mesh(legGeo, tabbyMat);
+  leg.castShadow = true;
+  legGroup.add(leg);
+  // White paw
+  const pawGeo = new THREE.SphereGeometry(0.06, 10, 8);
+  const paw = new THREE.Mesh(pawGeo, whiteMat);
+  paw.position.y = -0.15;
+  paw.scale.set(1, 0.7, 1.1);
+  paw.castShadow = true;
+  legGroup.add(paw);
+  legGroup.position.set(x * 0.12, -0.18, 0.18);
+  return legGroup;
+}
+const legFL = makeFrontLeg(-1);
+const legFR = makeFrontLeg(1);
+catGroup.add(legFL);
+catGroup.add(legFR);
+W.spawn((id, w) => { w.set('mesh', id, legFL); });
+W.spawn((id, w) => { w.set('mesh', id, legFR); });
+
+// Back legs (mostly hidden)
+function makeBackLeg(x) {
+  const geo = new THREE.SphereGeometry(0.1, 12, 10);
+  const leg = new THREE.Mesh(geo, tabbyMat);
+  leg.scale.set(1, 0.8, 1.1);
+  leg.position.set(x * 0.22, -0.22, -0.05);
+  leg.castShadow = true;
+  return leg;
+}
+const legBL = makeBackLeg(-1);
+const legBR = makeBackLeg(1);
+catGroup.add(legBL);
+catGroup.add(legBR);
+W.spawn((id, w) => { w.set('mesh', id, legBL); });
+W.spawn((id, w) => { w.set('mesh', id, legBR); });
+
+// Back paws peeking
+function makeBackPaw(x) {
+  const pawGeo = new THREE.SphereGeometry(0.05, 8, 6);
+  const paw = new THREE.Mesh(pawGeo, whiteMat);
+  paw.scale.set(1, 0.6, 1.2);
+  paw.position.set(x * 0.28, -0.32, 0.08);
+  paw.castShadow = true;
+  return paw;
+}
+catGroup.add(makeBackPaw(-1));
+catGroup.add(makeBackPaw(1));
+
+// Tail - chain of spheres
+const tailSegments = [];
+for (let i = 0; i < 8; i++) {
+  const t = i / 7;
+  const geo = new THREE.SphereGeometry(0.045 - i * 0.003, 8, 6);
+  const seg = new THREE.Mesh(geo, tabbyMat);
+  const angle = t * Math.PI * 0.7;
+  seg.position.set(
+    -Math.sin(angle) * (0.2 + t * 0.15),
+    -0.2 + t * 0.02,
+    -0.15 - Math.cos(angle) * (0.1 + t * 0.05)
+  );
+  seg.castShadow = true;
+  catGroup.add(seg);
+  tailSegments.push(seg);
+  W.spawn((id, w) => { w.set('mesh', id, seg); w.set('tail', id, { index: i, basePos: seg.position.clone() }); });
+}
+
+scene.add(catGroup);
+
+// === Watermelon Cushion ===
+const cushionGroup = new THREE.Group();
+cushionGroup.position.set(0, 0.08, 0);
+
+// Green rind (cylinder)
+const rindGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.14, 32);
+const rindMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.7 });
+const rind = new THREE.Mesh(rindGeo, rindMat);
+rind.receiveShadow = true;
+rind.castShadow = true;
+cushionGroup.add(rind);
+
+// Red top disc
+const topGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.02, 32);
+const topMat = new THREE.MeshStandardMaterial({ color: 0xd4443b, roughness: 0.6 });
+const top = new THREE.Mesh(topGeo, topMat);
+top.position.y = 0.07;
+top.receiveShadow = true;
+cushionGroup.add(top);
+
+// Seeds
+const seedGeo = new THREE.SphereGeometry(0.015, 6, 4);
+for (let i = 0; i < 7; i++) {
+  const angle = (i / 7) * Math.PI * 2 + 0.3;
+  const r = 0.15 + Math.random() * 0.25;
+  const seed = new THREE.Mesh(seedGeo, darkMat);
+  seed.position.set(Math.cos(angle) * r, 0.085, Math.sin(angle) * r);
+  seed.scale.set(1, 0.5, 1.5);
+  cushionGroup.add(seed);
+}
+
+scene.add(cushionGroup);
+W.spawn((id, w) => { w.set('mesh', id, cushionGroup); });
+
+// === Blue Sofa ===
+const sofaGroup = new THREE.Group();
+sofaGroup.position.set(0, 0, -0.8);
+const sofaMat = new THREE.MeshStandardMaterial({ color: 0x3a6b8c, roughness: 0.8, metalness: 0 });
+
+// Seat
+const seatGeo = new THREE.BoxGeometry(2.2, 0.35, 0.9);
+const seat = new THREE.Mesh(seatGeo, sofaMat);
+seat.position.y = 0.18;
+seat.receiveShadow = true;
+seat.castShadow = true;
+sofaGroup.add(seat);
+
+// Backrest
+const backGeo = new THREE.BoxGeometry(2.2, 0.9, 0.25);
+const back = new THREE.Mesh(backGeo, sofaMat);
+back.position.set(0, 0.6, -0.35);
+back.castShadow = true;
+sofaGroup.add(back);
+
+// Armrests
+const armGeo = new THREE.BoxGeometry(0.2, 0.5, 0.8);
+const armL = new THREE.Mesh(armGeo, sofaMat);
+armL.position.set(-1.1, 0.4, -0.05);
+armL.castShadow = true;
+sofaGroup.add(armL);
+const armR = new THREE.Mesh(armGeo, sofaMat);
+armR.position.set(1.1, 0.4, -0.05);
+armR.castShadow = true;
+sofaGroup.add(armR);
+
+// Cushion details (slight bumps on seat)
+const cGeo = new THREE.SphereGeometry(0.35, 14, 10);
+for (let i = -1; i <= 1; i++) {
+  const c = new THREE.Mesh(cGeo, sofaMat);
+  c.scale.set(1, 0.25, 0.7);
+  c.position.set(i * 0.7, 0.32, 0.0);
+  sofaGroup.add(c);
+}
+
+scene.add(sofaGroup);
+W.spawn((id, w) => { w.set('mesh', id, sofaGroup); });
+
+// === Floor ===
+const floorGeo = new THREE.PlaneGeometry(8, 6);
+const floorMat = new THREE.MeshStandardMaterial({ color: 0xc4a882, roughness: 0.9 });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.01;
+floor.receiveShadow = true;
+scene.add(floor);
+W.spawn((id, w) => { w.set('mesh', id, floor); });
+
+// === Wall ===
+const wallGeo = new THREE.PlaneGeometry(8, 4);
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xf0ece4, roughness: 1 });
+const wall = new THREE.Mesh(wallGeo, wallMat);
+wall.position.set(0, 2, -1.8);
+scene.add(wall);
+W.spawn((id, w) => { w.set('mesh', id, wall); });
+
+// === Animation Systems ===
+let time = 0;
+let mouseX = 0, mouseY = 0;
+document.addEventListener('mousemove', (e) => {
+  mouseX = (e.clientX / innerWidth - 0.5) * 2;
+  mouseY = (e.clientY / innerHeight - 0.5) * 2;
+});
+
+// Breathing
+W.addSys((w, dt) => {
+  const ids = w.query('body');
+  for (const id of ids) {
+    const mesh = w.get('mesh', id);
+    mesh.scale.y = 1.3 + Math.sin(time * 1.5) * 0.012;
+  }
+});
+
+// Ear twitch
+let earTwitchTimer = 0;
+let earTwitchTarget = 0;
+let earTwitchSide = 0;
+W.addSys((w, dt) => {
+  earTwitchTimer -= dt;
+  if (earTwitchTimer <= 0 && Math.random() < 0.02) {
+    earTwitchTimer = 0.3;
+    earTwitchTarget = 0.12;
+    earTwitchSide = Math.random() > 0.5 ? 1 : -1;
+  }
+  earTwitchTarget *= 0.92;
+  const ids = w.query('ear');
+  for (const id of ids) {
+    const data = w.get('ear', id);
+    const mesh = w.get('mesh', id);
+    const apply = data.side === 'left' ? (earTwitchSide <= 0 ? earTwitchTarget : 0) : (earTwitchSide >= 0 ? earTwitchTarget : 0);
+    mesh.rotation.z = data.base + apply * (data.side === 'left' ? 1 : -1);
+  }
+});
+
+// Tail wave
+W.addSys((w, dt) => {
+  const ids = w.query('tail');
+  for (const id of ids) {
+    const data = w.get('tail', id);
+    const mesh = w.get('mesh', id);
+    const i = data.index;
+    const wave = Math.sin(time * 0.8 + i * 0.4) * 0.04 * (1 + i * 0.3);
+    mesh.position.y = data.basePos.y + wave;
+    mesh.position.x = data.basePos.x + Math.sin(time * 0.6 + i * 0.5) * 0.015 * (1 + i * 0.2);
+  }
+});
+
+// Eye blink
+let blinkTimer = 0;
+let blinking = false;
+W.addSys((w, dt) => {
+  blinkTimer -= dt;
+  if (blinkTimer <= 0 && !blinking && Math.random() < 0.008) {
+    blinking = true;
+    blinkTimer = 0.15;
+  }
+  if (blinking && blinkTimer <= 0) {
+    blinking = false;
+    blinkTimer = 2 + Math.random() * 3;
+  }
+  const ids = w.query('eye');
+  for (const id of ids) {
+    const mesh = w.get('mesh', id);
+    const targetY = blinking ? 0.1 : 1.0;
+    mesh.scale.y += (targetY - mesh.scale.y) * 0.3;
+  }
+});
+
+// Subtle head/eye look at mouse
+W.addSys((w, dt) => {
+  const ids = w.query('head');
+  for (const id of ids) {
+    const mesh = w.get('mesh', id);
+    mesh.rotation.y += (mouseX * 0.08 - mesh.rotation.y) * 0.05;
+    mesh.rotation.x += (-mouseY * 0.04 - mesh.rotation.x) * 0.05;
+  }
+  // Move eyes slightly
+  eyeL.rotation.y += (mouseX * 0.06 - eyeL.rotation.y) * 0.05;
+  eyeR.rotation.y += (mouseX * 0.06 - eyeR.rotation.y) * 0.05;
+});
+
+// === Stats update ===
+document.getElementById('stats').textContent = `Entities: ${W.ents.size} | Systems: ${W.sys.length}`;
+
+// === Resize ===
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// === Render Loop ===
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = 1/60;
+  time += dt;
+  tabbyMat.uniforms.uTime.value = time;
+  W.step(dt);
+
+  // Subtle camera sway
+  camera.position.x = Math.sin(time * 0.2) * 0.08;
+  camera.position.y = 1.2 + Math.sin(time * 0.15) * 0.03;
+  camera.lookAt(0, 0.6, 0);
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
