@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabby Cat — Spline V2 | 3D LAB</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#f5f3ef;font-family:'Inter',sans-serif}
+  canvas{display:block}
+  .badge{position:fixed;top:24px;left:28px;z-index:10;display:flex;align-items:center;gap:10px}
+  .badge .logo{font-size:13px;font-weight:600;letter-spacing:2.5px;color:#bbb;text-transform:uppercase}
+  .badge a{font-size:12px;color:#bbb;text-decoration:none;transition:color .2s}
+  .badge a:hover{color:#666}
+  .card{position:fixed;bottom:32px;left:32px;z-index:10;background:rgba(255,255,255,0.82);backdrop-filter:blur(20px);border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:20px 24px;max-width:300px;box-shadow:0 4px 24px rgba(0,0,0,0.04)}
+  .card h2{font-size:15px;font-weight:600;color:#333;margin-bottom:4px}
+  .card p{font-size:12px;color:#999;line-height:1.5}
+  .card .tag{display:inline-block;margin-top:8px;padding:3px 8px;font-size:10px;color:#b08968;background:rgba(176,137,104,0.1);border-radius:20px}
+  .hint{position:fixed;bottom:32px;right:32px;z-index:10;font-size:11px;color:#ccc;letter-spacing:0.5px}
+</style>
+</head>
+<body>
+
+<div class="badge">
+  <span class="logo">3D Lab</span>
+  <a href="index.html">&larr; Back</a>
+</div>
+
+<div class="card">
+  <h2>Tabby Cat</h2>
+  <p>Spline-style soft clay aesthetic V2. Full post-processing pipeline with vignette, chromatic aberration, and film grain.</p>
+  <span class="tag">spline-v2 &middot; pbr &middot; bloom &middot; vignette &middot; mouse-reactive</span>
+</div>
+
+<div class="hint">drag to orbit &middot; scroll to zoom &middot; move mouse for parallax</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.164.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.164.1/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ─── Scene ───
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf5f3ef);
+
+// ─── Camera ───
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(2.5, 2.0, 4.5);
+camera.lookAt(0, 0.6, 0);
+
+// ─── Renderer ───
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// ─── Environment (PMREM) ───
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// ─── Lights (3-point + accents) ───
+const ambientLight = new THREE.AmbientLight(0xfff8f0, 0.5);
+scene.add(ambientLight);
+
+const keyLight = new THREE.DirectionalLight(0xffeedd, 2.0);
+keyLight.position.set(4, 6, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 20;
+keyLight.shadow.camera.left = -3;
+keyLight.shadow.camera.right = 3;
+keyLight.shadow.camera.top = 3;
+keyLight.shadow.camera.bottom = -1;
+keyLight.shadow.bias = -0.0008;
+keyLight.shadow.radius = 4;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xd4e0ff, 0.7);
+fillLight.position.set(-3, 2, -2);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffe8d0, 0.9);
+rimLight.position.set(-1, 3, -4);
+scene.add(rimLight);
+
+// Bottom fill to prevent harsh underside shadows (Spline trick)
+const bottomFill = new THREE.DirectionalLight(0xfff5ee, 0.3);
+bottomFill.position.set(0, -2, 2);
+scene.add(bottomFill);
+
+// ─── Materials (Spline-style clay / soft toy) ───
+const SEG = 64;
+
+function splineMat(color, opts = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(color),
+    roughness: opts.roughness ?? 0.38,
+    metalness: opts.metalness ?? 0.0,
+    clearcoat: opts.clearcoat ?? 0.8,
+    clearcoatRoughness: opts.clearcoatRoughness ?? 0.15,
+    sheen: opts.sheen ?? 0.25,
+    sheenRoughness: opts.sheenRoughness ?? 0.4,
+    sheenColor: new THREE.Color(opts.sheenColor ?? color),
+    envMapIntensity: opts.envMapIntensity ?? 1.2,
+    ...(opts.extra || {}),
+  });
+}
+
+// Tabby fur
+const furMat = splineMat('#c4956a', {
+  roughness: 0.42, clearcoat: 0.65, clearcoatRoughness: 0.18,
+  sheen: 0.5, sheenRoughness: 0.5, sheenColor: '#e8b88a',
+  envMapIntensity: 1.0,
+});
+
+// Dark stripe
+const stripeMat = splineMat('#6b4226', {
+  roughness: 0.48, clearcoat: 0.5, clearcoatRoughness: 0.22,
+  sheen: 0.3, sheenColor: '#8b5e3c',
+});
+
+// White patches
+const whiteMat = splineMat('#faf5ee', {
+  roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.08,
+  sheen: 0.45, sheenColor: '#fff5e8', envMapIntensity: 1.3,
+});
+
+// Pink (nose, inner ears)
+const pinkMat = splineMat('#f0a0a0', {
+  roughness: 0.28, clearcoat: 0.9, clearcoatRoughness: 0.06,
+  sheen: 0.6, sheenColor: '#ffcccc', envMapIntensity: 1.4,
+});
+
+// Eye iris
+const eyeMat = splineMat('#7db84a', {
+  roughness: 0.12, clearcoat: 1.0, clearcoatRoughness: 0.02,
+  sheen: 0.0, envMapIntensity: 1.8,
+  extra: { emissive: new THREE.Color('#3a5e1a'), emissiveIntensity: 0.2 },
+});
+
+// Pupil
+const pupilMat = splineMat('#111111', {
+  roughness: 0.08, clearcoat: 1.0, clearcoatRoughness: 0.01, sheen: 0.0,
+});
+
+// Eye highlight
+const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+// Cushion (softer, more toy-like)
+const cushionMat = splineMat('#f28b82', {
+  roughness: 0.48, clearcoat: 0.45, sheen: 0.65, sheenRoughness: 0.55,
+  sheenColor: '#ffb4ab', envMapIntensity: 0.8,
+});
+
+// Ground
+const groundMat = splineMat('#ede8e0', {
+  roughness: 0.55, clearcoat: 0.25, sheen: 0.12,
+});
+
+// Floating decor materials
+const decorPinkMat = splineMat('#ffc0cb', {
+  roughness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.05,
+  sheen: 0.5, sheenColor: '#ffe0e8', envMapIntensity: 1.5,
+});
+const decorBlueMat = splineMat('#a8d8ea', {
+  roughness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.05,
+  sheen: 0.5, sheenColor: '#c8e8f8', envMapIntensity: 1.5,
+});
+const decorYellowMat = splineMat('#ffd89b', {
+  roughness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.05,
+  sheen: 0.5, sheenColor: '#fff0d0', envMapIntensity: 1.5,
+});
+const decorLavenderMat = splineMat('#c3aed6', {
+  roughness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.05,
+  sheen: 0.5, sheenColor: '#e0d0f0', envMapIntensity: 1.5,
+});
+
+// ─── Helpers ───
+function sphere(r, mat, segs = SEG) {
+  const g = new THREE.SphereGeometry(r, segs, segs / 2);
+  const m = new THREE.Mesh(g, mat);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
+function capsule(r, h, mat) {
+  const g = new THREE.CapsuleGeometry(r, h, 16, SEG / 2);
+  const m = new THREE.Mesh(g, mat);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  return m;
+}
+
+// ─── Build Cat ───
+const cat = new THREE.Group();
+
+// -- Body --
+const body = sphere(0.42, furMat);
+body.scale.set(1.0, 1.2, 0.88);
+body.position.set(0, 0.55, 0);
+cat.add(body);
+
+// -- White chest --
+const chest = sphere(0.33, whiteMat);
+chest.scale.set(0.78, 1.0, 0.65);
+chest.position.set(0, 0.5, 0.15);
+cat.add(chest);
+
+// -- Head --
+const head = sphere(0.30, furMat);
+head.scale.set(1.05, 0.98, 0.95);
+head.position.set(0, 1.02, 0.12);
+cat.add(head);
+
+// -- Cheeks --
+const cheekL = sphere(0.14, furMat);
+cheekL.position.set(-0.18, 0.96, 0.2);
+cheekL.scale.set(1, 0.85, 0.8);
+cat.add(cheekL);
+const cheekR = sphere(0.14, furMat);
+cheekR.position.set(0.18, 0.96, 0.2);
+cheekR.scale.set(1, 0.85, 0.8);
+cat.add(cheekR);
+
+// -- Forehead stripes --
+for (let i = -1; i <= 1; i++) {
+  const stripe = sphere(0.05, stripeMat);
+  stripe.scale.set(0.3, 2.0, 0.3);
+  stripe.position.set(i * 0.06, 1.16, 0.22);
+  stripe.rotation.x = -0.3;
+  cat.add(stripe);
+}
+
+// -- Ears --
+function makeEar(side) {
+  const g = new THREE.Group();
+  const outerShape = new Float32Array([
+    0, 0.14,  0.05, 0.12,  0.075, 0.06,  0.065, 0,  0, -0.02
+  ]);
+  const pts = [];
+  for (let i = 0; i < outerShape.length; i += 2) {
+    pts.push(new THREE.Vector2(outerShape[i], outerShape[i+1]));
+  }
+  const outerGeo = new THREE.LatheGeometry(pts, 32);
+  const outer = new THREE.Mesh(outerGeo, furMat);
+  outer.castShadow = true;
+  g.add(outer);
+
+  const innerPts = [];
+  for (let i = 0; i < pts.length; i++) {
+    innerPts.push(new THREE.Vector2(pts[i].x * 0.65, pts[i].y * 0.75));
+  }
+  const innerGeo = new THREE.LatheGeometry(innerPts, 24);
+  const inner = new THREE.Mesh(innerGeo, pinkMat);
+  inner.position.z = 0.012;
+  g.add(inner);
+
+  g.position.set(side * 0.17, 1.3, 0.08);
+  g.rotation.z = side * -0.2;
+  g.rotation.x = -0.15;
+  return g;
+}
+const earL = makeEar(-1);
+const earR = makeEar(1);
+cat.add(earL);
+cat.add(earR);
+
+// -- Eyes --
+function makeEye(side) {
+  const g = new THREE.Group();
+
+  // White sclera (subtle)
+  const sclera = sphere(0.072, whiteMat, 48);
+  sclera.scale.set(1.15, 1.0, 0.45);
+  g.add(sclera);
+
+  // Iris
+  const iris = sphere(0.065, eyeMat, 48);
+  iris.scale.set(1.1, 1.0, 0.55);
+  iris.position.z = 0.005;
+  g.add(iris);
+
+  // Pupil
+  const pupil = sphere(0.035, pupilMat, 32);
+  pupil.scale.set(0.3, 1.3, 0.5);
+  pupil.position.z = 0.03;
+  g.add(pupil);
+
+  // Specular highlights
+  const hl = sphere(0.018, highlightMat, 16);
+  hl.position.set(0.02, 0.025, 0.042);
+  hl.castShadow = false;
+  g.add(hl);
+
+  const hl2 = sphere(0.009, highlightMat, 12);
+  hl2.position.set(-0.015, -0.015, 0.042);
+  hl2.castShadow = false;
+  g.add(hl2);
+
+  g.position.set(side * 0.105, 1.06, 0.28);
+  return g;
+}
+const eyeL = makeEye(-1);
+const eyeR = makeEye(1);
+cat.add(eyeL);
+cat.add(eyeR);
+
+// -- Nose --
+const nose = sphere(0.03, pinkMat, 32);
+nose.scale.set(1.3, 0.85, 0.7);
+nose.position.set(0, 0.96, 0.34);
+cat.add(nose);
+
+// -- Muzzle --
+const muzzleL = sphere(0.045, whiteMat, 32);
+muzzleL.scale.set(1, 0.75, 0.7);
+muzzleL.position.set(-0.04, 0.935, 0.31);
+cat.add(muzzleL);
+const muzzleR = sphere(0.045, whiteMat, 32);
+muzzleR.scale.set(1, 0.75, 0.7);
+muzzleR.position.set(0.04, 0.935, 0.31);
+cat.add(muzzleR);
+
+// -- Mouth --
+const mouth = sphere(0.012, pupilMat, 16);
+mouth.scale.set(2.5, 0.5, 0.5);
+mouth.position.set(0, 0.915, 0.33);
+cat.add(mouth);
+
+// -- Front legs --
+function makeFrontLeg(x) {
+  const g = new THREE.Group();
+  const upper = capsule(0.065, 0.15, furMat);
+  upper.position.y = 0.15;
+  g.add(upper);
+  const paw = sphere(0.072, whiteMat, 32);
+  paw.scale.set(1, 0.65, 1.15);
+  paw.position.y = 0.01;
+  g.add(paw);
+  // Toe beans (tiny pink dots on paw bottom)
+  for (let i = 0; i < 3; i++) {
+    const bean = sphere(0.015, pinkMat, 12);
+    bean.position.set((i - 1) * 0.025, -0.02, 0.02);
+    g.add(bean);
+  }
+  g.position.set(x * 0.16, 0.15, 0.15);
+  return g;
+}
+const frontLegL = makeFrontLeg(-1);
+const frontLegR = makeFrontLeg(1);
+cat.add(frontLegL);
+cat.add(frontLegR);
+
+// -- Back legs --
+function makeBackLeg(x) {
+  const g = new THREE.Group();
+  const thigh = sphere(0.14, furMat);
+  thigh.scale.set(0.8, 0.85, 1.1);
+  thigh.position.set(0, 0.25, -0.05);
+  g.add(thigh);
+  const paw = sphere(0.072, whiteMat, 32);
+  paw.scale.set(1.1, 0.6, 1.2);
+  paw.position.set(x * 0.06, 0.02, 0.12);
+  g.add(paw);
+  g.position.set(x * 0.22, 0.15, -0.05);
+  return g;
+}
+const backLegL = makeBackLeg(-1);
+const backLegR = makeBackLeg(1);
+cat.add(backLegL);
+cat.add(backLegR);
+
+// -- Tail (CatmullRom tube) --
+const tailPts = [
+  new THREE.Vector3(-0.1, 0.35, -0.35),
+  new THREE.Vector3(-0.25, 0.25, -0.45),
+  new THREE.Vector3(-0.45, 0.28, -0.4),
+  new THREE.Vector3(-0.55, 0.4, -0.25),
+  new THREE.Vector3(-0.52, 0.55, -0.12),
+];
+const tailCurve = new THREE.CatmullRomCurve3(tailPts);
+const tailGeo = new THREE.TubeGeometry(tailCurve, 40, 0.04, 16, false);
+const tail = new THREE.Mesh(tailGeo, furMat);
+tail.castShadow = true;
+cat.add(tail);
+
+const tailTip = sphere(0.05, stripeMat, 24);
+tailTip.position.copy(tailPts[tailPts.length - 1]);
+cat.add(tailTip);
+
+// -- Whiskers --
+function makeWhisker(side, angle, yOff) {
+  const g = new THREE.CylinderGeometry(0.003, 0.001, 0.18, 6);
+  const m = new THREE.Mesh(g, new THREE.MeshPhysicalMaterial({
+    color: 0xdddddd, roughness: 0.3, clearcoat: 1.0, metalness: 0.1
+  }));
+  m.rotation.z = side * (Math.PI / 2 + angle);
+  m.position.set(side * 0.12, 0.94 + yOff, 0.28);
+  m.castShadow = false;
+  return m;
+}
+for (let s of [-1, 1]) {
+  cat.add(makeWhisker(s, 0.1, 0.01));
+  cat.add(makeWhisker(s, -0.05, 0));
+  cat.add(makeWhisker(s, -0.2, -0.01));
+}
+
+// -- Body stripes --
+for (let i = 0; i < 5; i++) {
+  const stripe = sphere(0.06, stripeMat, 24);
+  stripe.scale.set(2.5, 0.4, 0.8);
+  const angle = (i / 5) * Math.PI * 0.6 - 0.3;
+  stripe.position.set(
+    Math.sin(angle) * 0.32,
+    0.45 + i * 0.08,
+    Math.cos(angle) * -0.15
+  );
+  stripe.rotation.z = angle * 0.5;
+  cat.add(stripe);
+}
+
+scene.add(cat);
+
+// ─── Cushion ───
+const cushion = sphere(0.5, cushionMat);
+cushion.scale.set(1.6, 0.35, 1.4);
+cushion.position.set(0, 0.05, 0);
+cushion.receiveShadow = true;
+cushion.castShadow = true;
+scene.add(cushion);
+
+const dimple = sphere(0.3, cushionMat, 32);
+dimple.scale.set(1.2, 0.5, 1.0);
+dimple.position.set(0, 0.12, 0.02);
+dimple.receiveShadow = true;
+scene.add(dimple);
+
+// ─── Ground ───
+const groundGeo = new THREE.CircleGeometry(8, 64);
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.13;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ─── Soft contact shadow ───
+const shadowGeo = new THREE.CircleGeometry(0.7, 32);
+const shadowMat = new THREE.MeshBasicMaterial({
+  color: 0x000000, transparent: true, opacity: 0.06, depthWrite: false,
+});
+const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
+contactShadow.rotation.x = -Math.PI / 2;
+contactShadow.position.set(0, -0.124, 0.05);
+scene.add(contactShadow);
+
+// ─── Floating Decorative Elements (Spline signature) ───
+const decorGroup = new THREE.Group();
+const decorItems = [];
+
+function addDecorSphere(pos, scale, mat, speed, radius) {
+  const m = sphere(scale, mat, 32);
+  m.position.copy(pos);
+  m.castShadow = true;
+  decorGroup.add(m);
+  decorItems.push({ mesh: m, origin: pos.clone(), speed, radius, phase: Math.random() * Math.PI * 2 });
+}
+
+function addDecorTorus(pos, r, tube, mat, speed, radius) {
+  const g = new THREE.TorusGeometry(r, tube, 24, 48);
+  const m = new THREE.Mesh(g, mat);
+  m.position.copy(pos);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  decorGroup.add(m);
+  decorItems.push({ mesh: m, origin: pos.clone(), speed, radius, phase: Math.random() * Math.PI * 2, rotate: true });
+}
+
+// Small floating spheres
+addDecorSphere(new THREE.Vector3(1.8, 0.8, 1.2), 0.08, decorPinkMat, 0.6, 0.12);
+addDecorSphere(new THREE.Vector3(-1.5, 1.2, 0.8), 0.06, decorBlueMat, 0.5, 0.1);
+addDecorSphere(new THREE.Vector3(1.2, 1.6, -0.8), 0.07, decorYellowMat, 0.7, 0.15);
+addDecorSphere(new THREE.Vector3(-1.0, 0.5, 1.5), 0.05, decorLavenderMat, 0.4, 0.08);
+addDecorSphere(new THREE.Vector3(0.8, 1.8, 1.0), 0.04, decorPinkMat, 0.55, 0.06);
+addDecorSphere(new THREE.Vector3(-1.8, 1.0, -0.5), 0.055, decorYellowMat, 0.65, 0.09);
+
+// Small floating torus
+addDecorTorus(new THREE.Vector3(1.5, 1.4, -0.5), 0.1, 0.03, decorBlueMat, 0.35, 0.12);
+addDecorTorus(new THREE.Vector3(-1.3, 1.5, 1.0), 0.08, 0.025, decorLavenderMat, 0.45, 0.1);
+
+scene.add(decorGroup);
+
+// ─── Controls ───
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;
+controls.minDistance = 2.5;
+controls.maxDistance = 10;
+controls.minPolarAngle = 0.3;
+controls.maxPolarAngle = Math.PI / 2 + 0.1;
+controls.target.set(0, 0.6, 0);
+controls.update();
+
+// ─── Mouse tracking (smooth parallax) ───
+const mouse = { x: 0, y: 0, smoothX: 0, smoothY: 0 };
+addEventListener('mousemove', (e) => {
+  mouse.x = (e.clientX / innerWidth - 0.5) * 2;
+  mouse.y = (e.clientY / innerHeight - 0.5) * 2;
+});
+
+// ─── Post-processing ───
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+// Bloom (subtle, Spline-style soft glow)
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(innerWidth, innerHeight),
+  0.3,    // strength
+  0.6,    // radius
+  0.85    // threshold
+);
+composer.addPass(bloomPass);
+
+// Combined Vignette + Chromatic Aberration + Film Grain shader
+const postFxShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uResolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
+    // Vignette
+    uVignetteIntensity: { value: 0.28 },
+    uVignetteRadius: { value: 0.75 },
+    uVignetteSoftness: { value: 0.45 },
+    // Chromatic Aberration
+    uChromaticStrength: { value: 0.0015 },
+    // Film Grain
+    uGrainIntensity: { value: 0.035 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform vec2 uResolution;
+    uniform float uVignetteIntensity;
+    uniform float uVignetteRadius;
+    uniform float uVignetteSoftness;
+    uniform float uChromaticStrength;
+    uniform float uGrainIntensity;
+    varying vec2 vUv;
+
+    // Simple hash for grain
+    float hash(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    void main() {
+      vec2 uv = vUv;
+      vec2 center = uv - 0.5;
+      float dist = length(center);
+
+      // ── Chromatic Aberration (radial, subtle) ──
+      float ca = uChromaticStrength * dist;
+      vec2 dir = normalize(center + 0.0001);
+      float r = texture2D(tDiffuse, uv + dir * ca).r;
+      float g = texture2D(tDiffuse, uv).g;
+      float b = texture2D(tDiffuse, uv - dir * ca).b;
+      vec3 color = vec3(r, g, b);
+
+      // ── Vignette (smooth, warm) ──
+      float vignette = 1.0 - smoothstep(uVignetteRadius, uVignetteRadius + uVignetteSoftness, dist);
+      // Warm vignette: darken but slightly warm the edges
+      vec3 vignetteColor = mix(vec3(0.95, 0.9, 0.85), vec3(1.0), vignette);
+      color *= mix(vec3(1.0 - uVignetteIntensity), vec3(1.0), vignette);
+      color *= vignetteColor;
+
+      // ── Film Grain (animated, subtle) ──
+      float grain = hash(uv * uResolution + fract(uTime * 13.37)) * 2.0 - 1.0;
+      color += grain * uGrainIntensity;
+
+      // ── Slight warm tone shift (Spline's warm aesthetic) ──
+      color.r *= 1.02;
+      color.g *= 1.005;
+      color.b *= 0.98;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `
+};
+const postFxPass = new ShaderPass(postFxShader);
+composer.addPass(postFxPass);
+
+composer.addPass(new OutputPass());
+
+// ─── Animation ───
+const clock = new THREE.Clock();
+
+// Smooth value interpolation
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const dt = clock.getDelta();
+
+  // Update post-fx time
+  postFxPass.uniforms.uTime.value = t;
+
+  // ── Mouse smoothing ──
+  mouse.smoothX = lerp(mouse.smoothX, mouse.x, 0.03);
+  mouse.smoothY = lerp(mouse.smoothY, mouse.y, 0.03);
+
+  // ── Cat breathing (eased sinusoidal) ──
+  const breathe = Math.sin(t * 1.6) * 0.015;
+  body.scale.y = 1.2 + breathe;
+  body.scale.x = 1.0 - breathe * 0.3;
+  body.scale.z = 0.88 + breathe * 0.15;
+  chest.scale.y = 1.0 + breathe * 0.8;
+
+  // ── Head bob + mouse follow ──
+  const headBob = Math.sin(t * 1.6 + 0.5) * 0.006;
+  head.position.y = 1.02 + headBob;
+  head.rotation.z = Math.sin(t * 0.7) * 0.02 + mouse.smoothX * 0.04;
+  head.rotation.x = mouse.smoothY * 0.03;
+
+  // ── Ear twitch ──
+  const twitch = Math.sin(t * 4.3) * Math.max(0, Math.sin(t * 0.3) - 0.7) * 0.3;
+  earL.rotation.z = -0.2 + twitch;
+  earR.rotation.z = 0.2 - twitch * 0.6;
+
+  // ── Tail sway ──
+  const tailSway = Math.sin(t * 1.2) * 0.08;
+  tail.rotation.y = tailSway;
+  tailTip.position.x = tailPts[tailPts.length-1].x + tailSway * 0.3;
+
+  // ── Eye blink ──
+  const blinkPhase = t % 4.0;
+  let blinkScale = 1.0;
+  if (blinkPhase > 3.7 && blinkPhase < 3.9) {
+    blinkScale = Math.max(0.05, 1.0 - Math.sin((blinkPhase - 3.7) / 0.2 * Math.PI) * 0.95);
+  }
+  eyeL.scale.y = blinkScale;
+  eyeR.scale.y = blinkScale;
+
+  // ── Eye tracking (follow mouse subtly) ──
+  eyeL.children.forEach(c => {
+    if (c !== eyeL.children[0]) { // skip sclera
+      c.position.x = (c.userData.origX ?? c.position.x) + mouse.smoothX * 0.008;
+      c.position.y = (c.userData.origY ?? c.position.y) - mouse.smoothY * 0.005;
+      if (!c.userData.origX) { c.userData.origX = c.position.x; c.userData.origY = c.position.y; }
+    }
+  });
+  eyeR.children.forEach(c => {
+    if (c !== eyeR.children[0]) {
+      c.position.x = (c.userData.origX ?? c.position.x) + mouse.smoothX * 0.008;
+      c.position.y = (c.userData.origY ?? c.position.y) - mouse.smoothY * 0.005;
+      if (!c.userData.origX) { c.userData.origX = c.position.x; c.userData.origY = c.position.y; }
+    }
+  });
+
+  // ── Slow auto-rotation ──
+  if (!controls._isDragging) {
+    cat.rotation.y = Math.sin(t * 0.15) * 0.15 + mouse.smoothX * 0.08;
+  }
+
+  // ── Floating decorations ──
+  for (const item of decorItems) {
+    const { mesh, origin, speed, radius, phase } = item;
+    mesh.position.x = origin.x + Math.sin(t * speed + phase) * radius;
+    mesh.position.y = origin.y + Math.sin(t * speed * 0.7 + phase + 1.5) * radius * 0.8;
+    mesh.position.z = origin.z + Math.cos(t * speed * 0.5 + phase) * radius * 0.6;
+
+    // Gentle breathing scale
+    const s = 1.0 + Math.sin(t * 0.8 + phase) * 0.06;
+    mesh.scale.setScalar(s);
+
+    // Slow rotation for torus shapes
+    if (item.rotate) {
+      mesh.rotation.x += 0.003;
+      mesh.rotation.y += 0.005;
+    }
+  }
+
+  // ── Whole scene subtle parallax from mouse ──
+  decorGroup.rotation.y = mouse.smoothX * 0.05;
+  decorGroup.rotation.x = mouse.smoothY * 0.02;
+
+  controls.update();
+  composer.render();
+}
+animate();
+
+// ─── Resize ───
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  postFxPass.uniforms.uResolution.value.set(innerWidth, innerHeight);
+});
+
+</script>
+</body>
+</html>
