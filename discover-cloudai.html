@@ -152,12 +152,12 @@
     width:16px;height:16px;position:relative;
   }
   .card-happy-robot .robot-eye::before,.card-happy-robot .robot-eye::after{
-    content:'';position:absolute;width:10px;height:3px;background:#4a9eff;border-radius:2px;
+    content:'';position:absolute;width:10px;height:3px;background:#a78bfa;border-radius:2px;
   }
   .card-happy-robot .robot-eye::before{transform:rotate(-45deg);top:6px;left:0}
   .card-happy-robot .robot-eye::after{transform:rotate(45deg);top:6px;left:6px}
   .card-happy-robot .robot-ear{
-    width:14px;height:28px;background:linear-gradient(180deg,#555 0%,#333 100%);
+    width:14px;height:28px;background:linear-gradient(180deg,#6d28d9,#4c1d95);
     border-radius:6px;position:absolute;top:42px;z-index:1;
   }
   .card-happy-robot .robot-ear.left{left:8px}
@@ -178,12 +178,12 @@
   .card-happy-robot .robot-btn{
     margin-top:16px;margin-bottom:24px;
     padding:10px 24px;border-radius:24px;border:none;cursor:pointer;
-    background:linear-gradient(135deg,#ff6b6b,#f59e0b);
+    background:linear-gradient(135deg,#7c3aed,#a78bfa);
     color:white;font-size:13px;font-weight:600;letter-spacing:0.3px;
-    box-shadow:0 4px 16px rgba(255,107,107,0.3);
+    box-shadow:0 4px 16px rgba(124,58,237,0.3);
     transition:transform .2s ease,box-shadow .2s ease;
   }
-  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(255,107,107,0.4)}
+  .card-happy-robot .robot-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(124,58,237,0.4)}
   .card-happy-robot .robot-title{font-size:18px;font-weight:700;color:#2a2a3e;margin-top:0}
 
   /* ─── Happy Robot Animations ─── */
@@ -199,24 +199,24 @@
 
   /* Antenna */
   .card-happy-robot .robot-antenna{
-    width:4px;height:20px;background:linear-gradient(180deg,#888,#555);
+    width:4px;height:20px;background:linear-gradient(180deg,#7c3aed,#5b21b6);
     border-radius:2px;position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;
   }
   .card-happy-robot .robot-antenna-tip{
-    width:10px;height:10px;background:radial-gradient(circle,#ff6b6b,#e74c3c);
+    width:10px;height:10px;background:radial-gradient(circle,#a78bfa,#7c3aed);
     border-radius:50%;position:absolute;top:-8px;left:50%;transform:translateX(-50%);
-    box-shadow:0 0 8px rgba(255,107,107,0.6);
+    box-shadow:0 0 8px rgba(167,139,250,0.6);
   }
   @keyframes antennaBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
   .card-happy-robot .robot-antenna{animation:antennaBob 2s ease-in-out infinite}
-  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(255,107,107,0.5)}50%{box-shadow:0 0 14px rgba(255,107,107,0.9)}}
+  @keyframes antennaTipGlow{0%,100%{box-shadow:0 0 6px rgba(167,139,250,0.5)}50%{box-shadow:0 0 14px rgba(167,139,250,0.9)}}
   .card-happy-robot .robot-antenna-tip{animation:antennaTipGlow 1.5s ease-in-out infinite}
 
   /* Button glow pulse */
   .card-happy-robot .robot-btn{position:relative;z-index:1}
   .card-happy-robot .robot-btn::before{
     content:'';position:absolute;inset:-4px;border-radius:28px;z-index:-1;
-    background:linear-gradient(135deg,rgba(255,107,107,0.4),rgba(245,158,11,0.4));
+    background:linear-gradient(135deg,rgba(167,139,250,0.4),rgba(244,114,182,0.4));
     filter:blur(8px);opacity:0.5;
     animation:btnGlowPulse 2s ease-in-out infinite;
   }
@@ -248,9 +248,7 @@
   .card:nth-child(6){animation-delay:.24s}
   .card:nth-child(7){animation-delay:.28s}
   .card:nth-child(8){animation-delay:.32s}
-  .card:nth-child(9){animation-delay:.36s}
-  .card:nth-child(10){animation-delay:.40s}
-  .card:nth-child(n+11){animation-delay:.44s}
+  .card:nth-child(n+9){animation-delay:.36s}
 </style>
 </head>
 <body>
@@ -268,248 +266,17 @@
 </nav>
 
 <div class="pills">
-  <button class="pill on" data-filter="all">All</button>
-  <button class="pill" data-filter="shader">Shaders</button>
-  <button class="pill" data-filter="geometry">Geometry</button>
-  <button class="pill" data-filter="material">Materials</button>
-  <button class="pill" data-filter="animation">Animation</button>
-  <button class="pill" data-filter="interaction">Interaction</button>
-  <button class="pill" data-filter="postfx">Post FX</button>
-  <button class="pill" data-filter="fundamentals">Fundamentals</button>
+  <button class="pill on">All</button>
+  <button class="pill">Shaders</button>
+  <button class="pill">Geometry</button>
+  <button class="pill">Materials</button>
+  <button class="pill">Animation</button>
+  <button class="pill">Interaction</button>
+  <button class="pill">Post FX</button>
+  <button class="pill">Fundamentals</button>
 </div>
 
-<div class="grid" id="grid">
-
-  <!-- 1. Hero: Shader wave -->
-  <div class="card card-clickable" data-cat="shader">
-    <div class="scene" id="scene-hero-wave" style="height:280px"></div>
-    <div class="overlay gradient">
-      <h2>The next<br>shader</h2>
-      <p>CloudAI-X &middot; 10 deterministic skill files</p>
-    </div>
-    <div class="card-foot dark">
-      <div class="dot" style="background:#a78bfa"></div>
-      <span class="name">CloudAI-X</span>
-      <span class="likes">&hearts; 4.2k</span>
-    </div>
-  </div>
-
-  <!-- 2. Pixel card -->
-  <div class="card" data-cat="all">
-    <div class="card-pixel">
-      <div class="label">Terminal</div>
-      <div class="body">$ claude skill load<br>/ threejs-shaders<br>/ threejs-geometry<br>/ ok. 10 files, 52kb.</div>
-      <div class="foot">&gt; ready_</div>
-    </div>
-  </div>
-
-  <!-- 3. Raycaster pick -->
-  <div class="card card-clickable" data-cat="interaction">
-    <div class="scene" id="scene-raycaster" style="height:260px">
-      <span class="badge-3d">interaction</span>
-      <span class="shape-label">Raycaster pick</span>
-    </div>
-    <div class="card-foot">
-      <div class="dot" style="background:#60a5fa"></div>
-      <span class="name">Raycaster Lab</span>
-      <span class="likes">&hearts; 3.1k</span>
-    </div>
-  </div>
-
-  <!-- 4. Text card: Brainstorm Cards -->
-  <div class="card" data-cat="all">
-    <div class="card-text">
-      <h3>Brainstorm Cards</h3>
-      <p>Collaborative ideation toolkit for creative teams</p>
-      <span class="tag">Productivity</span>
-    </div>
-  </div>
-
-  <!-- 5. InstancedMesh -->
-  <div class="card card-clickable" data-cat="geometry">
-    <div class="scene" id="scene-instanced" style="height:240px">
-      <span class="badge-3d">geometry</span>
-      <span class="shape-label">InstancedMesh</span>
-    </div>
-    <div class="card-foot">
-      <div class="dot" style="background:#4ade80"></div>
-      <span class="name">Instance Works</span>
-      <span class="likes">&hearts; 2.7k</span>
-    </div>
-  </div>
-
-  <!-- 6. Deck card -->
-  <div class="card" data-cat="all">
-    <div class="card-deck">
-      <div class="lbl">Pitch Deck</div>
-      <h3>Sub-skills<br>compose.</h3>
-      <div class="author">CloudAI-X &middot; 2026</div>
-    </div>
-  </div>
-
-  <!-- 7. Elastic tween -->
-  <div class="card card-clickable" data-cat="animation">
-    <div class="scene" id="scene-elastic" style="height:220px">
-      <span class="badge-3d">animation</span>
-      <span class="shape-label">Elastic tween</span>
-    </div>
-    <div class="card-foot">
-      <div class="dot" style="background:#f59e0b"></div>
-      <span class="name">Tween Studio</span>
-      <span class="likes">&hearts; 1.8k</span>
-    </div>
-  </div>
-
-  <!-- 8. Love card -->
-  <div class="card" data-cat="all">
-    <div class="card-love">
-      <div class="hearts">&hearts;&hearts;&hearts;</div>
-      <h3>Made with love</h3>
-      <p>Every shader tells a story. Every polygon carries intent.</p>
-    </div>
-  </div>
-
-  <!-- 9. Procedural gradient -->
-  <div class="card card-clickable" data-cat="shader">
-    <div class="scene" id="scene-gradient" style="height:280px">
-      <span class="badge-3d">shader</span>
-      <span class="shape-label">Procedural gradient</span>
-    </div>
-    <div class="card-foot">
-      <div class="dot" style="background:#c084fc"></div>
-      <span class="name">Shader Lab</span>
-      <span class="likes">&hearts; 3.5k</span>
-    </div>
-  </div>
-
-  <!-- 10. CJK card -->
-  <div class="card" data-cat="all">
-    <div class="card-cjk">
-      <h3>3D&#x8BBE;&#x8BA1;&#x8D8B;&#x52BF;</h3>
-      <p>Exploring the future of dimensional design</p>
-    </div>
-  </div>
-
-  <!-- 11. Physical glass ball -->
-  <div class="card card-clickable" data-cat="material">
-    <div class="scene" id="scene-glass" style="height:260px">
-      <span class="badge-3d">material</span>
-      <span class="shape-label">Physical glass</span>
-    </div>
-    <div class="card-foot">
-      <div class="dot" style="background:#67e8f9"></div>
-      <span class="name">Glass Studio</span>
-      <span class="likes">&hearts; 2.9k</span>
-    </div>
-  </div>
-
-  <!-- 12. Play card -->
-  <div class="card" data-cat="all">
-    <div class="card-play">
-      <h2>quick<br>start</h2>
-    </div>
-  </div>
-
-  <!-- 13. Hero: Instancing grid -->
-  <div class="card card-clickable" data-cat="geometry">
-    <div class="scene" id="scene-hero-instancing" style="height:260px"></div>
-    <div class="overlay gradient">
-      <h2>1000<br>boxes</h2>
-      <p>One geometry. One draw call.</p>
-    </div>
-    <div class="card-foot dark">
-      <div class="dot" style="background:#4ade80"></div>
-      <span class="name">Instancing Lab</span>
-      <span class="likes">&hearts; 5.1k</span>
-    </div>
-  </div>
-
-  <!-- 14. Robot card (CSS-only) -->
-  <div class="card" data-cat="all">
-    <div class="card-happy-robot">
-      <div class="sparkle"></div>
-      <div class="sparkle"></div>
-      <div class="sparkle"></div>
-      <div class="sparkle"></div>
-      <div class="robot-container">
-        <div class="robot-antenna">
-          <div class="robot-antenna-tip"></div>
-        </div>
-        <div class="robot-ear left"></div>
-        <div class="robot-ear right"></div>
-        <div class="robot-body">
-          <div class="robot-face">
-            <div class="robot-eye"></div>
-            <div class="robot-eye"></div>
-          </div>
-        </div>
-        <div class="robot-neck"></div>
-        <div class="robot-sphere s1"></div>
-        <div class="robot-sphere s2"></div>
-      </div>
-      <div class="robot-title">Happy Bot</div>
-      <button class="robot-btn">Get in touch</button>
-    </div>
-  </div>
-
-  <!-- 15. Tool card -->
-  <div class="card" data-cat="all">
-    <div class="card-tool">
-      <div class="icon">+</div>
-      <p>Get started</p>
-    </div>
-  </div>
-
-  <!-- 16. Text card: One file per sub-skill -->
-  <div class="card" data-cat="all">
-    <div class="card-text">
-      <h3>One file per sub-skill</h3>
-      <p>CloudAI-X ships ten deterministic skill files. Each is self-contained, testable, and composable without shared state or a bundler.</p>
-      <span class="tag">10 skills</span>
-    </div>
-  </div>
-
-  <!-- 17. Lit sphere -->
-  <div class="card card-clickable" data-cat="fundamentals">
-    <div class="scene" id="scene-lit-sphere" style="height:200px">
-      <span class="badge-3d">fundamentals</span>
-      <span class="shape-label">Lit sphere</span>
-    </div>
-    <div class="card-foot">
-      <div class="dot" style="background:#f472b6"></div>
-      <span class="name">Basics Lab</span>
-      <span class="likes">&hearts; 1.2k</span>
-    </div>
-  </div>
-
-  <!-- 18. Pixel card 2 -->
-  <div class="card" data-cat="all">
-    <div class="card-pixel">
-      <div class="label">Source</div>
-      <div class="body">const mat = new<br>ShaderMaterial({<br>&nbsp;&nbsp;vertexShader,<br>&nbsp;&nbsp;fragmentShader,<br>&nbsp;&nbsp;uniforms: { uTime }<br>});</div>
-      <div class="foot">// zero dependencies</div>
-    </div>
-  </div>
-
-  <!-- 19. Text card 3 -->
-  <div class="card" data-cat="all">
-    <div class="card-text">
-      <h3>Deterministic Output</h3>
-      <p>No randomness, no temperature. The same prompt produces the same scene every time.</p>
-      <span class="tag">Reliability</span>
-    </div>
-  </div>
-
-  <!-- 20. Deck card 2 -->
-  <div class="card" data-cat="all">
-    <div class="card-deck">
-      <div class="lbl">Architecture</div>
-      <h3>One draw call.<br>1000 boxes.</h3>
-      <div class="author">InstancedMesh &middot; three.js r164</div>
-    </div>
-  </div>
-
-</div>
+<div class="grid" id="grid"></div>
 
 <script type="importmap">
 {
@@ -523,27 +290,6 @@
 import * as THREE from 'three';
 
 /* ─────────────────────────────────────────────
-   UTILITY: create renderer bound to a container
-   ───────────────────────────────────────────── */
-function makeRenderer(container) {
-  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  r.setSize(container.clientWidth, container.clientHeight);
-  container.appendChild(r.domElement);
-  return r;
-}
-
-function observeResize(container, renderer, camera) {
-  const ro = new ResizeObserver(() => {
-    const w = container.clientWidth, h = container.clientHeight;
-    renderer.setSize(w, h);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  });
-  ro.observe(container);
-}
-
-/* ─────────────────────────────────────────────
    GLSL: IQ cosine palette
    ───────────────────────────────────────────── */
 const PALETTE_GLSL = `
@@ -551,17 +297,54 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   return a + b * cos(6.283185 * (c * t + d));
 }`;
 
+/* ─────────────────────────────────────────────
+   HELPER: footer HTML
+   ───────────────────────────────────────────── */
+function footHTML(c, n, l, dark) {
+  return `<div class="card-foot${dark?' dark':''}"><div class="dot" style="background:${c}"></div><span class="name">${n}</span><span class="likes">${l}</span></div>`;
+}
+
 /* ═════════════════════════════════════════════
-   SCENE 1: Hero Shader Wave (full-bleed)
+   3D SCENE FACTORY
    ═════════════════════════════════════════════ */
-(function buildHeroWave() {
-  const el = document.getElementById('scene-hero-wave');
-  if (!el) return;
-  const renderer = makeRenderer(el);
+const scenes = [];
+
+function createMiniScene(container, height, bgColor, buildFn) {
+  const w = container.clientWidth || 300;
+  const h = height;
+  container.style.height = h + 'px';
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(new THREE.Color(bgColor), 1);
+  container.appendChild(renderer.domElement);
+
   const scene = new THREE.Scene();
+  const defaultCam = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+  defaultCam.position.set(0, 0, 5);
+
+  const info = buildFn(scene, defaultCam, { renderer, container, w, h });
+  const camera = info.camera || defaultCam;
+  const animFn = info.animFn || (() => {});
+
+  let hover = 0;
+  container.addEventListener('mouseenter', () => { hover = 1; });
+  container.addEventListener('mouseleave', () => { hover = 0; });
+
+  scenes.push({ renderer, scene, camera, animFn, el: container, hover: () => hover });
+}
+
+/* ═════════════════════════════════════════════
+   SCENE BUILDERS
+   ═════════════════════════════════════════════ */
+
+/* -- 1. Hero Shader Wave (full-bleed) -- */
+function buildHeroWave(scene, cam, extras) {
+  const { renderer, container, w, h } = extras;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uRes: { value: new THREE.Vector2(el.clientWidth, el.clientHeight) } },
+    uniforms: { uTime: { value: 0 }, uRes: { value: new THREE.Vector2(w, h) } },
     vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }`,
     fragmentShader: `
       uniform float uTime;
@@ -585,32 +368,28 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
   scene.add(quad);
-  const ro = new ResizeObserver(() => {
-    const w = el.clientWidth, h = el.clientHeight;
-    renderer.setSize(w, h);
-    mat.uniforms.uRes.value.set(w, h);
-  });
-  ro.observe(el);
-  (function tick() {
-    mat.uniforms.uTime.value = performance.now() * 0.001;
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
 
-/* ═════════════════════════════════════════════
-   SCENE 2: Raycaster Pick (5x5 grid of boxes)
-   ═════════════════════════════════════════════ */
-(function buildRaycaster() {
-  const el = document.getElementById('scene-raycaster');
-  if (!el) return;
-  const renderer = makeRenderer(el);
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0c0c1a);
-  const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 100);
-  camera.position.set(0, 4, 7);
-  camera.lookAt(0, 0, 0);
-  observeResize(el, renderer, camera);
+  const ro = new ResizeObserver(() => {
+    const rw = container.clientWidth, rh = container.clientHeight;
+    mat.uniforms.uRes.value.set(rw, rh);
+  });
+  ro.observe(container);
+
+  return {
+    camera,
+    animFn: (t) => {
+      mat.uniforms.uTime.value = t;
+    }
+  };
+}
+
+/* -- 2. Raycaster Pick (5x5 grid of boxes) -- */
+function buildRaycaster(scene, cam, extras) {
+  const { container } = extras;
+  cam.fov = 45;
+  cam.position.set(0, 4, 7);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
 
   scene.add(new THREE.AmbientLight(0x404060, 0.6));
   const dl = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -635,13 +414,13 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   const pointer = new THREE.Vector2(-999, -999);
   let hoveredObj = null;
 
-  el.addEventListener('pointermove', e => {
-    const rect = el.getBoundingClientRect();
+  container.addEventListener('pointermove', e => {
+    const rect = container.getBoundingClientRect();
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   });
-  el.addEventListener('pointerleave', () => { pointer.set(-999, -999); });
-  el.addEventListener('click', () => {
+  container.addEventListener('pointerleave', () => { pointer.set(-999, -999); });
+  container.addEventListener('click', () => {
     if (hoveredObj && !locked.has(hoveredObj)) {
       locked.add(hoveredObj);
       hoveredObj.material.color.set(0xf59e0b);
@@ -649,42 +428,35 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
     }
   });
 
-  (function tick() {
-    raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(boxes);
-    // Reset non-locked
-    boxes.forEach(b => {
-      if (!locked.has(b)) {
-        b.material.color.set(b.userData.origColor);
-        b.material.emissive.set(0x000000);
-      }
-    });
-    hoveredObj = null;
-    if (hits.length > 0) {
-      const obj = hits[0].object;
-      if (!locked.has(obj)) {
-        obj.material.emissive.set(0x221144);
-        hoveredObj = obj;
+  return {
+    animFn: (t) => {
+      raycaster.setFromCamera(pointer, cam);
+      const hits = raycaster.intersectObjects(boxes);
+      // Reset non-locked
+      boxes.forEach(b => {
+        if (!locked.has(b)) {
+          b.material.color.set(b.userData.origColor);
+          b.material.emissive.set(0x000000);
+        }
+      });
+      hoveredObj = null;
+      if (hits.length > 0) {
+        const obj = hits[0].object;
+        if (!locked.has(obj)) {
+          obj.material.emissive.set(0x221144);
+          hoveredObj = obj;
+        }
       }
     }
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
+  };
+}
 
-/* ═════════════════════════════════════════════
-   SCENE 3: InstancedMesh (1000 boxes, wave)
-   ═════════════════════════════════════════════ */
-(function buildInstanced() {
-  const el = document.getElementById('scene-instanced');
-  if (!el) return;
-  const renderer = makeRenderer(el);
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a14);
-  const camera = new THREE.PerspectiveCamera(50, el.clientWidth / el.clientHeight, 0.1, 200);
-  camera.position.set(12, 10, 12);
-  camera.lookAt(0, 0, 0);
-  observeResize(el, renderer, camera);
+/* -- 3. InstancedMesh (1000 boxes, wave) -- */
+function buildInstanced(scene, cam, extras) {
+  cam.fov = 50;
+  cam.position.set(12, 10, 12);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
 
   scene.add(new THREE.AmbientLight(0x606080, 0.5));
   const dl = new THREE.DirectionalLight(0xeeeeff, 0.7);
@@ -701,39 +473,31 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   const dummy = new THREE.Object3D();
   const offset = (SIDE - 1) * 0.6 / 2;
 
-  (function tick() {
-    const t = performance.now() * 0.001;
-    let idx = 0;
-    for (let ix = 0; ix < SIDE && idx < COUNT; ix++) {
-      for (let iz = 0; iz < SIDE && idx < COUNT; iz++) {
-        const x = ix * 0.6 - offset;
-        const z = iz * 0.6 - offset;
-        const y = Math.sin(x * 0.5 + t) * Math.cos(z * 0.5 + t * 0.7) * 1.5;
-        dummy.position.set(x, y, z);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(idx, dummy.matrix);
-        idx++;
+  return {
+    animFn: (t) => {
+      let idx = 0;
+      for (let ix = 0; ix < SIDE && idx < COUNT; ix++) {
+        for (let iz = 0; iz < SIDE && idx < COUNT; iz++) {
+          const x = ix * 0.6 - offset;
+          const z = iz * 0.6 - offset;
+          const y = Math.sin(x * 0.5 + t) * Math.cos(z * 0.5 + t * 0.7) * 1.5;
+          dummy.position.set(x, y, z);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(idx, dummy.matrix);
+          idx++;
+        }
       }
+      mesh.instanceMatrix.needsUpdate = true;
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
+  };
+}
 
-/* ═════════════════════════════════════════════
-   SCENE 4: Elastic Tween (ring of 12 cubes)
-   ═════════════════════════════════════════════ */
-(function buildElastic() {
-  const el = document.getElementById('scene-elastic');
-  if (!el) return;
-  const renderer = makeRenderer(el);
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0e0e18);
-  const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 100);
-  camera.position.set(0, 3, 6);
-  camera.lookAt(0, 0, 0);
-  observeResize(el, renderer, camera);
+/* -- 4. Elastic Tween (ring of 12 cubes) -- */
+function buildElastic(scene, cam, extras) {
+  cam.fov = 45;
+  cam.position.set(0, 3, 6);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
 
   scene.add(new THREE.AmbientLight(0x404060, 0.5));
   const dl = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -761,28 +525,22 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
     cubes.push(m);
   }
 
-  (function tick() {
-    const t = performance.now() * 0.001;
-    cubes.forEach(c => {
-      const cycle = ((t * 0.4 + c.userData.phase) % 2.0);
-      const progress = Math.min(cycle, 1.0);
-      const s = 0.3 + easeOutElastic(progress) * 0.7;
-      c.scale.setScalar(s);
-      c.rotation.y = t * 0.3 + c.userData.angle;
-    });
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
+  return {
+    animFn: (t) => {
+      cubes.forEach(c => {
+        const cycle = ((t * 0.4 + c.userData.phase) % 2.0);
+        const progress = Math.min(cycle, 1.0);
+        const s = 0.3 + easeOutElastic(progress) * 0.7;
+        c.scale.setScalar(s);
+        c.rotation.y = t * 0.3 + c.userData.angle;
+      });
+    }
+  };
+}
 
-/* ═════════════════════════════════════════════
-   SCENE 5: Procedural Gradient (fragment-only)
-   ═════════════════════════════════════════════ */
-(function buildGradient() {
-  const el = document.getElementById('scene-gradient');
-  if (!el) return;
-  const renderer = makeRenderer(el);
-  const scene = new THREE.Scene();
+/* -- 5. Procedural Gradient (fragment-only) -- */
+function buildGradient(scene, cam, extras) {
+  const { container } = extras;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const mat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 } },
@@ -811,32 +569,25 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
   scene.add(quad);
-  const ro = new ResizeObserver(() => {
-    renderer.setSize(el.clientWidth, el.clientHeight);
-  });
-  ro.observe(el);
-  (function tick() {
-    mat.uniforms.uTime.value = performance.now() * 0.001;
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
 
-/* ═════════════════════════════════════════════
-   SCENE 6: Physical Glass Ball
-   ═════════════════════════════════════════════ */
-(function buildGlass() {
-  const el = document.getElementById('scene-glass');
-  if (!el) return;
-  const renderer = makeRenderer(el);
+  return {
+    camera,
+    animFn: (t) => {
+      mat.uniforms.uTime.value = t;
+    }
+  };
+}
+
+/* -- 6. Physical Glass Ball -- */
+function buildGlass(scene, cam, extras) {
+  const { renderer } = extras;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0e18);
-  const camera = new THREE.PerspectiveCamera(40, el.clientWidth / el.clientHeight, 0.1, 100);
-  camera.position.set(0, 0.5, 4);
-  camera.lookAt(0, 0, 0);
-  observeResize(el, renderer, camera);
+
+  cam.fov = 40;
+  cam.position.set(0, 0.5, 4);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
 
   scene.add(new THREE.AmbientLight(0x404080, 0.4));
   const dl1 = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -870,42 +621,34 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2;
     const hue = i / 8;
-    const mat = new THREE.MeshStandardMaterial({
+    const bgMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color().setHSL(hue, 0.8, 0.5),
       metalness: 0.3, roughness: 0.5
     });
-    const m = new THREE.Mesh(bgGeo, mat);
+    const m = new THREE.Mesh(bgGeo, bgMat);
     m.position.set(Math.cos(angle) * 2.5, Math.sin(angle * 2) * 0.5, Math.sin(angle) * 2.5 - 2);
     scene.add(m);
   }
 
-  (function tick() {
-    const t = performance.now() * 0.001;
-    ball.rotation.y = t * 0.2;
-    scene.children.forEach(c => {
-      if (c !== ball && c.isMesh) {
-        c.rotation.x = t * 0.5;
-        c.rotation.z = t * 0.3;
-      }
-    });
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
+  return {
+    animFn: (t) => {
+      ball.rotation.y = t * 0.2;
+      scene.children.forEach(c => {
+        if (c !== ball && c.isMesh) {
+          c.rotation.x = t * 0.5;
+          c.rotation.z = t * 0.3;
+        }
+      });
+    }
+  };
+}
 
-/* ═════════════════════════════════════════════
-   SCENE 7: Hero Instancing Grid (wide wave)
-   ═════════════════════════════════════════════ */
-(function buildHeroInstancing() {
-  const el = document.getElementById('scene-hero-instancing');
-  if (!el) return;
-  const renderer = makeRenderer(el);
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x08080f);
-  const camera = new THREE.PerspectiveCamera(55, el.clientWidth / el.clientHeight, 0.1, 200);
-  camera.position.set(10, 8, 10);
-  camera.lookAt(0, 0, 0);
-  observeResize(el, renderer, camera);
+/* -- 7. Hero Instancing Grid (wide wave) -- */
+function buildHeroInstancing(scene, cam, extras) {
+  cam.fov = 55;
+  cam.position.set(10, 8, 10);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
 
   scene.add(new THREE.AmbientLight(0x404060, 0.4));
   const dl = new THREE.DirectionalLight(0xeeeeff, 0.8);
@@ -926,47 +669,39 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   const dummy = new THREE.Object3D();
   const offset = (SIDE - 1) * 0.55 / 2;
 
-  (function tick() {
-    const t = performance.now() * 0.001;
-    let idx = 0;
-    for (let ix = 0; ix < SIDE && idx < COUNT; ix++) {
-      for (let iz = 0; iz < SIDE && idx < COUNT; iz++) {
-        const x = ix * 0.55 - offset;
-        const z = iz * 0.55 - offset;
-        const dist = Math.sqrt(x * x + z * z);
-        const y = Math.sin(dist * 0.4 - t * 1.2) * 1.8;
-        dummy.position.set(x, y, z);
-        const s = 0.6 + Math.sin(dist * 0.3 + t) * 0.3;
-        dummy.scale.setScalar(s);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(idx, dummy.matrix);
+  return {
+    animFn: (t) => {
+      let idx = 0;
+      for (let ix = 0; ix < SIDE && idx < COUNT; ix++) {
+        for (let iz = 0; iz < SIDE && idx < COUNT; iz++) {
+          const x = ix * 0.55 - offset;
+          const z = iz * 0.55 - offset;
+          const dist = Math.sqrt(x * x + z * z);
+          const y = Math.sin(dist * 0.4 - t * 1.2) * 1.8;
+          dummy.position.set(x, y, z);
+          const s = 0.6 + Math.sin(dist * 0.3 + t) * 0.3;
+          dummy.scale.setScalar(s);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(idx, dummy.matrix);
 
-        const hue = (dist * 0.03 + t * 0.05) % 1.0;
-        color.setHSL(hue, 0.5, 0.4);
-        mesh.setColorAt(idx, color);
-        idx++;
+          const hue = (dist * 0.03 + t * 0.05) % 1.0;
+          color.setHSL(hue, 0.5, 0.4);
+          mesh.setColorAt(idx, color);
+          idx++;
+        }
       }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
+  };
+}
 
-/* ═════════════════════════════════════════════
-   SCENE 8: Lit Sphere (fundamentals)
-   ═════════════════════════════════════════════ */
-(function buildLitSphere() {
-  const el = document.getElementById('scene-lit-sphere');
-  if (!el) return;
-  const renderer = makeRenderer(el);
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0e0e1a);
-  const camera = new THREE.PerspectiveCamera(40, el.clientWidth / el.clientHeight, 0.1, 100);
-  camera.position.set(0, 0.5, 3.5);
-  camera.lookAt(0, 0, 0);
-  observeResize(el, renderer, camera);
+/* -- 8. Lit Sphere (fundamentals) -- */
+function buildLitSphere(scene, cam, extras) {
+  cam.fov = 40;
+  cam.position.set(0, 0.5, 3.5);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
 
   const ambient = new THREE.AmbientLight(0x303050, 0.4);
   scene.add(ambient);
@@ -991,30 +726,222 @@ vec3 cosPalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
   ground.position.y = -1.05;
   scene.add(ground);
 
-  (function tick() {
-    const t = performance.now() * 0.001;
-    sphere.rotation.y = t * 0.3;
-    renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  })();
-})();
+  return {
+    animFn: (t) => {
+      sphere.rotation.y = t * 0.3;
+    }
+  };
+}
 
 /* ═════════════════════════════════════════════
-   PILLS FILTER
+   CARD DEFINITIONS (20 cards)
+   ═════════════════════════════════════════════ */
+const cards = [
+  { type: '3d-hero', height: 280, bg: '#0a0a14', builder: buildHeroWave,
+    title: 'The next<br>shader', sub: 'CloudAI-X \u00b7 10 deterministic skill files',
+    foot: { color: '#a78bfa', name: 'CloudAI-X', likes: '\u2665 4.2k' } },
+
+  { type: 'pixel', data: { label: 'Terminal', body: '$ claude skill load<br>/ threejs-shaders<br>/ threejs-geometry<br>/ ok. 10 files, 52kb.', foot: '> ready_' } },
+
+  { type: '3d', height: 260, bg: '#0c0c1a', badge: 'interaction', builder: buildRaycaster,
+    foot: { color: '#60a5fa', name: 'Raycaster Lab', likes: '\u2665 3.1k' } },
+
+  { type: 'text', data: { h: 'Brainstorm Cards', p: 'Collaborative ideation toolkit for creative teams', tag: 'Productivity' } },
+
+  { type: '3d', height: 240, bg: '#0a0a14', badge: 'geometry', builder: buildInstanced,
+    foot: { color: '#4ade80', name: 'Instance Works', likes: '\u2665 2.7k' } },
+
+  { type: 'deck', data: { lbl: 'Pitch Deck', h: 'Sub-skills<br>compose.', author: 'CloudAI-X \u00b7 2026' } },
+
+  { type: '3d', height: 220, bg: '#0e0e18', badge: 'animation', builder: buildElastic,
+    foot: { color: '#f59e0b', name: 'Tween Studio', likes: '\u2665 1.8k' } },
+
+  { type: 'love' },
+
+  { type: '3d', height: 280, bg: '#0a0a14', badge: 'shader', builder: buildGradient,
+    foot: { color: '#c084fc', name: 'Shader Lab', likes: '\u2665 3.5k' } },
+
+  { type: 'cjk', data: { h: '3D\u8BBE\u8BA1\u8D8B\u52BF', p: 'Exploring the future of dimensional design' } },
+
+  { type: '3d', height: 260, bg: '#0a0e18', badge: 'material', builder: buildGlass,
+    foot: { color: '#67e8f9', name: 'Glass Studio', likes: '\u2665 2.9k' } },
+
+  { type: 'play', data: { h: 'quick<br>start' } },
+
+  { type: '3d-hero', height: 260, bg: '#08080f', builder: buildHeroInstancing,
+    title: '1000<br>boxes', sub: 'One geometry. One draw call.',
+    foot: { color: '#4ade80', name: 'Instancing Lab', likes: '\u2665 5.1k' } },
+
+  { type: 'robot' },
+  { type: 'tool' },
+
+  { type: 'text', data: { h: 'One file per sub-skill', p: 'CloudAI-X ships ten deterministic skill files. Each is self-contained, testable, and composable without shared state or a bundler.', tag: '10 skills' } },
+
+  { type: '3d', height: 200, bg: '#0e0e1a', badge: 'fundamentals', builder: buildLitSphere,
+    foot: { color: '#f472b6', name: 'Basics Lab', likes: '\u2665 1.2k' } },
+
+  { type: 'pixel', data: { label: 'Source', body: 'const mat = new<br>ShaderMaterial({<br>&nbsp;&nbsp;vertexShader,<br>&nbsp;&nbsp;fragmentShader,<br>&nbsp;&nbsp;uniforms: { uTime }<br>});', foot: '// zero dependencies' } },
+
+  { type: 'text', data: { h: 'Deterministic Output', p: 'No randomness, no temperature. The same prompt produces the same scene every time.', tag: 'Reliability' } },
+
+  { type: 'deck', data: { lbl: 'Architecture', h: 'One draw call.<br>1000 boxes.', author: 'InstancedMesh \u00b7 three.js r164' } },
+];
+
+/* ═════════════════════════════════════════════
+   RENDER CARDS
+   ═════════════════════════════════════════════ */
+const grid = document.getElementById('grid');
+
+cards.forEach((card, ci) => {
+  const el = document.createElement('div');
+  el.className = 'card';
+
+  switch (card.type) {
+    case '3d-hero': {
+      el.classList.add('card-clickable');
+      el.innerHTML = `
+        <div class="scene" id="scene-${ci}" style="height:${card.height}px;background:${card.bg}"></div>
+        <div class="overlay gradient" style="position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;pointer-events:none">
+          <h2>${card.title}</h2>
+          <p>${card.sub}</p>
+        </div>
+        ${footHTML(card.foot.color, card.foot.name, card.foot.likes, true)}`;
+      break;
+    }
+    case '3d': {
+      el.classList.add('card-clickable');
+      el.innerHTML = `
+        <div class="scene" id="scene-${ci}" style="height:${card.height}px;background:${card.bg}">
+          ${card.badge ? `<span class="badge-3d">${card.badge}</span>` : ''}
+        </div>
+        ${footHTML(card.foot.color, card.foot.name, card.foot.likes)}`;
+      break;
+    }
+    case 'pixel': {
+      const d = card.data;
+      el.innerHTML = `<div class="card-pixel">
+        <div class="label">${d.label}</div>
+        <div class="body">${d.body}</div>
+        <div class="foot">${d.foot}</div>
+      </div>`;
+      break;
+    }
+    case 'text': {
+      const d = card.data;
+      el.innerHTML = `<div class="card-text">
+        <h3>${d.h}</h3>
+        <p>${d.p}</p>
+        ${d.tag ? `<span class="tag">${d.tag}</span>` : ''}
+      </div>`;
+      break;
+    }
+    case 'love': {
+      el.innerHTML = `<div class="card-love">
+        <div class="hearts">\u2665\u2665\u2665</div>
+        <h3>Made with love</h3>
+        <p>Every shader tells a story. Every polygon carries intent.</p>
+      </div>`;
+      break;
+    }
+    case 'deck': {
+      const d = card.data;
+      el.innerHTML = `<div class="card-deck">
+        <div class="lbl">${d.lbl}</div>
+        <h3>${d.h}</h3>
+        <div class="author">${d.author}</div>
+      </div>`;
+      break;
+    }
+    case 'play': {
+      const d = card.data;
+      el.innerHTML = `<div class="card-play"><h2>${d.h}</h2></div>`;
+      break;
+    }
+    case 'cjk': {
+      const d = card.data;
+      el.innerHTML = `<div class="card-cjk">
+        <h3>${d.h}</h3>
+        <p>${d.p}</p>
+      </div>`;
+      break;
+    }
+    case 'tool': {
+      el.innerHTML = `<div class="card-tool">
+        <div class="icon">+</div>
+        <p>Get started</p>
+      </div>`;
+      break;
+    }
+    case 'robot': {
+      el.innerHTML = `<div class="card-happy-robot">
+        <div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div><div class="sparkle"></div>
+        <div class="robot-container">
+          <div class="robot-antenna"><div class="robot-antenna-tip"></div></div>
+          <div class="robot-ear left"></div>
+          <div class="robot-ear right"></div>
+          <div class="robot-body">
+            <div class="robot-face">
+              <div class="robot-eye"></div>
+              <div class="robot-eye"></div>
+            </div>
+          </div>
+          <div class="robot-neck"></div>
+          <div class="robot-sphere s1"></div>
+          <div class="robot-sphere s2"></div>
+        </div>
+        <p class="robot-title">CloudAI Bot</p>
+        <button class="robot-btn">Get in touch</button>
+      </div>`;
+      break;
+    }
+  }
+
+  grid.appendChild(el);
+});
+
+/* ═════════════════════════════════════════════
+   INITIALIZE 3D SCENES + ANIMATION LOOP
+   ═════════════════════════════════════════════ */
+requestAnimationFrame(() => {
+  cards.forEach((card, ci) => {
+    if (card.builder) {
+      const container = document.getElementById(`scene-${ci}`);
+      if (container) createMiniScene(container, card.height, card.bg, card.builder);
+    }
+  });
+
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+    scenes.forEach(s => {
+      const rect = s.el.getBoundingClientRect();
+      if (rect.bottom < -100 || rect.top > window.innerHeight + 100) return;
+      s.animFn(t, s.hover());
+      s.renderer.render(s.scene, s.camera);
+    });
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    scenes.forEach(s => {
+      const w = s.el.clientWidth, h = s.el.clientHeight;
+      if (s.camera.isPerspectiveCamera) {
+        s.camera.aspect = w / h;
+        s.camera.updateProjectionMatrix();
+      }
+      s.renderer.setSize(w, h);
+    });
+  });
+});
+
+/* ═════════════════════════════════════════════
+   PILLS FILTER (visual only)
    ═════════════════════════════════════════════ */
 document.querySelectorAll('.pill').forEach(pill => {
   pill.addEventListener('click', () => {
     document.querySelectorAll('.pill').forEach(p => p.classList.remove('on'));
     pill.classList.add('on');
-    const filter = pill.dataset.filter;
-    document.querySelectorAll('.card').forEach(card => {
-      if (filter === 'all') {
-        card.style.display = '';
-      } else {
-        const cat = card.dataset.cat;
-        card.style.display = (cat === filter || cat === 'all') ? '' : 'none';
-      }
-    });
   });
 });
 
