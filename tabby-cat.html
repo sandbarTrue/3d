@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabby Cat — ECS Generated — 3D Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0c0a08;color:#e8e0d0;height:100vh;overflow:hidden}
+
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(245,166,35,0.2);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(245,166,35,0.4)}
+
+  /* Nav */
+  .nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;height:52px;padding:0 24px;background:rgba(12,10,8,0.85);backdrop-filter:blur(20px) saturate(1.4);border-bottom:1px solid rgba(245,166,35,0.1)}
+  .nav-logo{font-weight:800;font-size:18px;letter-spacing:-0.5px;margin-right:32px;background:linear-gradient(135deg,#d97706,#f5a623);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .nav a{text-decoration:none;color:rgba(255,255,255,0.4);font-size:13px;font-weight:500;margin-right:20px;transition:color .2s}
+  .nav a:hover{color:rgba(255,255,255,0.8)}
+
+  /* Canvas */
+  #canvas3d{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0}
+
+  /* Info Panel */
+  .panel{position:fixed;bottom:24px;left:24px;z-index:50;background:rgba(12,10,8,0.88);backdrop-filter:blur(24px) saturate(1.3);border:1px solid rgba(245,166,35,0.15);border-radius:16px;padding:20px 24px;max-width:360px;color:#e8e0d0}
+  .panel h2{font-size:18px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .panel .subtitle{font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:12px}
+  .panel .stats{font-size:11px;color:rgba(245,166,35,0.7);font-weight:600;margin-bottom:12px;display:flex;gap:12px}
+  .panel .stats span{background:rgba(245,166,35,0.08);padding:3px 8px;border-radius:6px}
+  .panel .descriptor{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;font-size:10px;font-family:'SF Mono','Fira Code',monospace;color:rgba(255,255,255,0.5);line-height:1.6;white-space:pre}
+  .panel .descriptor .key{color:rgba(245,166,35,0.8)}
+  .panel .descriptor .val{color:rgba(255,255,255,0.6)}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-logo">3D·LAB</div>
+  <a href="discover-hybrid.html">← Back to Discover</a>
+</nav>
+
+<canvas id="canvas3d"></canvas>
+
+<div class="panel">
+  <h2>Tabby Cat — ECS Generated</h2>
+  <div class="subtitle">Prompt: 狸花猫，在奔跑</div>
+  <div class="stats">
+    <span id="statEntities">Entities: 0</span>
+    <span id="statSystems">Systems: 5</span>
+    <span id="statFps">FPS: 0</span>
+  </div>
+  <div class="descriptor">{ <span class="key">"subject"</span>: <span class="val">"tabby_cat"</span>,
+  <span class="key">"action"</span>: <span class="val">"running"</span>,
+  <span class="key">"style"</span>: <span class="val">"low_poly_cute"</span>,
+  <span class="key">"palette"</span>: <span class="val">"warm_natural"</span> }</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ═══════════════════════════════════════════════════
+// ECS WORLD
+// ═══════════════════════════════════════════════════
+class World {
+  constructor() {
+    this.entities = [];
+    this.components = new Map();
+    this.systems = [];
+    this.nextId = 0;
+  }
+  spawn() {
+    const id = this.nextId++;
+    this.entities.push(id);
+    return id;
+  }
+  set(entity, name, data) {
+    if (!this.components.has(name)) this.components.set(name, new Map());
+    this.components.get(name).set(entity, data);
+    return this;
+  }
+  get(entity, name) {
+    const store = this.components.get(name);
+    return store ? store.get(entity) : undefined;
+  }
+  query(...names) {
+    return this.entities.filter(e =>
+      names.every(n => this.components.has(n) && this.components.get(n).has(e))
+    );
+  }
+  addSys(fn) { this.systems.push(fn); }
+  step(dt, time) {
+    for (const sys of this.systems) sys(this, dt, time);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// TABBY SHADER MATERIAL
+// ═══════════════════════════════════════════════════
+function createTabbyMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uBellyBlend: { value: 1.0 }
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec2 vUv;
+      varying vec3 vWorldPos;
+      varying vec3 vWorldNormal;
+      uniform float uTime;
+
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vPosition = position;
+        vUv = uv;
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec2 vUv;
+      varying vec3 vWorldPos;
+      varying vec3 vWorldNormal;
+      uniform float uTime;
+      uniform float uBellyBlend;
+
+      // Simple 3D noise (hash-based)
+      float hash(vec3 p) {
+        p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+        p += dot(p, p.yxz + 19.19);
+        return fract((p.x + p.y) * p.z);
+      }
+
+      float noise3D(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+
+        float n000 = hash(i);
+        float n100 = hash(i + vec3(1,0,0));
+        float n010 = hash(i + vec3(0,1,0));
+        float n110 = hash(i + vec3(1,1,0));
+        float n001 = hash(i + vec3(0,0,1));
+        float n101 = hash(i + vec3(1,0,1));
+        float n011 = hash(i + vec3(0,1,1));
+        float n111 = hash(i + vec3(1,1,1));
+
+        float nx00 = mix(n000, n100, f.x);
+        float nx10 = mix(n010, n110, f.x);
+        float nx01 = mix(n001, n101, f.x);
+        float nx11 = mix(n011, n111, f.x);
+
+        float nxy0 = mix(nx00, nx10, f.y);
+        float nxy1 = mix(nx01, nx11, f.y);
+
+        return mix(nxy0, nxy1, f.z);
+      }
+
+      void main() {
+        // Base coat - warm orange-brown
+        vec3 baseCoat = vec3(0.85, 0.65, 0.35);
+
+        // Tabby stripes
+        float noiseVal = noise3D(vWorldPos * 3.0);
+        float stripe = smoothstep(0.4, 0.5, sin(vWorldPos.y * 8.0 + noiseVal * 2.0));
+        // Add secondary stripe pattern along body
+        float stripe2 = smoothstep(0.45, 0.55, sin(vWorldPos.x * 6.0 + noise3D(vWorldPos * 2.5) * 1.5));
+        stripe = max(stripe, stripe2 * 0.6);
+        vec3 stripeColor = vec3(0.25, 0.15, 0.05);
+
+        vec3 color = mix(baseCoat, stripeColor, stripe);
+
+        // Belly - lighter cream on underside
+        vec3 bellyColor = vec3(0.95, 0.88, 0.75);
+        float bellyFactor = smoothstep(-0.2, -0.8, vWorldNormal.y) * uBellyBlend;
+        color = mix(color, bellyColor, bellyFactor);
+
+        // Lighting
+        vec3 lightDir = normalize(vec3(3.0, 5.0, 2.0));
+        vec3 ambient = vec3(1.0, 0.96, 0.9) * 0.4;
+        float diff = max(dot(vNormal, lightDir), 0.0);
+        vec3 diffuse = vec3(1.0, 0.93, 0.87) * diff * 0.9;
+
+        // Fresnel rim light
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
+        vec3 rim = vec3(1.0, 0.85, 0.6) * fresnel * 0.35;
+
+        vec3 finalColor = color * (ambient + diffuse) + rim;
+
+        // Tone mapping
+        finalColor = finalColor / (finalColor + vec3(1.0));
+        finalColor = pow(finalColor, vec3(1.0 / 2.2));
+
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `
+  });
+}
+
+function createSolidMaterial(color) {
+  return new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color),
+    roughness: 0.7,
+    metalness: 0.0
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// SCENE SETUP
+// ═══════════════════════════════════════════════════
+const canvas = document.getElementById('canvas3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 15, 40);
+
+// Sky gradient via large sphere
+const skyGeo = new THREE.SphereGeometry(50, 32, 32);
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide,
+  uniforms: {},
+  vertexShader: `
+    varying vec3 vWorldPosition;
+    void main() {
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vWorldPosition = worldPos.xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec3 vWorldPosition;
+    void main() {
+      float h = normalize(vWorldPosition).y;
+      vec3 skyTop = vec3(0.4, 0.65, 1.0);
+      vec3 skyHorizon = vec3(0.85, 0.75, 0.6);
+      vec3 ground = vec3(0.2, 0.25, 0.15);
+      vec3 color = h > 0.0 ? mix(skyHorizon, skyTop, h) : mix(skyHorizon, ground, -h);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `
+});
+scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+// Camera
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(3, 2, 5);
+camera.lookAt(0, 0.5, 0);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.4);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffeedd, 0.9);
+sunLight.position.set(3, 5, 2);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(1024, 1024);
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 20;
+sunLight.shadow.camera.left = -5;
+sunLight.shadow.camera.right = 5;
+sunLight.shadow.camera.top = 5;
+sunLight.shadow.camera.bottom = -5;
+scene.add(sunLight);
+
+const hemiLight = new THREE.HemisphereLight(0x88bbff, 0x445522, 0.3);
+scene.add(hemiLight);
+
+// Ground
+const groundGeo = new THREE.PlaneGeometry(40, 40, 40, 40);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x2a3a1a,
+  roughness: 0.95,
+  metalness: 0.0
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.01;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Ground grid lines
+const gridHelper = new THREE.GridHelper(40, 80, 0x3a4a2a, 0x3a4a2a);
+gridHelper.position.y = 0.005;
+gridHelper.material.opacity = 0.15;
+gridHelper.material.transparent = true;
+scene.add(gridHelper);
+
+// ═══════════════════════════════════════════════════
+// BUILD THE CAT (ECS)
+// ═══════════════════════════════════════════════════
+const world = new World();
+const tabbyMat = createTabbyMaterial();
+const pinkMat = createSolidMaterial(0xffaaaa);
+const darkMat = createSolidMaterial(0x111111);
+const eyeGreenMat = createSolidMaterial(0x88cc44);
+const noseMat = createSolidMaterial(0xff8899);
+const pawMat = createSolidMaterial(0x3a2a15);
+
+// Shared geometries
+const sphereGeo = new THREE.SphereGeometry(1, 16, 12);
+const coneGeo = new THREE.ConeGeometry(1, 1, 8);
+const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 8);
+
+function addMeshEntity(mesh, role, extra = {}) {
+  const e = world.spawn();
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  world.set(e, 'MeshRef', mesh);
+  world.set(e, 'Role', role);
+  world.set(e, 'Transform', { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 });
+  for (const [k, v] of Object.entries(extra)) {
+    world.set(e, k, v);
+  }
+  return e;
+}
+
+// --- BODY ---
+const bodyMesh = new THREE.Mesh(sphereGeo, tabbyMat);
+bodyMesh.scale.set(0.55, 0.4, 0.35);
+const bodyEntity = addMeshEntity(bodyMesh, 'body');
+
+// --- HEAD ---
+const headMesh = new THREE.Mesh(sphereGeo, tabbyMat);
+headMesh.scale.set(0.3, 0.28, 0.28);
+const headEntity = addMeshEntity(headMesh, 'head');
+
+// --- EARS ---
+const earL = new THREE.Mesh(coneGeo, tabbyMat);
+earL.scale.set(0.08, 0.15, 0.06);
+const earLEntity = addMeshEntity(earL, 'earL');
+
+const earR = new THREE.Mesh(coneGeo, tabbyMat);
+earR.scale.set(0.08, 0.15, 0.06);
+const earREntity = addMeshEntity(earR, 'earR');
+
+// Ear inners (pink)
+const earInnerL = new THREE.Mesh(coneGeo, pinkMat);
+earInnerL.scale.set(0.05, 0.1, 0.035);
+const earInnerLEntity = addMeshEntity(earInnerL, 'earInnerL');
+
+const earInnerR = new THREE.Mesh(coneGeo, pinkMat);
+earInnerR.scale.set(0.05, 0.1, 0.035);
+const earInnerREntity = addMeshEntity(earInnerR, 'earInnerR');
+
+// --- EYES ---
+const eyeL = new THREE.Mesh(sphereGeo, eyeGreenMat);
+eyeL.scale.set(0.06, 0.07, 0.06);
+const eyeLEntity = addMeshEntity(eyeL, 'eyeL');
+
+const eyeR = new THREE.Mesh(sphereGeo, eyeGreenMat);
+eyeR.scale.set(0.06, 0.07, 0.06);
+const eyeREntity = addMeshEntity(eyeR, 'eyeR');
+
+// Pupils
+const pupilL = new THREE.Mesh(sphereGeo, darkMat);
+pupilL.scale.set(0.025, 0.06, 0.03);
+const pupilLEntity = addMeshEntity(pupilL, 'pupilL');
+
+const pupilR = new THREE.Mesh(sphereGeo, darkMat);
+pupilR.scale.set(0.025, 0.06, 0.03);
+const pupilREntity = addMeshEntity(pupilR, 'pupilR');
+
+// --- NOSE ---
+const noseMesh = new THREE.Mesh(sphereGeo, noseMat);
+noseMesh.scale.set(0.035, 0.025, 0.03);
+const noseEntity = addMeshEntity(noseMesh, 'nose');
+
+// --- LEGS (4) ---
+const legPhases = [0, Math.PI, Math.PI * 0.3, Math.PI * 1.3];
+const legNames = ['legFL', 'legFR', 'legBL', 'legBR'];
+const legEntities = [];
+
+for (let i = 0; i < 4; i++) {
+  const leg = new THREE.Mesh(cylGeo, tabbyMat);
+  leg.scale.set(0.055, 0.22, 0.055);
+  const e = addMeshEntity(leg, legNames[i], { Phase: legPhases[i], LegIndex: i });
+  legEntities.push(e);
+}
+
+// --- PAWS (4) ---
+const pawEntities = [];
+for (let i = 0; i < 4; i++) {
+  const paw = new THREE.Mesh(sphereGeo, pawMat);
+  paw.scale.set(0.06, 0.03, 0.07);
+  const e = addMeshEntity(paw, 'paw', { LegIndex: i });
+  pawEntities.push(e);
+}
+
+// --- TAIL (chain of spheres) ---
+const TAIL_SEGMENTS = 10;
+const tailEntities = [];
+for (let i = 0; i < TAIL_SEGMENTS; i++) {
+  const seg = new THREE.Mesh(sphereGeo, tabbyMat);
+  const size = 0.045 - i * 0.002;
+  seg.scale.set(size, size, size);
+  const e = addMeshEntity(seg, 'tail', { TailIndex: i });
+  tailEntities.push(e);
+}
+
+// ═══════════════════════════════════════════════════
+// ANIMATION SYSTEMS
+// ═══════════════════════════════════════════════════
+const RUN_SPEED = 8.0;
+const BASE_Y = 0.55;
+
+// System 1: RunCycle - animates legs
+function sysRunCycle(w, dt, time) {
+  const legs = w.query('MeshRef', 'Phase', 'LegIndex');
+  for (const e of legs) {
+    const mesh = w.get(e, 'MeshRef');
+    const phase = w.get(e, 'Phase');
+    const idx = w.get(e, 'LegIndex');
+    const isFront = idx < 2;
+    const isLeft = idx % 2 === 0;
+
+    const swing = Math.sin(time * RUN_SPEED + phase);
+    const maxSwing = isFront ? 0.5 : 0.7;
+    const angle = swing * maxSwing;
+
+    // Leg position relative to body
+    const xOff = isFront ? 0.3 : -0.35;
+    const zOff = isLeft ? 0.15 : -0.15;
+
+    // Leg rotation for running
+    mesh.rotation.z = angle;
+
+    // Vertical position - legs lift during swing
+    const lift = Math.max(0, Math.sin(time * RUN_SPEED + phase)) * 0.08;
+
+    mesh.position.set(
+      xOff + Math.sin(angle) * 0.1,
+      BASE_Y - 0.28 + lift,
+      zOff
+    );
+  }
+}
+
+// System 2: BodyBob
+function sysBodyBob(w, dt, time) {
+  const bodies = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'body');
+  for (const e of bodies) {
+    const mesh = w.get(e, 'MeshRef');
+    const bob = Math.sin(time * RUN_SPEED * 2) * 0.03;
+    const sway = Math.sin(time * RUN_SPEED) * 0.02;
+    mesh.position.set(0, BASE_Y + bob, 0);
+    mesh.rotation.z = sway;
+    mesh.rotation.x = 0.05; // slight forward tilt
+  }
+}
+
+// System 3: HeadBob
+function sysHeadBob(w, dt, time) {
+  const heads = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'head');
+  for (const e of heads) {
+    const mesh = w.get(e, 'MeshRef');
+    const bob = Math.sin(time * RUN_SPEED * 2 + 0.5) * 0.02;
+    mesh.position.set(0.55, BASE_Y + 0.12 + bob, 0);
+    mesh.rotation.z = Math.sin(time * RUN_SPEED) * 0.015;
+  }
+
+  // Position ears, eyes, nose relative to head
+  const headPos = new THREE.Vector3(0.55, BASE_Y + 0.12 + Math.sin(time * RUN_SPEED * 2 + 0.5) * 0.02, 0);
+
+  // Ears
+  const earLEnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'earL');
+  for (const e of earLEnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.05, headPos.y + 0.25, headPos.z + 0.1);
+    mesh.rotation.z = 0.2;
+  }
+  const earREnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'earR');
+  for (const e of earREnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.05, headPos.y + 0.25, headPos.z - 0.1);
+    mesh.rotation.z = -0.2;
+  }
+
+  // Ear inners
+  const earILEnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'earInnerL');
+  for (const e of earILEnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.06, headPos.y + 0.24, headPos.z + 0.1);
+    mesh.rotation.z = 0.2;
+  }
+  const earIREnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'earInnerR');
+  for (const e of earIREnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.06, headPos.y + 0.24, headPos.z - 0.1);
+    mesh.rotation.z = -0.2;
+  }
+
+  // Eyes
+  const eyeLEnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'eyeL');
+  for (const e of eyeLEnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.22, headPos.y + 0.06, headPos.z + 0.12);
+  }
+  const eyeREnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'eyeR');
+  for (const e of eyeREnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.22, headPos.y + 0.06, headPos.z - 0.12);
+  }
+
+  // Pupils
+  const pupLEnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'pupilL');
+  for (const e of pupLEnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.26, headPos.y + 0.06, headPos.z + 0.12);
+  }
+  const pupREnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'pupilR');
+  for (const e of pupREnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.26, headPos.y + 0.06, headPos.z - 0.12);
+  }
+
+  // Nose
+  const noseEnts = w.query('MeshRef', 'Role').filter(e => w.get(e, 'Role') === 'nose');
+  for (const e of noseEnts) {
+    const mesh = w.get(e, 'MeshRef');
+    mesh.position.set(headPos.x + 0.27, headPos.y - 0.02, headPos.z);
+  }
+}
+
+// System 4: TailWave
+function sysTailWave(w, dt, time) {
+  const segs = w.query('MeshRef', 'TailIndex');
+  const tailBase = new THREE.Vector3(-0.5, BASE_Y + 0.1, 0);
+
+  for (const e of segs) {
+    const mesh = w.get(e, 'MeshRef');
+    const i = w.get(e, 'TailIndex');
+    const t = i / TAIL_SEGMENTS;
+
+    // Progressive curve along tail
+    const angle = Math.sin(time * 3 + i * 0.5) * (0.15 + i * 0.04);
+    const upCurve = Math.sin(t * Math.PI * 0.7) * 0.4;
+
+    mesh.position.set(
+      tailBase.x - i * 0.065,
+      tailBase.y + upCurve + Math.sin(time * 3 + i * 0.6) * 0.02,
+      angle
+    );
+  }
+}
+
+// System 5: PawContact
+function sysPawContact(w, dt, time) {
+  const paws = w.query('MeshRef', 'Role', 'LegIndex').filter(e => w.get(e, 'Role') === 'paw');
+  for (const e of paws) {
+    const mesh = w.get(e, 'MeshRef');
+    const idx = w.get(e, 'LegIndex');
+    const isFront = idx < 2;
+    const isLeft = idx % 2 === 0;
+    const phase = legPhases[idx];
+
+    const swing = Math.sin(time * RUN_SPEED + phase);
+    const maxSwing = isFront ? 0.5 : 0.7;
+    const angle = swing * maxSwing;
+
+    const xOff = isFront ? 0.3 : -0.35;
+    const zOff = isLeft ? 0.15 : -0.15;
+    const lift = Math.max(0, Math.sin(time * RUN_SPEED + phase)) * 0.08;
+
+    // Paw at bottom of leg
+    mesh.position.set(
+      xOff + Math.sin(angle) * 0.2,
+      BASE_Y - 0.48 + lift * 0.5,
+      zOff
+    );
+
+    // Stretch paw on ground contact
+    const contact = Math.max(0, -Math.sin(time * RUN_SPEED + phase));
+    mesh.scale.set(0.06 + contact * 0.015, 0.03, 0.07 + contact * 0.01);
+  }
+}
+
+// Register systems
+world.addSys(sysRunCycle);
+world.addSys(sysBodyBob);
+world.addSys(sysHeadBob);
+world.addSys(sysTailWave);
+world.addSys(sysPawContact);
+
+// ═══════════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════════
+let lastTime = performance.now();
+let frameCount = 0;
+let fps = 60;
+let fpsTimer = 0;
+
+// Update stats display
+document.getElementById('statEntities').textContent = `Entities: ${world.entities.length}`;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+  const time = now / 1000;
+
+  // FPS counter
+  frameCount++;
+  fpsTimer += dt;
+  if (fpsTimer >= 0.5) {
+    fps = Math.round(frameCount / fpsTimer);
+    frameCount = 0;
+    fpsTimer = 0;
+    document.getElementById('statFps').textContent = `FPS: ${fps}`;
+  }
+
+  // Update shader time
+  tabbyMat.uniforms.uTime.value = time;
+
+  // Step ECS
+  world.step(dt, time);
+
+  // Camera orbit
+  const camRadius = 4.5;
+  const camSpeed = 0.15;
+  camera.position.x = Math.cos(time * camSpeed) * camRadius;
+  camera.position.z = Math.sin(time * camSpeed) * camRadius;
+  camera.position.y = 2.0 + Math.sin(time * 0.1) * 0.3;
+  camera.lookAt(0, 0.4, 0);
+
+  renderer.render(scene, camera);
+}
+
+// Handle resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate(performance.now());
+</script>
+</body>
+</html>
